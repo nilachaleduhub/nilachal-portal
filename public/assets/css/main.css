@@ -1,0 +1,129 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f4f8fc;
+    color: #0a1931;
+  }
+  
+  /* Navbar */
+  .navbar {
+    background-color: #0a1931;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .site-name {
+    font-size: 1.8rem;
+    font-weight: bold;
+  }
+  
+  .site-name span {
+    color: #00bfff;
+  }
+  
+  .nav-links a {
+    color: white;
+    margin-left: 1rem;
+    text-decoration: none;
+    font-weight: bold;
+    padding: 0.5rem 1rem;
+    border: 2px solid #00bfff;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+  
+  .nav-links a:hover {
+    background-color: #00bfff;
+    color: white;
+  }
+  
+  /* Container */
+  .container {
+    max-width: 1200px;
+    margin: 3rem auto;
+    padding: 0 1rem;
+    text-align: center;
+  }
+  
+  /* Grid Layout */
+  .exam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    align-items: stretch;
+    justify-content: center;
+  }
+  
+  /* Exam Card */
+  .exam-card {
+    background-color: white;
+    padding: 1.5rem 1rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-height: 100px;
+    max-width: 100%; /* ✅ Add this line */
+  }
+  
+  
+  .exam-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .exam-card h3 {
+    color: #0a1931;
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .exam-card p {
+    color: #444;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+    min-height: 48px; /* To ensure all cards have consistent space */
+    word-break: break-word;
+  }
+  
+  
+  /* Click Here Button */
+  .exam-card a {
+    display: inline-block;
+    text-decoration: none;
+    background-color: #00bfff;
+    color: white;
+    padding: 0.6rem 1rem;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+  }
+  
+  .exam-card a:hover {
+    background-color: #0095cc;
+  }
+  /* Search Box */
+.search-box {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: none;
+  outline: none;
+  width: 200px;
+}
+  

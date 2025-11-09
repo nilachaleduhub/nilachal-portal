@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Course Details | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="courses.html" class="nav-btn">← Back to Buy Course</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <!-- Detail Content -->
+  <div class="containernew detail-wrapper">
+    <div id="detail-card" class="detail-card" style="display:none;">
+      <h1 id="detail-title">Loading...</h1>
+      <p id="detail-subtitle" class="detail-subtitle" style="display:none;"></p>
+
+      <div id="detail-meta" class="detail-meta"></div>
+
+      <p id="detail-description" class="detail-description" style="display:none;"></p>
+
+      <section id="detail-course-details-section" class="detail-section" style="display:none;">
+        <h2>Course Details</h2>
+        <ul id="detail-list" class="detail-list"></ul>
+      </section>
+
+      <section id="detail-courses-section" class="detail-section" style="display:none;">
+        <h2>Included Courses</h2>
+        <div id="detail-courses" class="detail-courses-grid"></div>
+      </section>
+
+      <button id="detail-buy-btn" class="detail-buy-btn">Buy Now</button>
+    </div>
+
+    <p id="detail-empty" class="detail-empty" style="display:none;"></p>
+  </div>
+
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const type = params.get('type');
+      const entityId = params.get('id');
+      const initialCategoryId = params.get('categoryId');
+
+      const detailCard = document.getElementById('detail-card');
+      const emptyEl = document.getElementById('detail-empty');
+      const titleEl = document.getElementById('detail-title');
+      const subtitleEl = document.getElementById('detail-subtitle');
+      const metaEl = document.getElementById('detail-meta');
+      const descriptionEl = document.getElementById('detail-description');
+      const detailsSection = document.getElementById('detail-course-details-section');
+      const detailsListEl = document.getElementById('detail-list');
+      const coursesSection = document.getElementById('detail-courses-section');
+      const coursesGrid = document.getElementById('detail-courses');
+      const buyBtn = document.getElementById('detail-buy-btn');
+
+      const loginBtn = document.getElementById('login-btn');
+      const storedUser = localStorage.getItem('user');
+      if (storedUser && loginBtn) {
+        loginBtn.style.display = 'none';
+      }
+
+      const getEntityId = (entity) => {
+        if (!entity) return null;
+        return entity.id || entity._id || null;
+      };
+
+      const showError = (message) => {
+        if (detailCard) detailCard.style.display = 'none';
+        if (emptyEl) {
+          emptyEl.textContent = message;
+          emptyEl.style.display = 'block';
+        }
+      };
+
+      const showCard = () => {
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (detailCard) detailCard.style.display = 'block';
+      };
+
+      const normaliseDetailLines = (input) => {
+        if (!input) return [];
+        if (Array.isArray(input)) {
+          return input
+            .map(item => String(item || '').trim())
+            .filter(Boolean);
+        }
+        return String(input)
+          .replace(/[•·]/g, '\n')
+          .split(/\r?\n/)
+          .map(line => line.replace(/^[\s\-\*•·]+/, '').trim())
+          .filter(Boolean);
+      };
+
+      const createDetailPill = (label, value) => {
+        const pill = document.createElement('span');
+        pill.className = 'card-detail';
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'card-detail-label';
+        labelSpan.textContent = label;
+
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'card-detail-value';
+        valueSpan.textContent = String(value);
+
+        pill.appendChild(labelSpan);
+        pill.appendChild(document.createTextNode(': '));
+        pill.appendChild(valueSpan);
+        return pill;
+      };
+
+      const buildMeta = (items = []) => {
+        if (!metaEl) return;
+        metaEl.innerHTML = '';
+        items.forEach(item => {
+          if (!item || item.value === undefined || item.value === null || String(item.value).trim() === '') return;
+          metaEl.appendChild(createDetailPill(item.label, item.value));
+        });
+      };
+
+      const fetchJson = async (url) => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Request failed');
+          return await res.json();
+        } catch (err) {
+          console.warn('Request error for', url, err);
+          return null;
+        }
+      };
+
+      let categoriesCache = null;
+      const fetchCategories = async () => {
+        if (categoriesCache) return categoriesCache;
+        const data = await fetchJson('/api/admin/categories');
+        if (data && data.success && Array.isArray(data.categories)) {
+          categoriesCache = data.categories;
+          return categoriesCache;
+        }
+        categoriesCache = [];
+        return categoriesCache;
+      };
+
+      let examsCache = null;
+      const fetchExams = async () => {
+        if (examsCache) return examsCache;
+        const data = await fetchJson('/api/exams');
+        if (data && data.success && Array.isArray(data.exams)) {
+          examsCache = data.exams;
+          return examsCache;
+        }
+        examsCache = [];
+        return examsCache;
+      };
+
+      const coursesCache = new Map();
+      const fetchCourses = async (categoryId) => {
+        if (!categoryId) return [];
+        if (coursesCache.has(categoryId)) return coursesCache.get(categoryId);
+        const encoded = encodeURIComponent(categoryId);
+        const data = await fetchJson(`/api/admin/courses/${encoded}`);
+        if (data && data.success && Array.isArray(data.courses)) {
+          coursesCache.set(categoryId, data.courses);
+          return data.courses;
+        }
+        coursesCache.set(categoryId, []);
+        return [];
+      };
+
+      const renderCourses = (courses = [], activeCourseId, derivedCategoryId) => {
+        if (!coursesGrid || !coursesSection) return;
+        if (!courses || courses.length === 0) {
+          coursesSection.style.display = 'none';
+          coursesGrid.innerHTML = '';
+          return;
+        }
+
+        coursesSection.style.display = 'block';
+        coursesGrid.innerHTML = '';
+
+        courses.forEach(course => {
+          const courseId = getEntityId(course);
+          if (activeCourseId && courseId === activeCourseId) return;
+
+          const link = document.createElement('a');
+          link.className = 'detail-course-chip';
+
+          const params = new URLSearchParams();
+          params.set('type', 'course');
+          if (courseId) params.set('id', courseId);
+          const categoryId = course.categoryId || derivedCategoryId;
+          if (categoryId) params.set('categoryId', categoryId);
+          link.href = `buy-course-details.html?${params.toString()}`;
+
+          const nameEl = document.createElement('strong');
+          nameEl.textContent = course.name || 'Course';
+          link.appendChild(nameEl);
+
+          if (course.courseCost) {
+            const priceEl = document.createElement('span');
+            priceEl.textContent = `Price: ${course.courseCost}`;
+            link.appendChild(priceEl);
+          }
+
+          if (course.courseValidity) {
+            const validityEl = document.createElement('span');
+            validityEl.textContent = `Validity: ${course.courseValidity}`;
+            link.appendChild(validityEl);
+          }
+
+          coursesGrid.appendChild(link);
+        });
+
+        if (!coursesGrid.childElementCount) {
+          coursesSection.style.display = 'none';
+        }
+      };
+
+      const renderDetail = ({ item, metaItems, detailLines, description, relatedCourses, categoryName, derivedCategoryId, currentCourseId }) => {
+        showCard();
+
+        titleEl.textContent = item.name || 'Course Details';
+
+        if (categoryName) {
+          subtitleEl.textContent = categoryName;
+          subtitleEl.style.display = 'block';
+        } else if (type === 'category') {
+          subtitleEl.textContent = 'Category Overview';
+          subtitleEl.style.display = 'block';
+        } else {
+          subtitleEl.style.display = 'none';
+        }
+
+        buildMeta(metaItems);
+
+        if (description) {
+          descriptionEl.textContent = description;
+          descriptionEl.style.display = 'block';
+        } else {
+          descriptionEl.style.display = 'none';
+        }
+
+        if (detailLines.length > 0) {
+          detailsSection.style.display = 'block';
+          detailsListEl.innerHTML = '';
+          detailLines.forEach(line => {
+            const li = document.createElement('li');
+            li.textContent = line;
+            detailsListEl.appendChild(li);
+          });
+        } else {
+          detailsSection.style.display = 'none';
+        }
+
+        renderCourses(relatedCourses, currentCourseId, derivedCategoryId);
+
+        buyBtn.onclick = async () => {
+          // Check if user is logged in
+          const storedUser = localStorage.getItem('user');
+          if (!storedUser) {
+            try {
+              const payload = {
+                type,
+                id: getEntityId(item),
+                categoryId: derivedCategoryId || null,
+                name: item.name || '',
+                price: item.courseCost || null,
+                validity: item.courseValidity || null,
+                timestamp: Date.now()
+              };
+              localStorage.setItem('selectedProduct', JSON.stringify(payload));
+            } catch (err) {
+              console.warn('Unable to persist selected product:', err);
+            }
+            window.location.href = 'login-register.html';
+            return;
+          }
+
+          // User is logged in, proceed with payment
+          let user = null;
+          try {
+            user = JSON.parse(storedUser);
+          } catch (err) {
+            console.error('Error parsing user data:', err);
+            alert('Please login again');
+            window.location.href = 'login-register.html';
+            return;
+          }
+
+          if (!user || !user.id) {
+            alert('Please login to continue');
+            window.location.href = 'login-register.html';
+            return;
+          }
+
+          // Get price from item
+          const priceStr = item.courseCost || '0';
+          // Extract numeric value from price string (e.g., "₹500" -> 500)
+          const priceMatch = priceStr.match(/[\d.]+/);
+          const amount = priceMatch ? parseFloat(priceMatch[0]) : 0;
+
+          if (amount <= 0) {
+            alert('Invalid price. Please contact support.');
+            return;
+          }
+
+          // Disable button during payment process
+          buyBtn.disabled = true;
+          buyBtn.textContent = 'Processing...';
+
+          try {
+            // Create Razorpay order
+            const orderResponse = await fetch('/api/payment/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount: amount,
+                currency: 'INR',
+                userId: user.id || user._id || user.email,
+                purchaseType: type,
+                purchaseId: getEntityId(item),
+                purchaseName: item.name || '',
+                categoryId: derivedCategoryId || null
+              })
+            });
+
+            const orderData = await orderResponse.json();
+
+            if (!orderData.success) {
+              throw new Error(orderData.message || 'Failed to create order');
+            }
+
+            // Get Razorpay key
+            const keyResponse = await fetch('/api/payment/key');
+            const keyData = await keyResponse.json();
+
+            if (!keyData.success) {
+              throw new Error('Razorpay not configured');
+            }
+
+            // Initialize Razorpay checkout
+            const options = {
+              key: keyData.keyId,
+              amount: orderData.amount,
+              currency: orderData.currency,
+              order_id: orderData.orderId,
+              name: 'Nilachal Eduhub',
+              description: `Purchase: ${item.name || 'Course/Test'}`,
+              prefill: {
+                name: user.name || '',
+                email: user.email || '',
+                contact: user.phone || ''
+              },
+              theme: {
+                color: '#00bfff'
+              },
+              handler: async function (response) {
+                try {
+                  // Verify payment
+                  const verifyResponse = await fetch('/api/payment/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      razorpay_order_id: response.razorpay_order_id,
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_signature: response.razorpay_signature,
+                      userId: user.id || user._id || user.email
+                    })
+                  });
+
+                  const verifyData = await verifyResponse.json();
+
+                  if (verifyData.success) {
+                    // Save purchase to localStorage for dashboard
+                    try {
+                      const purchaseData = {
+                        type: type, // Preserve the actual purchase type (course, test, category, exam)
+                        purchaseType: type, // Also store as purchaseType for consistency
+                        id: getEntityId(item),
+                        categoryId: derivedCategoryId || null,
+                        name: item.name || '',
+                        description: item.description || '',
+                        examName: item.examName || '',
+                        courseValidity: item.courseValidity || null,
+                        userId: user.id || user._id || user.email,
+                        purchasedAt: new Date().toISOString()
+                      };
+
+                      let userPurchases = null;
+                      try {
+                        userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                      } catch (e) {
+                        userPurchases = {};
+                      }
+
+                      const userId = user.id || user._id || user.email;
+                      if (!userPurchases[userId]) {
+                        userPurchases[userId] = { courses: [], tests: [] };
+                      }
+
+                      // Handle different purchase types
+                      if (type === 'course') {
+                        userPurchases[userId].courses.push(purchaseData);
+                      } else if (type === 'test') {
+                        userPurchases[userId].tests.push(purchaseData);
+                      } else if (type === 'category' || type === 'exam') {
+                        // Categories and exams are stored in courses array but with their type preserved
+                        userPurchases[userId].courses.push(purchaseData);
+                      }
+
+                      localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
+                    } catch (e) {
+                      console.warn('Error saving purchase to localStorage:', e);
+                    }
+
+                    alert('Payment successful! Redirecting to dashboard...');
+                    window.location.href = 'dashboard.html';
+                  } else {
+                    alert('Payment verification failed: ' + (verifyData.message || 'Unknown error'));
+                    buyBtn.disabled = false;
+                    buyBtn.textContent = 'Buy Now';
+                  }
+                } catch (err) {
+                  console.error('Error verifying payment:', err);
+                  alert('Error verifying payment. Please contact support.');
+                  buyBtn.disabled = false;
+                  buyBtn.textContent = 'Buy Now';
+                }
+              },
+              modal: {
+                ondismiss: function() {
+                  buyBtn.disabled = false;
+                  buyBtn.textContent = 'Buy Now';
+                }
+              }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+          } catch (err) {
+            console.error('Payment error:', err);
+            alert('Error initiating payment: ' + (err.message || 'Unknown error'));
+            buyBtn.disabled = false;
+            buyBtn.textContent = 'Buy Now';
+          }
+        };
+      };
+
+      const loadDetails = async () => {
+        if (!type || !entityId) {
+          showError('Missing or invalid detail request.');
+          return;
+        }
+
+        try {
+          let item = null;
+          let relatedCourses = [];
+          let categoryName = '';
+          let derivedCategoryId = initialCategoryId || null;
+          let currentCourseId = null;
+
+          if (type === 'category') {
+            const categories = await fetchCategories();
+            item = categories.find(cat => getEntityId(cat) === entityId);
+            if (item) {
+              derivedCategoryId = getEntityId(item);
+              relatedCourses = await fetchCourses(derivedCategoryId);
+            }
+          } else if (type === 'exam') {
+            const exams = await fetchExams();
+            item = exams.find(exam => getEntityId(exam) === entityId);
+            if (item) {
+              derivedCategoryId = item.categoryId || derivedCategoryId;
+              if (derivedCategoryId) {
+                const categories = await fetchCategories();
+                const category = categories.find(cat => getEntityId(cat) === derivedCategoryId);
+                categoryName = category ? category.name || '' : '';
+                relatedCourses = await fetchCourses(derivedCategoryId);
+              }
+            }
+          } else if (type === 'course') {
+            currentCourseId = entityId;
+            const categoryIdToUse = derivedCategoryId;
+            if (categoryIdToUse) {
+              const courses = await fetchCourses(categoryIdToUse);
+              item = courses.find(course => getEntityId(course) === entityId);
+              relatedCourses = courses;
+              const categories = await fetchCategories();
+              const category = categories.find(cat => getEntityId(cat) === categoryIdToUse);
+              categoryName = category ? category.name || '' : '';
+            }
+          } else {
+            showError('Unsupported detail type.');
+            return;
+          }
+
+          if (!item) {
+            showError('No details found for this selection.');
+            return;
+          }
+
+          const metaItems = [];
+          if (item.courseCost) metaItems.push({ label: 'Price', value: item.courseCost });
+          if (item.courseValidity) metaItems.push({ label: 'Validity', value: item.courseValidity });
+          if ((type === 'exam' || type === 'course') && categoryName) {
+            metaItems.push({ label: 'Category', value: categoryName });
+          }
+
+          const description = item.description || '';
+          const detailLines = normaliseDetailLines(item.courseDetails || item.details || '');
+
+          renderDetail({
+            item,
+            metaItems,
+            detailLines,
+            description,
+            relatedCourses,
+            categoryName,
+            derivedCategoryId,
+            currentCourseId
+          });
+        } catch (err) {
+          console.error('Error loading detail:', err);
+          showError('Unable to load details right now. Please try again later.');
+        }
+      };
+
+      loadDetails();
+    })();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lessons | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+  <style>
+    .lesson-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    .lesson-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .lesson-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 12px;
+    }
+    .lesson-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .lesson-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: inline-block;
+      border: none;
+      cursor: pointer;
+      font-size: inherit;
+      font-family: inherit;
+    }
+    .lesson-btn.video {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+    .lesson-btn.pdf {
+      background: linear-gradient(135deg, #f56565, #e53e3e);
+      color: white;
+    }
+    .lesson-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .lesson-btn:focus {
+      outline: 2px solid #00bfff;
+      outline-offset: 2px;
+    }
+    .lesson-info {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-top: 8px;
+    }
+    /* Subject pills */
+    #subjects-nav { gap: 10px; }
+    .subject-btn {
+      border: none;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s ease;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) inset;
+    }
+    .subject-btn:hover { background: #e2e8f0; transform: translateY(-1px); }
+    .subject-btn.active { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; box-shadow: 0 6px 20px rgba(99,102,241,.35); }
+    
+    /* Video Modal Styles */
+    .video-modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(5px);
+    }
+    
+    .video-modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .video-modal-content {
+      position: relative;
+      width: 90%;
+      max-width: 1200px;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    
+    .video-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+    }
+    
+    .video-modal-title {
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0;
+    }
+    
+    .video-modal-close {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+    
+    .video-modal-close:hover {
+      background: #333;
+      transform: rotate(90deg);
+    }
+    
+    .video-modal-player {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      position: relative;
+    }
+    
+    .video-modal-player video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    
+    /* Force controls to be visible */
+    .video-modal-player video::-webkit-media-controls {
+      display: flex !important;
+      opacity: 1 !important;
+    }
+    
+    .video-modal-player video::-webkit-media-controls-panel {
+      display: flex !important;
+      background-color: rgba(0, 0, 0, 0.8) !important;
+      opacity: 1 !important;
+    }
+    
+    .video-modal-player video::-webkit-media-controls-enclosure {
+      background-color: rgba(0, 0, 0, 0.8) !important;
+    }
+    
+    /* Play/Pause button styling */
+    .video-modal-player video::-webkit-media-controls-play-button,
+    .video-modal-player video::-webkit-media-controls-pause-button {
+      display: inline-block !important;
+      background-color: rgba(255, 255, 255, 0.9) !important;
+      border-radius: 50% !important;
+      opacity: 1 !important;
+      width: 48px !important;
+      height: 48px !important;
+    }
+    
+    /* Volume controls */
+    .video-modal-player video::-webkit-media-controls-mute-button,
+    .video-modal-player video::-webkit-media-controls-volume-slider-container,
+    .video-modal-player video::-webkit-media-controls-volume-slider {
+      display: inline-block !important;
+      opacity: 1 !important;
+    }
+    
+    /* Timeline/Progress bar */
+    .video-modal-player video::-webkit-media-controls-timeline {
+      display: inline-block !important;
+      background-color: rgba(255, 255, 255, 0.3) !important;
+      opacity: 1 !important;
+    }
+    
+    /* Time displays */
+    .video-modal-player video::-webkit-media-controls-current-time-display,
+    .video-modal-player video::-webkit-media-controls-time-remaining-display {
+      display: inline-block !important;
+      color: #fff !important;
+      font-size: 14px !important;
+      opacity: 1 !important;
+    }
+    
+    /* Fullscreen button */
+    .video-modal-player video::-webkit-media-controls-fullscreen-button {
+      display: inline-block !important;
+      opacity: 1 !important;
+    }
+    
+    /* Ensure controls are always visible on hover and when video is playing */
+    .video-modal-player video:hover::-webkit-media-controls-panel,
+    .video-modal-player video:focus::-webkit-media-controls-panel {
+      opacity: 1 !important;
+      display: flex !important;
+    }
+    
+    /* For Firefox and other browsers */
+    .video-modal-player video::-moz-media-controls {
+      display: block !important;
+    }
+    
+    /* Ensure controls bar is visible */
+    .video-modal-player video::--webkit-media-controls {
+      display: flex !important;
+    }
+    
+    .video-modal-description {
+      padding: 1rem 1.5rem;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="courses.html" class="nav-btn">← Back to Categories</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <div class="containernew">
+    <h1 id="lessons-title">Lessons</h1>
+    <div id="subjects-nav" style="margin:14px 0; display:flex; flex-wrap:wrap; gap:10px;"></div>
+    <div class="exam-grid" id="lessons-container">
+      <!-- Lessons will be loaded here -->
+    </div>
+  </div>
+
+  <!-- Video Modal -->
+  <div id="video-modal" class="video-modal">
+    <div class="video-modal-content">
+      <div class="video-modal-header">
+        <h3 class="video-modal-title" id="video-modal-title">Video Player</h3>
+        <button class="video-modal-close" id="video-modal-close">&times;</button>
+      </div>
+      <div class="video-modal-player">
+        <video id="video-player" controls controlsList="nodownload" preload="metadata" style="width: 100%; height: 100%;">
+          <source id="video-source" src="" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+      <div class="video-modal-description" id="video-modal-description"></div>
+    </div>
+  </div>
+
+  <script>
+    // Get course ID from URL
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+    
+    // Helper to render subject buttons and filter
+    function renderSubjects(subjectNames, onSelect, active) {
+      const nav = document.getElementById('subjects-nav');
+      if (!nav) return;
+      nav.innerHTML = '';
+      const makeBtn = (label, value) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.className = 'subject-btn';
+        btn.dataset.value = value;
+        if (active === value) btn.classList.add('active');
+        btn.addEventListener('click', () => onSelect(value));
+        return btn;
+      };
+      nav.appendChild(makeBtn('All', ''));
+      subjectNames.forEach(name => nav.appendChild(makeBtn(name, name)));
+    }
+
+    function renderLessons(list) {
+      const container = document.getElementById('lessons-container');
+      if (!list || list.length === 0) {
+        container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b;">No lessons available for this course yet.</p>';
+        return;
+      }
+      container.innerHTML = '';
+      list.forEach(lesson => {
+        const card = document.createElement('div');
+        card.className = 'lesson-card';
+        // Fix thumbnail to show completely without cropping
+        const thumb = lesson.thumbnailPath ? `<img src="${lesson.thumbnailPath}" alt="thumb" style="width:100%; height:auto; max-height:200px; object-fit:contain; border-radius:10px; margin-bottom:10px; background:#f8f9fa; display:block;">` : '';
+        card.innerHTML = `
+          ${thumb}
+          <div class="lesson-title">${lesson.title || 'Lesson'}</div>
+          <div class="lesson-info">
+            ${lesson.subjectName ? `Subject: ${lesson.subjectName} | ` : ''}
+            ${lesson.videoFileName ? '📹 Video Available' : 'No video'}
+            ${lesson.pdfFileName ? ' | 📄 PDF Available' : ''}
+          </div>
+          <div class="lesson-actions">
+            ${lesson.videoPath ? `<button class="lesson-btn video" data-video-path="${lesson.videoPath}" data-video-title="${lesson.title || 'Lesson'}" data-video-desc="${lesson.videoDescription || ''}">Watch Video</button>` : ''}
+            ${lesson.pdfPath ? `<a href="${lesson.pdfPath}" target="_blank" class="lesson-btn pdf">Download PDF</a>` : ''}
+          </div>
+        `;
+        
+        // Add click handler for video button
+        const videoBtn = card.querySelector('.lesson-btn.video');
+        if (videoBtn) {
+          videoBtn.addEventListener('click', () => {
+            openVideoModal(videoBtn.dataset.videoPath, videoBtn.dataset.videoTitle, videoBtn.dataset.videoDesc);
+          });
+        }
+        
+        container.appendChild(card);
+      });
+    }
+
+    // Video Modal Functions
+    function openVideoModal(videoPath, title, description) {
+      const modal = document.getElementById('video-modal');
+      const videoPlayer = document.getElementById('video-player');
+      const videoSource = document.getElementById('video-source');
+      const modalTitle = document.getElementById('video-modal-title');
+      const modalDesc = document.getElementById('video-modal-description');
+      
+      modalTitle.textContent = title || 'Video Player';
+      modalDesc.textContent = description || '';
+      modalDesc.style.display = description ? 'block' : 'none';
+      
+      // Set video source
+      videoSource.src = videoPath;
+      videoPlayer.load();
+      
+      // Show modal
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      
+      // Force controls to be visible
+      setTimeout(() => {
+        videoPlayer.setAttribute('controls', 'true');
+        videoPlayer.controls = true;
+        // Try to show controls by triggering a user interaction
+        videoPlayer.style.pointerEvents = 'auto';
+      }, 100);
+      
+      // Auto-play video when modal opens (optional - can be removed if not desired)
+      // videoPlayer.play().catch(err => console.log('Auto-play prevented:', err));
+    }
+
+    function closeVideoModal() {
+      const modal = document.getElementById('video-modal');
+      const videoPlayer = document.getElementById('video-player');
+      
+      videoPlayer.pause();
+      videoPlayer.src = '';
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Close modal handlers
+    document.addEventListener('DOMContentLoaded', () => {
+      const modal = document.getElementById('video-modal');
+      const closeBtn = document.getElementById('video-modal-close');
+      
+      if (closeBtn) {
+        closeBtn.addEventListener('click', closeVideoModal);
+      }
+      
+      // Close on background click
+      if (modal) {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            closeVideoModal();
+          }
+        });
+      }
+      
+      // Close on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+          closeVideoModal();
+        }
+      });
+    });
+
+    // Check if course purchase is expired
+    function calculateExpiryDate(validityStr, purchaseDateStr) {
+      if (!validityStr || !purchaseDateStr) return null;
+      
+      try {
+        const purchaseDate = new Date(purchaseDateStr);
+        if (isNaN(purchaseDate.getTime())) return null;
+        
+        const validity = validityStr.toLowerCase().trim();
+        const daysMatch = validity.match(/(\d+)\s*days?/);
+        const monthsMatch = validity.match(/(\d+)\s*months?/);
+        const yearsMatch = validity.match(/(\d+)\s*years?/);
+        
+        const expiryDate = new Date(purchaseDate);
+        
+        if (daysMatch) {
+          const days = parseInt(daysMatch[1], 10);
+          expiryDate.setDate(expiryDate.getDate() + days);
+        } else if (monthsMatch) {
+          const months = parseInt(monthsMatch[1], 10);
+          expiryDate.setMonth(expiryDate.getMonth() + months);
+        } else if (yearsMatch) {
+          const years = parseInt(yearsMatch[1], 10);
+          expiryDate.setFullYear(expiryDate.getFullYear() + years);
+        } else {
+          return null;
+        }
+        
+        return expiryDate;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function isCourseExpired(courseId, categoryId) {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return false;
+        
+        const user = JSON.parse(userStr);
+        const userId = user.id || user._id || user.email;
+        if (!userId) return false;
+        
+        const userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+        const userPurchaseData = userPurchases[userId];
+        if (!userPurchaseData) return false;
+        
+        const allPurchases = [...(userPurchaseData.courses || []), ...(userPurchaseData.tests || [])];
+        const coursePurchase = allPurchases.find(p => {
+          const purchaseId = p.id || p.courseId || p.testId;
+          return purchaseId === courseId || (p.categoryId === categoryId && p.type === 'course');
+        });
+        
+        if (!coursePurchase) return false;
+        
+        if (!coursePurchase.courseValidity || !coursePurchase.purchasedAt) return false;
+        
+        const expiryDate = calculateExpiryDate(coursePurchase.courseValidity, coursePurchase.purchasedAt);
+        if (!expiryDate) return false;
+        
+        return expiryDate < new Date();
+      } catch (err) {
+        console.warn('Error checking course expiry:', err);
+        return false;
+      }
+    }
+
+    // Load Lessons for the selected course
+    async function loadLessons() {
+      const courseId = getQueryParam('courseId');
+      const categoryId = getQueryParam('catId');
+      
+      if (!courseId) {
+        document.getElementById('lessons-container').innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #e53e3e;">Course ID missing in URL.</p>';
+        return;
+      }
+      
+      // Check if course is expired
+      if (isCourseExpired(courseId, categoryId)) {
+        const container = document.getElementById('lessons-container');
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: #fee2e2; border-radius: 12px; border-left: 4px solid #ef4444;">
+            <h3 style="color: #dc2626; margin-bottom: 10px;">⚠️ Course Access Expired</h3>
+            <p style="color: #991b1b; margin-bottom: 20px;">Your access to this course has expired. Please renew your subscription to continue accessing the course content.</p>
+            <a href="courses.html" style="display: inline-block; background: #00bfff; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Browse Courses</a>
+          </div>
+        `;
+        return;
+      }
+      
+      try {
+        // Load course and category names
+        if (categoryId) {
+          const catRes = await fetch('/api/admin/course-categories');
+          const catData = await catRes.json();
+          if (catData.success) {
+            const category = catData.categories.find(c => c.id === categoryId);
+            if (category) {
+              const courseRes = await fetch(`/api/admin/courses/${categoryId}`);
+              const courseData = await courseRes.json();
+              if (courseData.success) {
+                const course = courseData.courses.find(c => c.id === courseId);
+                if (course) {
+                  document.getElementById('lessons-title').textContent = category.name + ' - ' + course.name + ' - Lessons';
+                }
+              }
+            }
+          }
+        }
+        
+        // Load lessons
+        const res = await fetch(`/api/admin/lessons/${courseId}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.lessons) && data.lessons.length > 0) {
+          // Aggregate subject names from subjectName and subjects[]
+          const set = new Set();
+          data.lessons.forEach(l => {
+            if (l.subjectName) set.add(l.subjectName);
+            if (Array.isArray(l.subjects)) {
+              l.subjects.forEach(s => { if (s && s.name) set.add(s.name); });
+            }
+          });
+          const subjects = Array.from(set);
+
+          // Render subjects navigation (All + each subject)
+          renderSubjects(subjects, (selected) => {
+            const filtered = selected ? data.lessons.filter(l => l.subjectName === selected) : data.lessons;
+            renderLessons(filtered);
+            // update active state
+            const nav = document.getElementById('subjects-nav');
+            nav.querySelectorAll('button').forEach(b => {
+              b.classList.toggle('active', b.dataset.value === (selected || ''));
+            });
+          }, '');
+
+          // Default render: All
+          renderLessons(data.lessons);
+        } else {
+          renderLessons([]);
+        }
+      } catch (err) {
+        console.error('Error loading lessons:', err);
+        const container = document.getElementById('lessons-container');
+        container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #e53e3e;">Error loading lessons. Please try again later.</p>';
+      }
+    }
+    
+    loadLessons();
+    
+    // Check if user is logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
+
+

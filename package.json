@@ -1,0 +1,21 @@
+{
+  "name": "kp-web-2",
+  "version": "1.0.0",
+  "description": "KP WEB 2 - simple server for login/register",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^2.2.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "git": "^0.1.5",
+    "mongoose": "^8.19.1",
+    "multer": "^1.4.5-lts.1",
+    "razorpay": "^2.9.2"
+  }
+}

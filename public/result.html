@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Result | MockTest Master</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: radial-gradient(1200px 800px at 20% -10%, #e8f0ff 0%, transparent 60%),
+                        radial-gradient(900px 600px at 120% 10%, #ffe8f0 0%, transparent 50%),
+                        #f3f6fb; 
+            color:#0b1320; 
+            display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 32px 16px;
+        }
+        .result-container { max-width: 1200px; width: 100%; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 16px 48px rgba(10,20,40,0.10); }
+        h1 { color: #0f172a; margin-bottom: 6px; font-weight: 800; letter-spacing: .2px; }
+        .subtle { color:#64748b; margin: 0 0 18px 0; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; margin-top: 18px; }
+        .kpi-card { background: linear-gradient(180deg,#f8fafc,#eef2f7); border:1px solid #e2e8f0; border-radius: 12px; padding: 18px; box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
+        .kpi-title { font-size: 0.92rem; color:#334155; margin:0 0 6px 0; font-weight:700; }
+        .kpi-value { font-size: 1.6rem; font-weight: 800; color:#0f172a; }
+        .score-wrap { display:flex; align-items:center; gap: 18px; margin-top: 10px; }
+        .score-circle { width: 150px; height: 150px; border-radius: 50%; background: conic-gradient(#10b981 var(--pct,0%), #e2e8f0 0); color: #0f172a; display: flex; flex-direction: column; justify-content: center; align-items: center; margin: 8px 0; border: 6px solid #ffffff; box-shadow: 0 12px 30px rgba(16,185,129,0.25); }
+        .score-circle .score { font-size: 2.3rem; font-weight: 900; }
+        .score-circle .total { font-size: 0.9rem; color:#334155; }
+        .meta-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 12px; }
+        .stat-box { background: #ffffff; border:1px solid #e2e8f0; padding: 14px; border-radius: 10px; box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+        .stat-box h4 { margin: 0 0 8px 0; color: #334155; font-size: 0.9rem; font-weight:800; }
+        .stat-box .value { font-size: 1.15rem; font-weight: 700; }
+        .section-card { margin-top: 24px; background: #fff; border:1px solid #e2e8f0; border-radius: 14px; padding: 18px; box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
+        .section-card h3 { margin: 0 0 10px 0; color:#0f172a; font-weight: 800; }
+        .section-table { width:100%; border-collapse: separate; border-spacing: 0; border:1px solid #e2e8f0; border-radius: 12px; overflow:hidden; }
+        .section-table th, .section-table td { padding: 12px 10px; text-align:left; }
+        .section-table th { background: linear-gradient(180deg,#f8fafc,#eef2f7); color:#334155; font-weight:800; }
+        .section-table tbody tr { background:#fff; }
+        .section-table tbody tr:nth-child(even) { background:#fafbff; }
+        .actions { margin-top: 24px; display: flex; justify-content: center; gap: 16px; }
+        .btn { background:linear-gradient(90deg,#3366ff,#6c5ce7); color:white; border:none; padding:12px 24px; border-radius:10px; font-weight:800; cursor:pointer; text-decoration:none; box-shadow: 0 10px 24px rgba(59,130,246,0.25); }
+        .btn:hover { filter:brightness(1.05); transform: translateY(-1px); }
+        .btn-outline { background:white; border:2px solid #e2e8f0; color:#334155; padding:10px 20px; border-radius:10px; font-weight:700; }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+            <div>
+                <h1>Test Submitted Successfully!</h1>
+                <p class="subtle">Here is your performance summary.</p>
+            </div>
+            <button id="print-pdf-btn" class="btn btn-outline" style="margin:0;">Print to PDF</button>
+        </div>
+
+        <div class="score-wrap">
+            <div class="score-circle" id="score-circle">
+                <div class="score" id="final-score">--</div>
+                <div class="total" id="total-marks">out of --</div>
+            </div>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Attempted</div>
+                    <div class="kpi-value" id="total-attempted">--</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Correct</div>
+                    <div class="kpi-value" id="total-correct">--</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Score</div>
+                    <div class="kpi-value" id="total-score">--</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Time Taken</div>
+                    <div class="kpi-value" id="time-taken">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="meta-grid">
+            <div class="stat-box">
+                <h4>Rank</h4>
+                <div class="value" id="rank">--</div>
+            </div>
+            <div class="stat-box">
+                <h4>Percentile</h4>
+                <div class="value" id="percentile">--</div>
+            </div>
+        </div>
+
+        <div class="section-card" id="section-summary" style="display:none;">
+            <h3>Section-wise Summary</h3>
+            <table class="section-table">
+                <thead>
+                    <tr>
+                        <th>Section</th>
+                        <th>Attempted</th>
+                        <th>Correct</th>
+                        <th>Score</th>
+                        <th>Time Taken</th>
+                    </tr>
+                </thead>
+                <tbody id="section-tbody"></tbody>
+            </table>
+        </div>
+
+        <div class="section-card" id="section-chart-card" style="display:none;">
+            <h3>Section-wise Performance</h3>
+            <div id="section-chart-legend" style="font-size:0.9rem; color:#334155; margin-bottom:8px; display:flex; gap:12px; align-items:center;">
+                <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;background:#10b981;border-radius:3px;display:inline-block;"></span> Correct</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;background:#94a3b8;border-radius:3px;display:inline-block;"></span> Attempted</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;background:#60a5fa;border-radius:3px;display:inline-block;"></span> Score</span>
+            </div>
+            <svg id="section-chart" viewBox="0 0 800 0" preserveAspectRatio="none" style="width:100%;height:auto;"></svg>
+        </div>
+
+        <div class="actions">
+            <a href="index.html" class="btn btn-outline">Back to Home</a>
+        </div>
+
+        <div id="answers-section" style="margin-top:40px; text-align:left;">
+            <h2 style="color:#134e8b;">Answer Explanations</h2>
+            <div id="answers-list"></div>
+        </div>
+
+
+    <style>
+    @media print {
+        @page { size: A4 portrait; margin: 15mm; }
+        body { background: white !important; }
+        .result-container { box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+        #print-pdf-btn, .actions, .btn, .btn-outline { display: none !important; }
+        
+        /* Add beautiful website header for print */
+        .result-container::before {
+            content: "📘 Nilachal Eduhub";
+            display: block;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 800;
+            color: #134e8b;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        /* Typography for print */
+        h1, h2, h3, h4 { color: #0b1320 !important; }
+        .score-circle { border: 3px solid #e2e8f0 !important; }
+        .kpi-card, .stat-box, .section-card { border: 1px solid #e2e8f0 !important; }
+        #answers-list > div { background: white !important; border: 1px solid #e5e7eb; margin-bottom: 16px; padding: 12px; }
+        
+        /* Ensure charts and tables print well */
+        svg { max-width: 100% !important; height: auto !important; }
+        .section-table { border-collapse: collapse !important; }
+        .section-table th, .section-table td { border: 1px solid #e2e8f0 !important; }
+    }
+    #answers-list > div { margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; }
+    #answers-list .question-title { font-weight:600; color:#134e8b; }
+    #answers-list .explanation { margin-top:6px; }
+    </style>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // First, check if we have query parameters (from dashboard link)
+        const urlParams = new URLSearchParams(window.location.search);
+        const resultId = urlParams.get('resultId');
+        const testId = urlParams.get('testId');
+        
+        let result = null;
+        let test = null;
+        let answers = null;
+        
+        // If resultId is provided, load from server
+        if (resultId) {
+            try {
+                const resultRes = await fetch(`/api/result/${resultId}`);
+                const resultData = await resultRes.json();
+                if (resultData.success && resultData.result) {
+                    result = resultData.result;
+                    
+                    // Load test data from server
+                    const testRes = await fetch(`/api/tests/${result.testId}`);
+                    const testData = await testRes.json();
+                    if (testData.success && testData.test) {
+                        test = testData.test;
+                        answers = {
+                            answers: result.userAnswers || [],
+                            savedAnswers: result.userAnswers || [],
+                            timeTaken: result.timeTaken || 0
+                        };
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading result from server:', err);
+                document.querySelector('.result-container').innerHTML = '<h1>Error Loading Result</h1><p>Could not load test result from server. Please try again later.</p><div class="actions"><a href="dashboard.html" class="btn">Back to Dashboard</a></div>';
+                return;
+            }
+        } else {
+            // Fallback to localStorage (for immediate results after test submission)
+            const localResult = localStorage.getItem('testResult');
+            if (localResult) {
+                result = JSON.parse(localResult);
+            }
+        }
+        
+        if (!result) {
+            document.querySelector('.result-container').innerHTML = '<h1>No result found.</h1><p>Please complete a test to see your results.</p><div class="actions"><a href="dashboard.html" class="btn">Back to Dashboard</a></div>';
+            return;
+        }
+        
+        // If we loaded from server, we need to calculate stats from test and answers
+        if (test && answers && !result.score) {
+            const posMark = parseFloat(test.positiveMark || test.marksPerQuestion || 1);
+            const negMark = parseFloat(test.negativeMark || test.negativeMarks || 0);
+            let attempted = 0, correct = 0, incorrect = 0, score = 0;
+            
+            for (let i = 0; i < test.questions.length; i++) {
+                const q = test.questions[i];
+                const userAns = answers.answers[i];
+                const correctIndex = (q.correctAnswer !== undefined && q.correctAnswer !== null) ? q.correctAnswer
+                  : (q.answer !== undefined && q.answer !== null) ? q.answer
+                  : (q.correct !== undefined && q.correct !== null) ? q.correct
+                  : null;
+                
+                if (userAns !== undefined && userAns !== null) {
+                    attempted++;
+                    if (correctIndex !== null && userAns === correctIndex) {
+                        correct++;
+                        score += posMark;
+                    } else {
+                        incorrect++;
+                        score -= negMark;
+                    }
+                }
+            }
+            
+            result.score = score;
+            result.correct = correct;
+            result.incorrect = incorrect;
+            result.unattempted = test.questions.length - attempted;
+            result.totalMarks = test.questions.length * posMark;
+        }
+        // Display stored result values, but validate and recalc if necessary
+        let displayScore = result.score;
+        let displayTotal = result.totalMarks;
+        let displayCorrect = result.correct;
+        let displayIncorrect = result.incorrect;
+        let displayUnattempted = result.unattempted;
+        let displayTime = result.timeTaken;
+
+        // Try to recompute counts if any value is missing or NaN
+        try {
+            const raw = localStorage.getItem('mockTestAnswers');
+            if (raw) {
+                const payload = JSON.parse(raw) || {};
+                const answers = payload.answers || [];
+                const saved = payload.savedAnswers || result.savedAnswers || [];
+                const preview = JSON.parse(localStorage.getItem('previewTest') || '{}');
+                const questions = preview.questions || [];
+                const posMark = parseFloat(preview.positiveMark || preview.marksPerQuestion || 1);
+                const negMark = parseFloat(preview.negativeMark || preview.negativeMarks || 0);
+
+                // Recalculate only if counts are missing or look inconsistent
+                const needRecalc = [displayScore, displayCorrect, displayIncorrect, displayUnattempted].some(v => v === undefined || v === null || isNaN(v));
+                if (needRecalc && questions.length > 0) {
+                    let attempted = 0, correct = 0, incorrect = 0, score = 0;
+                    for (let i = 0; i < questions.length; i++) {
+                        const q = questions[i];
+                        const ans = answers[i];
+                        const correctIndex = (q.correctAnswer !== undefined && q.correctAnswer !== null) ? q.correctAnswer
+                          : (q.answer !== undefined && q.answer !== null) ? q.answer
+                          : (q.correct !== undefined && q.correct !== null) ? q.correct
+                          : null;
+                        const consideredSaved = (saved.length > 0) ? !!saved[i] : (ans !== undefined && ans !== null);
+                        if (consideredSaved) {
+                            attempted++;
+                            if (correctIndex !== null && ans === correctIndex) {
+                                correct++;
+                                score += posMark;
+                            } else {
+                                incorrect++;
+                                score -= negMark;
+                            }
+                        }
+                    }
+                    displayScore = score;
+                    displayCorrect = correct;
+                    displayIncorrect = incorrect;
+                    displayUnattempted = questions.length - attempted;
+                    displayTotal = questions.length * posMark;
+                }
+            }
+        } catch (e) { /* ignore recalculation errors */ }
+
+        document.getElementById('final-score').textContent = displayScore;
+        document.getElementById('total-marks').textContent = `out of ${displayTotal}`;
+        document.getElementById('total-attempted').textContent = (displayCorrect + displayIncorrect);
+        document.getElementById('total-correct').textContent = displayCorrect;
+        document.getElementById('total-score').textContent = displayScore;
+        document.getElementById('time-taken').textContent = displayTime;
+        // animate radial score circle fill percentage
+        try {
+            const pct = Math.max(0, Math.min(100, (displayScore / displayTotal) * 100));
+            document.getElementById('score-circle').style.setProperty('--pct', pct + '%');
+        } catch (e) {}
+
+        // POST result to server (if not already posted)
+        try {
+            const postRes = await fetch('/api/results', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(result)
+            });
+            // ignore response, just proceed
+        } catch (e) { /* ignore */ }
+
+        // Fetch all results for this test to compute rank/percentile
+        let rank = '--', percentile = '--', totalParticipants = 0;
+        try {
+            const res = await fetch(`/api/results/${result.testId}`);
+            const data = await res.json();
+            if (data && data.success && Array.isArray(data.results)) {
+                // Parse all scores as numbers
+                const scores = data.results.map(r => {
+                    const score = parseFloat(r.score);
+                    return isNaN(score) ? 0 : score;
+                });
+                totalParticipants = scores.length;
+                
+                // Get user's score
+                const userScore = parseFloat(result.score);
+                if (isNaN(userScore)) {
+                    console.warn('User score is not a valid number:', result.score);
+                }
+                
+                if (totalParticipants > 0) {
+                    // Sort descending to find rank
+                    const sorted = [...scores].sort((a, b) => b - a);
+                    
+                    // Find rank: count how many scores are better (higher) than user's score
+                    // Rank is 1-based, so if 0 scores are better, rank is 1
+                    const betterScores = scores.filter(s => s > userScore).length;
+                    const myRank = betterScores + 1;
+                    
+                    // Display rank in format "1/out of 20"
+                    rank = `${myRank}/out of ${totalParticipants}`;
+                    
+                    // Percentile calculation:
+                    // Percentile = ((Total participants - Rank) / Total participants) * 100
+                    // This gives: rank 1 = 100%, rank 2 = 50% (if 2 participants), etc.
+                    // Alternative: Percentile = (Number of scores below or equal / Total) * 100
+                    // We'll use the standard formula: ((N - R + 1) / N) * 100
+                    // Where N = total participants, R = rank
+                    const percentileValue = ((totalParticipants - myRank + 1) / totalParticipants) * 100;
+                    percentile = percentileValue.toFixed(2);
+                    
+                    // Debug logging
+                    console.log('Rank calculation:', {
+                        userScore,
+                        totalParticipants,
+                        betterScores,
+                        myRank,
+                        percentile: percentileValue
+                    });
+                }
+            }
+        } catch (e) { 
+            console.error('Error calculating rank/percentile:', e);
+        }
+        document.getElementById('rank').textContent = rank;
+        document.getElementById('percentile').textContent = percentile !== '--' ? percentile + '%' : '--';
+
+        // Review Answers button removed by request
+
+        // Section-wise summary (if sections exist)
+        try {
+            let preview = test; // Use server-loaded test if available
+            if (!preview) {
+                const localPreview = localStorage.getItem('previewTest');
+                if (localPreview) preview = JSON.parse(localPreview);
+            }
+            
+            let payload = answers; // Use server-loaded answers if available
+            if (!payload) {
+                const localPayload = localStorage.getItem('mockTestAnswers');
+                if (localPayload) payload = JSON.parse(localPayload);
+            }
+            
+            const userAnswers = payload && payload.answers ? payload.answers : [];
+            const saved = payload && payload.savedAnswers ? payload.savedAnswers : [];
+            const sections = preview && Array.isArray(preview.sections) ? preview.sections : [];
+            const sectionalTiming = preview && !!preview.sectionalTiming;
+            if (sections.length > 0 && preview && Array.isArray(preview.questions)) {
+                const tbody = document.getElementById('section-tbody');
+                const box = document.getElementById('section-summary');
+                const pos = parseFloat(preview.positiveMark || 1);
+                const neg = parseFloat(preview.negativeMark || 0);
+                tbody.innerHTML = '';
+                let cursor = 0;
+                const secNames = [], secAttempted = [], secCorrect = [], secScores = [], secTotals = [];
+                for (let si = 0; si < sections.length; si++) {
+                    const s = sections[si];
+                    const n = parseInt(s.numQuestions || 0);
+                    let attempted = 0, correct = 0, score = 0;
+                    for (let i = 0; i < n; i++) {
+                        const qi = cursor + i;
+                        const q = preview.questions[qi];
+                        const ans = userAnswers[qi];
+                        const isSaved = saved && saved.length > qi ? saved[qi] : (ans !== undefined && ans !== null);
+                        if (isSaved && (ans !== undefined && ans !== null)) {
+                            attempted++;
+                            let correctIndex = null;
+                            if (q) {
+                                if (q.correctAnswer !== undefined && q.correctAnswer !== null) correctIndex = q.correctAnswer;
+                                else if (q.answer !== undefined && q.answer !== null) correctIndex = q.answer;
+                                else if (q.correct !== undefined && q.correct !== null) correctIndex = q.correct;
+                                if (correctIndex !== null && ans === correctIndex) {
+                                    correct++;
+                                    score += pos;
+                                } else {
+                                    score -= neg;
+                                }
+                            }
+                        }
+                    }
+                    // section time: show measured if available (payload.sectionTimeTaken), else fallback
+                    let secTime = '—';
+                    if (payload && Array.isArray(payload.sectionTimeTaken) && typeof payload.sectionTimeTaken[si] === 'number') {
+                        const spent = payload.sectionTimeTaken[si];
+                        const m = Math.floor(spent / 60); const se = spent % 60;
+                        secTime = `${m}:${String(se).padStart(2,'0')}`;
+                    } else if (sectionalTiming && s.timeLimit) {
+                        secTime = `${s.timeLimit} mins`;
+                    }
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${s.name || ('Section ' + (si+1))}</td>
+                        <td>${attempted}/${n}</td>
+                        <td>${correct}</td>
+                        <td>${score}</td>
+                        <td>${secTime}</td>
+                    `;
+                    tbody.appendChild(tr);
+                    secNames.push(s.name || ('Section ' + (si+1)));
+                    secAttempted.push(attempted);
+                    secCorrect.push(correct);
+                    secScores.push(score);
+                    secTotals.push(n);
+                    cursor += n;
+                }
+                box.style.display = '';
+
+                // Render lightweight SVG vertical bar chart (grouped bars per section)
+                try {
+                    const svg = document.getElementById('section-chart');
+                    const card = document.getElementById('section-chart-card');
+                    const width = 800; // viewBox width
+                    const height = 300; // viewBox height
+                    const paddingL = 60; // space for labels
+                    const paddingR = 20;
+                    const paddingT = 20;
+                    const paddingB = 60; // space for x-axis labels
+                    const chartWidth = width - paddingL - paddingR;
+                    const chartHeight = height - paddingT - paddingB;
+                    
+                    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                    
+                    // Scale by max values
+                    const maxCount = Math.max(1, ...secTotals);
+                    const maxScore = Math.max(1, ...secScores.map(v => Math.abs(v)));
+                    const maxValue = Math.max(maxCount, maxScore);
+                    
+                    const barGroupWidth = chartWidth / secNames.length;
+                    const barWidth = barGroupWidth * 0.12; // width of each individual bar (reduced from 0.2)
+                    const barSpacing = barGroupWidth * 0.08; // spacing between bars in a group (reduced from 0.1)
+                    
+                    let content = '';
+                    
+                    // Y-axis grid lines and labels
+                    for (let i = 0; i <= 5; i++) {
+                        const value = (maxValue / 5) * i;
+                        const y = paddingT + chartHeight - (i / 5) * chartHeight;
+                        content += `<line x1="${paddingL}" y1="${y}" x2="${width - paddingR}" y2="${y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="2,2" />`;
+                        content += `<text x="${paddingL - 8}" y="${y + 4}" font-size="10" fill="#64748b" text-anchor="end">${Math.round(value)}</text>`;
+                    }
+                    
+                    // Bars for each section
+                    for (let i = 0; i < secNames.length; i++) {
+                        const groupX = paddingL + (i * barGroupWidth) + (barGroupWidth / 2);
+                        const baseX = groupX - (barWidth * 1.5) - barSpacing;
+                        
+                        // Correct bar (green)
+                        const correctHeight = (secCorrect[i] / maxValue) * chartHeight;
+                        const correctY = paddingT + chartHeight - correctHeight;
+                        content += `<rect x="${baseX}" y="${correctY}" width="${barWidth}" height="${correctHeight}" fill="#10b981" rx="2" />`;
+                        
+                        // Attempted bar (gray)
+                        const attemptedHeight = (secAttempted[i] / maxValue) * chartHeight;
+                        const attemptedY = paddingT + chartHeight - attemptedHeight;
+                        content += `<rect x="${baseX + barWidth + barSpacing}" y="${attemptedY}" width="${barWidth}" height="${attemptedHeight}" fill="#94a3b8" rx="2" />`;
+                        
+                        // Score bar (blue)
+                        const scoreHeight = (Math.max(0, secScores[i]) / maxValue) * chartHeight;
+                        const scoreY = paddingT + chartHeight - scoreHeight;
+                        content += `<rect x="${baseX + (barWidth + barSpacing) * 2}" y="${scoreY}" width="${barWidth}" height="${scoreHeight}" fill="#60a5fa" rx="2" />`;
+                        
+                        // Section label
+                        content += `<text x="${groupX}" y="${height - paddingB + 15}" font-size="11" fill="#334155" text-anchor="middle">${secNames[i]}</text>`;
+                        
+                        // Value labels on bars
+                        if (secCorrect[i] > 0) {
+                            content += `<text x="${baseX + barWidth/2}" y="${correctY - 4}" font-size="9" fill="#0f172a" text-anchor="middle">${secCorrect[i]}</text>`;
+                        }
+                        if (secAttempted[i] > 0) {
+                            content += `<text x="${baseX + barWidth + barSpacing + barWidth/2}" y="${attemptedY - 4}" font-size="9" fill="#0f172a" text-anchor="middle">${secAttempted[i]}</text>`;
+                        }
+                        if (secScores[i] > 0) {
+                            content += `<text x="${baseX + (barWidth + barSpacing) * 2 + barWidth/2}" y="${scoreY - 4}" font-size="9" fill="#0f172a" text-anchor="middle">${secScores[i]}</text>`;
+                        }
+                    }
+                    
+                    // Y-axis label
+                    content += `<text x="15" y="${height/2}" font-size="12" fill="#334155" text-anchor="middle" transform="rotate(-90, 15, ${height/2})">Count / Score</text>`;
+                    
+                    svg.innerHTML = content;
+                    card.style.display = '';
+                } catch (e) { /* ignore chart errors */ }
+            }
+        } catch (e) { /* ignore */ }
+
+        // Render answer explanations
+        try {
+            let testData = test; // Use server-loaded test if available
+            let answerData = answers; // Use server-loaded answers if available
+            
+            // Fallback to localStorage if server data not available
+            if (!testData) {
+                const localTestData = localStorage.getItem('previewTest');
+                if (localTestData) testData = JSON.parse(localTestData);
+            }
+            if (!answerData) {
+                const localAnswerData = localStorage.getItem('mockTestAnswers');
+                if (localAnswerData) {
+                    answerData = JSON.parse(localAnswerData);
+                    if (answerData.answers) answerData = { answers: answerData.answers };
+                }
+            }
+            
+            if (testData && answerData && testData.questions) {
+                const testQuestions = testData.questions;
+                const userAnswers = answerData.answers || [];
+                const answersList = document.getElementById('answers-list');
+                answersList.innerHTML = '';
+                for (let i = 0; i < testQuestions.length; i++) {
+                    const q = testQuestions[i];
+                    const userAns = userAnswers[i];
+                    // Robust correct answer detection
+                    let correctAns = undefined;
+                    if (q.answer !== undefined && q.answer !== null) correctAns = q.answer;
+                    else if (q.correct !== undefined && q.correct !== null) correctAns = q.correct;
+                    else if (q.correctAnswer !== undefined && q.correctAnswer !== null) correctAns = q.correctAnswer;
+                    const explanation = q.explanation || 'No explanation provided.';
+                    // Escape HTML and preserve line breaks for question text
+                    const escapedQuestion = String(q.question || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\n/g, '<br>');
+                    // Escape HTML for options
+                    const escapedUserOption = userAns !== undefined && userAns !== null && q.options && q.options[userAns] 
+                        ? String(q.options[userAns] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        : '';
+                    const escapedCorrectOption = correctAns !== undefined && q.options && q.options[correctAns]
+                        ? String(q.options[correctAns] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        : '';
+                    // Escape HTML for explanation
+                    const escapedExplanation = String(explanation)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\n/g, '<br>');
+                    // Build image HTML if available
+                    let imageHTML = '';
+                    if (q.imageData && q.imageData.trim() !== '') {
+                        imageHTML = `<img src="${q.imageData}" alt="Question image" style="max-width: 100%; height: auto; margin: 12px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
+                    }
+                    
+                    const qDiv = document.createElement('div');
+                    qDiv.innerHTML = `
+                        <div class="question-title">Q${i+1}. ${escapedQuestion}</div>
+                        ${imageHTML}
+                        <div style="margin:6px 0 2px 0;"><b>Your Answer:</b> ${userAns !== undefined && userAns !== null ? String.fromCharCode(65 + userAns) + '. ' + escapedUserOption : "<span style=\"color:#64748b\">Not Attempted</span>"}</div>
+                        <div><b>Correct Answer:</b> ${correctAns !== undefined && q.options && q.options[correctAns] !== undefined ? String.fromCharCode(65 + correctAns) + '. ' + escapedCorrectOption : '?'}</div>
+                        <div class="explanation"><b>Explanation:</b> <span style="color:#0b1320;">${escapedExplanation}</span></div>
+                    `;
+                    answersList.appendChild(qDiv);
+                }
+            }
+        } catch (e) { console.error('Error rendering answers:', e); }
+
+        // Print to PDF handler
+        const printBtn = document.getElementById('print-pdf-btn');
+        if (printBtn) {
+            printBtn.addEventListener('click', () => {
+                window.print();
+            });
+        }
+    });
+    </script>
+</body>
+</html>

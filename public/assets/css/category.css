@@ -1,0 +1,433 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f4f8fc;
+    color: #0a1931;
+  }
+.card {
+  background-color: white;
+  padding: 1.5rem 1rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  height: 100%;
+}
+
+
+.card.card-clickable {
+  cursor: pointer;
+}
+
+.card.card-clickable:focus {
+  outline: 2px solid #00bfff;
+  outline-offset: 4px;
+}
+
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 24px rgba(0, 123, 255, 0.18);
+}
+  
+  .card h3 {
+    color: #0a1931;
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+  }
+.card-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(0, 191, 255, 0.16);
+  color: #0a1931;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.card-detail-label {
+  font-weight: 600;
+}
+
+.card-detail-value {
+  font-weight: 500;
+}
+  .card p {
+    color: #444;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+    /* To ensure all cards have consistent space */
+    word-break: break-word;
+    
+    
+  }
+  
+.card a {
+  text-decoration: none;
+  background-color: #00bfff;
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 5px;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.card a:hover {
+  background-color: #0095cc;
+}
+.card .buy-btn {
+  background-color: #00bfff;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-top: auto;
+}
+
+.card .buy-btn:hover {
+  background-color: #0095cc;
+}
+
+.card .buy-btn.disabled,
+.card .buy-btn:disabled {
+  background-color: #cbd5f5;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.card .buy-btn.disabled:hover,
+.card .buy-btn:disabled:hover {
+  background-color: #cbd5f5;
+}
+  .exam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    align-items: stretch;
+    justify-content: center;
+  }
+.containernew {
+  max-width: 1100px;
+  margin: 3rem auto;
+  padding: 0 1.5rem 4rem;
+}
+
+.buy-hero {
+  background: linear-gradient(135deg, rgba(0, 191, 255, 0.12), rgba(10, 25, 49, 0.08));
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  text-align: left;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  margin-bottom: 3rem;
+}
+
+.buy-hero h1 {
+  font-size: 2.4rem;
+  color: #0a1931;
+  margin-bottom: 0.75rem;
+}
+
+.buy-tagline {
+  color: #334155;
+  font-size: 1.05rem;
+  max-width: 540px;
+}
+
+.buy-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.buy-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.5rem;
+  border-radius: 50px;
+  background: #0a1931;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 12px 24px rgba(10, 25, 49, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.buy-action-btn:hover {
+  background: #00bfff;
+  transform: translateY(-2px);
+  box-shadow: 0 18px 28px rgba(0, 191, 255, 0.24);
+}
+
+.buy-section {
+  margin: 2.5rem 0;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 22px 45px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(4px);
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.section-header h2 {
+  font-size: 2rem;
+  color: #0a1931;
+}
+
+.section-header p {
+  color: #475569;
+  max-width: 640px;
+}
+
+.buy-section h2 {
+  margin-bottom: 1.2rem;
+  font-size: 1.8rem;
+  color: #0a1931;
+}
+
+.buy-subsection {
+  margin-bottom: 2.5rem;
+  background: rgba(241, 248, 255, 0.6);
+  border-radius: 14px;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.buy-subsection h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #0a1931;
+}
+
+.buy-subsection .exam-grid {
+  margin-top: 1rem;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+}
+
+.detail-wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.detail-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 22px 45px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.detail-subtitle {
+  color: #64748b;
+  margin-top: 0.35rem;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.detail-meta .card-detail {
+  margin-bottom: 0;
+}
+
+.detail-description {
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  white-space: pre-wrap;
+}
+
+.detail-section {
+  margin-top: 1.75rem;
+}
+
+.detail-section h2 {
+  font-size: 1.45rem;
+  color: #0a1931;
+  margin-bottom: 0.85rem;
+}
+
+.detail-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.detail-list li + li {
+  margin-top: 0.5rem;
+}
+
+.detail-courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.detail-course-chip {
+  background: rgba(240, 249, 255, 0.9);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  color: #0a1931;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.detail-course-chip:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+}
+
+.detail-course-chip strong {
+  font-size: 1rem;
+  color: #0a1931;
+}
+
+.detail-course-chip span {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.detail-buy-btn {
+  margin-top: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.9rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0a1931, #1f3d73);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.detail-buy-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 28px rgba(15, 23, 42, 0.18);
+  background: linear-gradient(135deg, #00bfff, #0095cc);
+}
+
+.detail-empty {
+  text-align: center;
+  color: #64748b;
+  padding: 2rem;
+}
+
+.login-notice {
+  background: rgba(250, 250, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  color: #0f172a;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.login-notice strong {
+  font-size: 1rem;
+}
+
+.login-notice .login-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.1rem;
+  background: #0a1931;
+  color: #fff;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.login-notice .login-link:hover {
+  background: #00bfff;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .detail-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .detail-buy-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .buy-hero {
+    padding: 2rem 1.5rem;
+  }
+
+  .buy-hero h1 {
+    font-size: 2rem;
+  }
+
+  .buy-section {
+    padding: 2rem 1.5rem;
+  }
+
+  .buy-subsection {
+    padding: 1.25rem;
+  }
+
+  .buy-actions {
+    gap: 0.5rem;
+  }
+  .buy-action-btn {
+    width: 100%;
+  }
+}

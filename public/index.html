@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MockTest Master</title>
+  <link rel="stylesheet" href="main.css" />
+</head>
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    
+    <nav class="nav-links nav-buttons">
+      <!-- Navigation buttons removed - moved to vertical nav -->
+    </nav>
+
+    <div class="search-login">
+      <input type="text" class="search-box" placeholder="Search tests...">
+    </div>
+  </header>
+
+  <!-- Vertical Navigation Bar -->
+  <nav class="vertical-nav">
+    <div class="nav-header">
+      <h3>Quick Access</h3>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item">
+        <a href="index.html" class="nav-link">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-text">Home</span>
+        </a>
+      </li>
+      <li class="nav-item" id="login-nav-item">
+        <a href="login-register.html" class="nav-link" id="login-nav-link">
+          <span class="nav-icon">👤</span>
+          <span class="nav-text">Login / Register</span>
+        </a>
+      </li>
+      <li class="nav-item" id="dashboard-nav-item" style="display: none;">
+        <a href="dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="courses.html" class="nav-link">
+          <span class="nav-icon">🛒</span>
+          <span class="nav-text">Buy Course</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="free-tests.html" class="nav-link">
+          <span class="nav-icon">🆓</span>
+          <span class="nav-text">Free Tests</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="test-series.html" class="nav-link">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-text">Mock Tests</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="exam-description.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Exam Pattern and Syllabus</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Hero Section -->
+    <section class="hero">
+      <h1>Welcome to <span>Nilachal Eduhub</span></h1>
+      <p>Practice. Perform. Progress.</p>
+    </section>
+
+    <!-- Ad Section -->
+    <section id="ads-section" class="ads-section">
+      <div id="ads-container" class="ads-container">
+        <!-- Ads will be loaded here -->
+      </div>
+    </section>
+
+    <!-- Recommended Section -->
+    <section class="recommended-section">
+      <div class="recommended-header">
+        <div class="recommended-badge">⭐ Recommended</div>
+        <h2>Popular Tests & Courses</h2>
+        <p>Discover our most popular test series and courses to boost your preparation</p>
+      </div>
+      
+      <div class="recommended-container">
+        <div class="recommended-tabs">
+          <button class="tab-btn active" data-tab="tests">Mock Tests</button>
+          <button class="tab-btn" data-tab="courses">Courses</button>
+        </div>
+        
+        <div class="recommended-content">
+          <div id="recommended-tests" class="tab-content active">
+            <div class="recommended-grid" id="recommended-tests-grid">
+              <div class="loading-placeholder">Loading recommended tests...</div>
+            </div>
+          </div>
+          
+          <div id="recommended-courses" class="tab-content">
+            <div class="recommended-grid" id="recommended-courses-grid">
+              <div class="loading-placeholder">Loading recommended courses...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/recommended.js"></script>
+  <script>
+    // Check if user is logged in and hide login button, show dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginNavItem = document.getElementById('login-nav-item');
+      const dashboardNavItem = document.getElementById('dashboard-nav-item');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        // User is already logged in, hide the login button and show dashboard
+        loginNavItem.style.display = 'none';
+        dashboardNavItem.style.display = 'list-item';
+      } else {
+        // User is not logged in, hide dashboard and show login
+        loginNavItem.style.display = 'list-item';
+        dashboardNavItem.style.display = 'none';
+      }
+
+      // Load and display ads
+      async function loadHomepageAds() {
+        const adsContainer = document.getElementById('ads-container');
+        const adsSection = document.getElementById('ads-section');
+        if (!adsContainer || !adsSection) return;
+
+        try {
+          const res = await fetch('/api/admin/ads');
+          const data = await res.json();
+          if (data.success && Array.isArray(data.ads) && data.ads.length > 0) {
+            // Sort by position
+            const sortedAds = data.ads.sort((a, b) => a.position - b.position);
+            adsContainer.innerHTML = '';
+            
+            sortedAds.forEach(ad => {
+              if (ad.posterPath && ad.isActive) {
+                const adImg = document.createElement('img');
+                adImg.src = ad.posterPath;
+                adImg.alt = `Ad Position ${ad.position}`;
+                adImg.className = 'ad-poster';
+                adsContainer.appendChild(adImg);
+              }
+            });
+
+            // Show section only if there are active ads with posters
+            if (adsContainer.children.length > 0) {
+              adsSection.style.display = 'block';
+            } else {
+              adsSection.style.display = 'none';
+            }
+          } else {
+            adsSection.style.display = 'none';
+          }
+        } catch (err) {
+          console.error('Error loading ads:', err);
+          adsSection.style.display = 'none';
+        }
+      }
+
+      loadHomepageAds();
+    });
+  </script>
+
+</body>
+</html>

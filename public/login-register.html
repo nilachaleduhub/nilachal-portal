@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login / Register | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+  <style>
+    .auth-container {
+      max-width: 400px;
+      margin: 3rem auto;
+      padding: 2rem;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+    
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .auth-form input {
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+    
+    .auth-form button {
+      padding: 0.8rem;
+      background-color: #00bfff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .auth-form button:hover {
+      background-color: #0095cc;
+    }
+    
+    .toggle-form {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    
+    .toggle-form a {
+      color: #00bfff;
+      text-decoration: none;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .auth-message {
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    
+    .auth-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .auth-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+
+    <div class="search-login">
+      <input type="text" class="search-box" placeholder="Search tests...">
+    </div>
+  </header>
+
+  <!-- Auth Container -->
+  <div class="auth-container">
+    <!-- Login Form -->
+    <form id="loginForm" class="auth-form">
+      <h2>Login</h2>
+      <input id="loginEmail" type="email" placeholder="Email" required>
+      <input id="loginPassword" type="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <div class="toggle-form">
+        <a href="#" onclick="toggleForm()">Don't have an account? Register</a>
+      </div>
+    </form>
+
+    <!-- Register Form -->
+    <form id="registerForm" class="auth-form hidden">
+      <h2>Register</h2>
+      <input id="regName" type="text" placeholder="Full Name" required>
+      <input id="regEmail" type="email" placeholder="Email" required>
+      <input id="regPhone" type="tel" placeholder="Phone Number" pattern="[0-9]{10}" required>
+      <input id="regPassword" type="password" placeholder="Password" required>
+      <input id="regConfirm" type="password" placeholder="Confirm Password" required>
+      <button type="submit">Register</button>
+      <div class="toggle-form">
+        <a href="#" onclick="toggleForm()">Already have an account? Login</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    function toggleForm() {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      
+      loginForm.classList.toggle('hidden');
+      registerForm.classList.toggle('hidden');
+      
+      // Clear any existing messages
+      clearMessages();
+    }
+    
+    function clearMessages() {
+      const messages = document.querySelectorAll('.auth-message');
+      messages.forEach(msg => msg.remove());
+    }
+
+    function showMessage(message, type = 'error') {
+      clearMessages();
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `auth-message auth-${type}`;
+      messageDiv.textContent = message;
+
+      const activeForm = document.querySelector('.auth-form:not(.hidden)');
+      if (activeForm) activeForm.appendChild(messageDiv);
+      else document.querySelector('.auth-container').appendChild(messageDiv);
+    }
+
+    const API_BASE = location.origin + '/api';
+
+    async function postJSON(path, data) {
+      const res = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      // try to parse JSON, fallback to text error
+      try { return await res.json(); } catch (e) { return { success: false, message: 'Invalid server response' }; }
+    }
+
+    // Handle login form submission
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearMessages();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      if (!email || !password) { showMessage('Please provide email and password.', 'error'); return; }
+
+      showMessage('Logging in...', 'success');
+      try {
+        const resp = await postJSON('/login', { email, password });
+        if (resp && resp.success && resp.user) {
+          // Save user info to localStorage for dashboard
+          localStorage.setItem('user', JSON.stringify(resp.user));
+          // Hide login button since user is now logged in
+          const loginBtn = document.getElementById('login-btn');
+          if (loginBtn) {
+            loginBtn.style.display = 'none';
+          }
+          showMessage('Login successful! Redirecting...', 'success');
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 900);
+        } else {
+          showMessage(resp.message || 'Invalid credentials', 'error');
+        }
+      } catch (err) {
+        showMessage('Network or server error', 'error');
+        console.error(err);
+      }
+    });
+
+    // Handle register form submission
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearMessages();
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const confirm = document.getElementById('regConfirm').value;
+
+      if (!name || !email || !phone || !password || !confirm) { showMessage('All fields are required.', 'error'); return; }
+      if (!/^\d{10}$/.test(phone)) { showMessage('Phone number must be 10 digits.', 'error'); return; }
+      if (password !== confirm) { showMessage('Passwords do not match.', 'error'); return; }
+      if (password.length < 6) { showMessage('Password should be at least 6 characters.', 'error'); return; }
+
+      showMessage('Registering...', 'success');
+      try {
+        const resp = await postJSON('/register', { name, email, phone, password });
+        if (resp && resp.success) {
+          showMessage('Registered successfully. You can log in now.', 'success');
+          // switch to login form
+          setTimeout(() => { toggleForm(); }, 800);
+        } else {
+          showMessage(resp.message || 'Registration failed', 'error');
+        }
+      } catch (err) {
+        showMessage('Network or server error', 'error');
+        console.error(err);
+      }
+    });
+
+    // Check if user is already logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        // User is already logged in, hide the login button
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Exams | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+</head>
+
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <div class="containernew">
+    <h1 id="category-title">Exams</h1>
+    <div class="exam-grid" id="exam-container">
+      <!-- Subcategories (exams) will be loaded here as cards -->
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/exam.js"></script>
+  
+  <script>
+    // Check if user is logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        // User is already logged in, hide the login button
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

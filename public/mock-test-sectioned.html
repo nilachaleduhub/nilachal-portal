@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mock Test - Sectional Timing</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f3f6fb; color:#0b1320; }
+    .test-container { max-width: 1100px; margin: 32px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(10,20,40,0.08); display: flex; min-height: 600px; }
+    .sidebar { width: 220px; background: #f8fafc; border-left: 1px solid #e2e8f0; padding: 24px 12px; display: flex; flex-direction: column; order: 2; }
+    .sidebar h2 { font-size: 1.1rem; margin-bottom: 18px; color: #134e8b; }
+    .question-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+    .q-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: #e2e8f0; color: #334155; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .q-btn.active { background: #e2e8f0; color: #334155; }
+    .q-btn.viewed { background: #ef4444; color: #fff; }
+    .q-btn.answered { background: #22c55e; color: #fff; }
+    .q-btn.marked { background: #9333ea; color: #fff; }
+    .main { flex: 1; padding: 32px 40px; display: flex; flex-direction: column; }
+    .test-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .test-title { font-size: 1.3rem; font-weight: 700; }
+    .timer { font-size: 1.1rem; color: #e11d48; font-weight: 600; background: #fef2f2; padding: 8px 16px; border-radius: 8px; }
+    
+    /* Section header styles */
+    .section-header {
+      margin-bottom: 20px;
+    }
+    .section-header .section-name {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .section-header .section-timer {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #dc2626;
+      background: #fef2f2;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #fecaca;
+    }
+    .section-nav-btn {
+      transition: all 0.2s ease;
+    }
+    .section-nav-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    /* Sidebar submit section button styles */
+    #section-submit {
+      font-size: 0.95rem;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    #section-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+    .question-block { margin-bottom: 32px; }
+    .question-text { font-size: 1.1rem; margin-bottom: 18px; }
+    .options-list { list-style: none; padding: 0; margin: 0; }
+    .option-item { margin-bottom: 12px; }
+    .option-label { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+    .option-label.selected { background: #dbeafe; color: #1d4ed8; }
+    .actions-row { display: flex; gap: 16px; margin-top: 18px; }
+    .btn { background: linear-gradient(90deg,#3366ff,#6c5ce7); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .btn:active { transform: translateY(1px); }
+    .btn-outline { background: none; border: 2px solid #e2e8f0; color: #334155; padding: 10px 20px; }
+    .mark-btn { background: #f59e42; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .mark-btn.marked { background: #fbbf24; color: #fff; }
+    .submit-btn { background: #10b981; color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; margin-left: auto; }
+    /* Color Legend Styles */
+    .color-legend {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+    .legend-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    @media (max-width: 900px) { 
+      .test-container { flex-direction: column; } 
+      .sidebar { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; flex-direction: row; overflow-x: auto; order: 2; } 
+      .main { padding: 24px 8px; order: 1; }
+      .color-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        padding: 10px;
+      }
+      .color-legend h3 {
+        width: 100%;
+        margin: 0 0 5px 0 !important;
+      }
+      .legend-item {
+        margin: 0;
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <div class="sidebar">
+      <h2>Questions</h2>
+      <div class="question-nav" id="question-nav"></div>
+      <div style="margin-top:auto; font-size:0.95rem; color:#64748b;">Answered: <span id="answered-count">0</span></div>
+      
+      <!-- Submit Section Button (always visible for sectional timing tests) -->
+      <button id="section-submit" class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; width: 100%; margin-top: 16px; padding: 12px; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+        Submit Section
+      </button>
+      
+      <!-- Color Legend -->
+      <div class="color-legend">
+        <h3 style="font-size: 0.95rem; color: #134e8b; margin: 20px 0 10px;">Question Status Guide:</h3>
+        <div class="legend-item">
+          <span class="legend-dot" style="background: #e2e8f0;"></span>
+          <span>Not Visited</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background: #ef4444;"></span>
+          <span>Viewed Not Answered</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background: #22c55e;"></span>
+          <span>Answered</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background: #9333ea;"></span>
+          <span>Marked for Review</span>
+        </div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="test-header">
+        <div class="test-title" id="test-title">Loading...</div>
+        <div class="timer" id="timer">00:00</div>
+      </div>
+      <div id="section-header" class="section-header">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid #cbd5e1; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <div class="section-info" style="display: flex; align-items: center; gap: 32px;">
+            <div class="section-navigation" id="section-navigation-header" style="display: flex; align-items: center; gap: 16px;">
+              <div id="all-sections-display" style="font-weight: 700; color: #64748b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <!-- All sections will be displayed here -->
+              </div>
+              <div id="section-nav-buttons" style="display: flex; gap: 8px;">
+                <!-- Section navigation buttons will be generated here -->
+              </div>
+            </div>
+            <div class="section-timer">
+              Time Left: <span id="section-timer">00:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="question-block" id="question-block">
+        <!-- Question and options will be rendered here -->
+      </div>
+      <div class="actions-row">
+        <button class="btn-outline" id="prev-btn">Previous</button>
+        <button class="btn-outline" id="next-btn">Next</button>
+        <button class="btn-outline" id="clear-btn">Clear</button>
+        <button class="btn" id="save-btn" style="background: #10b981;">Save & Next</button>
+        <button class="mark-btn" id="mark-btn">Mark for Review</button>
+        <button class="submit-btn" id="submit-btn">Submit Test</button>
+      </div>
+    </div>
+  </div>
+  <script src="assets/js/mock-test-sectioned.js"></script>
+</body>
+</html>

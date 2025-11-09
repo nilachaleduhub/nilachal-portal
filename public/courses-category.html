@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Courses | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+</head>
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="courses.html" class="nav-btn">← Back to Categories</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <div class="containernew">
+    <h1 id="courses-title">Courses</h1>
+    <div class="exam-grid" id="courses-container">
+      <!-- Courses will be loaded here -->
+    </div>
+  </div>
+
+  <script>
+    // Get category ID from URL
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+    
+    // Load Courses for the selected category
+    async function loadCourses() {
+      const categoryId = getQueryParam('catId');
+      if (!categoryId) {
+        document.getElementById('courses-container').innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #e53e3e;">Category ID missing in URL.</p>';
+        return;
+      }
+      
+      try {
+        // Load category name
+        const catRes = await fetch('/api/admin/course-categories');
+        const catData = await catRes.json();
+        if (catData.success) {
+          const category = catData.categories.find(c => c.id === categoryId);
+          if (category) {
+            document.getElementById('courses-title').textContent = category.name + ' - Courses';
+          }
+        }
+        
+        // Load courses
+        const res = await fetch(`/api/admin/courses/${categoryId}`);
+        const data = await res.json();
+        const container = document.getElementById('courses-container');
+        
+        if (data.success && Array.isArray(data.courses) && data.courses.length > 0) {
+          container.innerHTML = '';
+          data.courses.forEach(course => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+              <h3>${course.name}</h3>
+              <p>${course.description || ''}</p>
+              <a href="courses-lessons.html?catId=${categoryId}&courseId=${course.id}">View Lessons</a>
+            `;
+            container.appendChild(card);
+          });
+        } else {
+          container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b;">No courses available in this category yet.</p>';
+        }
+      } catch (err) {
+        console.error('Error loading courses:', err);
+        const container = document.getElementById('courses-container');
+        container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #e53e3e;">Error loading courses. Please try again later.</p>';
+      }
+    }
+    
+    loadCourses();
+    
+    // Check if user is logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
+
+

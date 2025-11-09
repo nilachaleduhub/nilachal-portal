@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard | MockTest Master</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body {
+      /* Align with homepage light theme */
+      background: #f8fafc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #1f2937;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+
+    .dashboard-container { 
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dashboard-header {
+      /* Match homepage navbar theme */
+      background: #0a1931;
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .welcome-section h1 {
+      color: #ffffff;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .welcome-section p {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.1rem;
+      margin: 5px 0 0 0;
+    }
+
+    .user-info-card {
+      background: #0f1f3a;
+      border-radius: 15px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.12);
+      text-align: center;
+      min-width: 200px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      color: #e5e7eb;
+    }
+
+    .user-avatar {
+      width: 60px;
+      height: 60px;
+      background: #00bfff; /* navbar accent */
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px;
+      font-size: 1.5rem;
+      color: #0a1931;
+      font-weight: bold;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+    }
+
+    .user-name {
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .user-email {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+      margin-bottom: 15px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+    }
+
+    .main-content {
+      flex: 1;
+      max-width: 1200px;
+      margin: 40px auto; 
+      padding: 0 20px;
+      width: 100%;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+      margin-bottom: 40px;
+    }
+
+    .test-series-section {
+      margin-bottom: 40px;
+    }
+
+    .test-series-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .test-series-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    }
+
+    .test-series-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    .test-series-icon {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .test-series-content h3 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 10px;
+    }
+
+    .test-series-content p {
+      font-size: 1.1rem;
+      color: #718096;
+      margin-bottom: 25px;
+    }
+
+    .test-series-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      font-size: 1.1rem;
+    }
+
+    .test-series-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .analysis-btn {
+      background: linear-gradient(135deg, #38a169, #2f855a);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 8px rgba(56, 161, 105, 0.3);
+    }
+
+    .analysis-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(56, 161, 105, 0.4);
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    .stat-icon {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      color: #718096;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .results-section {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .section-title i {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .results-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      background: white;
+    }
+
+    .results-table thead th {
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      color: #4a5568;
+      font-weight: 700;
+      padding: 20px 15px;
+      text-align: left;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .results-table tbody tr {
+      transition: all 0.3s ease;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .results-table tbody tr:hover {
+      background: linear-gradient(135deg, #f7fafc, #edf2f7);
+      transform: scale(1.01);
+    }
+
+    .results-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .results-table td {
+      padding: 20px 15px;
+      color: #2d3748;
+      font-size: 1rem;
+    }
+
+    .results-table td:first-child {
+      font-weight: 600;
+      color: #1a202c;
+    }
+
+    .score-cell {
+      font-weight: 700;
+      color: #38a169;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      color: #718096;
+    }
+
+    .no-results i {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      color: #cbd5e0;
+    }
+
+    .no-results h3 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      color: #4a5568;
+    }
+
+    .no-results p {
+      font-size: 1.1rem;
+      margin-bottom: 30px;
+    }
+
+    .cta-button {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Profile Modal */
+    .profile-modal-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .profile-modal-bg.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .profile-modal-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      padding: 40px;
+      min-width: 400px;
+      max-width: 90vw;
+      transform: scale(0.9);
+      transition: all 0.3s ease;
+    }
+
+    .profile-modal-bg.show .profile-modal-card {
+      transform: scale(1);
+    }
+
+    .profile-modal-card h3 {
+      color: #2d3748;
+      margin-bottom: 25px;
+      font-weight: 700;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .profile-modal-content {
+      font-size: 1.1rem;
+      color: #4a5568;
+      margin-bottom: 25px;
+      line-height: 1.6;
+    }
+
+    .profile-modal-content div {
+      margin-bottom: 15px;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .profile-modal-content b {
+      color: #2d3748;
+      font-weight: 600;
+    }
+
+    .close-modal-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .close-modal-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+
+      .welcome-section h1 {
+        font-size: 2rem;
+      }
+
+      .header-actions {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .btn-primary, .btn-danger {
+        justify-content: center;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .test-series-card {
+        padding: 30px 20px;
+      }
+
+      .test-series-content h3 {
+        font-size: 1.5rem;
+      }
+
+      .results-section {
+        padding: 25px;
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+      }
+
+    .results-table { 
+        font-size: 0.9rem;
+      }
+
+      .results-table th,
+      .results-table td {
+        padding: 15px 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .main-content {
+        margin: 20px auto;
+        padding: 0 15px;
+      }
+
+      .results-section {
+        padding: 20px;
+      }
+
+      .profile-modal-card {
+        min-width: 300px;
+        padding: 30px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header Section -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <div class="welcome-section">
+          <h1>Welcome Back!</h1>
+          <p>Track your progress and performance</p>
+        </div>
+        <div class="user-info-card">
+          <div class="user-avatar" id="profile-avatar">👤</div>
+          <div class="user-name" id="profile-name">User</div>
+          <div class="user-email" id="profile-email">user@email.com</div>
+          <div class="header-actions">
+            <a href="index.html" class="btn-primary">
+              <i class="fas fa-home"></i>
+              Home
+            </a>
+            <button class="btn-primary" id="view-profile-btn">
+              <i class="fas fa-user"></i>
+              Profile
+            </button>
+            <label class="btn-primary" for="avatar-upload-input" id="change-photo-label" style="cursor:pointer;">
+              <i class="fas fa-image"></i>
+              Change Photo
+            </label>
+            <input id="avatar-upload-input" type="file" accept="image/*" style="display:none;" />
+            <button class="btn-danger" id="logout-btn">
+              <i class="fas fa-sign-out-alt"></i>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Test Series Button -->
+      <div class="test-series-section" id="test-series-section" style="display: none;">
+        <div class="test-series-card">
+          <div class="test-series-icon">
+            <i class="fas fa-graduation-cap"></i>
+          </div>
+          <div class="test-series-content">
+            <h3>Ready for Your Next Challenge?</h3>
+            <p>Explore our comprehensive test series and improve your skills</p>
+            <a href="test-series.html" class="test-series-btn">
+              <i class="fas fa-rocket"></i>
+              Browse Test Series
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Access: My Course / My Test -->
+      <div class="results-section" style="margin-top: 20px;">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i class="fas fa-folder-open"></i>
+            My Library
+          </h2>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+          <button id="my-courses-tab" class="btn-primary"><i class="fas fa-book"></i> My Course</button>
+          <button id="my-tests-tab" class="btn-primary"><i class="fas fa-file-alt"></i> My Test</button>
+        </div>
+        <div id="my-courses-section" style="display:none;">
+          <div id="my-courses-list" class="exam-grid"></div>
+          <div id="my-courses-empty" class="no-results" style="display:none;">
+            <i class="fas fa-layer-group"></i>
+            <h3>No Courses Yet</h3>
+            <p>Purchased courses will appear here.</p>
+            <a href="courses.html" class="cta-button"><i class="fas fa-compass"></i> Browse Courses</a>
+          </div>
+        </div>
+        <div id="my-tests-section" style="display:none;">
+          <div id="my-tests-list" class="exam-grid"></div>
+          <div id="my-tests-empty" class="no-results" style="display:none;">
+            <i class="fas fa-list"></i>
+            <h3>No Tests Yet</h3>
+            <p>Purchased mock tests will appear here.</p>
+            <a href="test-series.html" class="cta-button"><i class="fas fa-rocket"></i> Browse Tests</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="results-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i class="fas fa-chart-bar"></i>
+            Your Test Results
+          </h2>
+      </div>
+
+      <table class="results-table" id="results-table" style="display:none;">
+        <thead>
+          <tr>
+              <th><i class="fas fa-book"></i> Test Name</th>
+              <th><i class="fas fa-chart-bar"></i> Action</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+
+        <div class="no-results" id="no-results" style="display:none;">
+          <i class="fas fa-clipboard-list"></i>
+          <h3>No Test Results Yet</h3>
+          <p>Start your learning journey by taking your first test!</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="profile-modal-bg">
+    <div class="profile-modal-card">
+      <h3><i class="fas fa-user-circle"></i> Profile Details</h3>
+      <div class="profile-modal-content">
+        <div><b>Name:</b> <span id="modal-profile-name"></span></div>
+        <div><b>Email:</b> <span id="modal-profile-email"></span></div>
+        <div><b>Phone:</b> <span id="modal-profile-phone"></span></div>
+        <div><b>Registered:</b> <span id="modal-profile-date"></span></div>
+        <div><b>Profile Photo:</b> <span id="modal-profile-photo-status">Not set</span></div>
+      </div>
+      <button class="close-modal-btn" id="close-profile-modal">
+        <i class="fas fa-times"></i>
+        Close
+      </button>
+    </div>
+  </div>
+
+  <script src="assets/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Test Description | MockTest</title>
+  <link rel="stylesheet" href="assets/css/category.css">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f3f6fb; color:#0b1320; }
+    .container { max-width: 900px; margin: 48px auto; padding: 20px; }
+    .card { background:white; border-radius:12px; padding:24px; box-shadow:0 12px 40px rgba(10,20,40,0.06); }
+    .card h1 { margin:0 0 8px 0; font-size:1.6rem; color:#0b1320; }
+    .meta { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap }
+    .meta .item { background:#eef6ff; color:#134e8b; padding:8px 12px; border-radius:999px; font-weight:600 }
+    .description { margin-top:24px; line-height:1.6; }
+    .description h3 { margin:0 0 12px 0; color:#0b1320; }
+    .details-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-top:20px; }
+    .detail-box { background:#f8fafc; padding:16px; border-radius:8px; }
+    .detail-box h4 { margin:0 0 8px 0; color:#334155; font-size:0.9rem; }
+    .detail-box .value { font-size:1.1rem; font-weight:600; color:#0b1320; }
+    .sections { margin-top:24px; }
+    .section-row { background:#f8fafc; padding:16px; border-radius:8px; margin-bottom:12px; }
+    .section-row h4 { margin:0 0 8px 0; color:#0b1320; }
+    .section-meta { display:flex; gap:12px; flex-wrap:wrap; }
+    .section-meta .item { background:#fff; padding:6px 12px; border-radius:6px; font-size:0.9rem; color:#334155; }
+    .action-row { display:flex; justify-content:space-between; align-items:center; margin-top:32px; padding-top:20px; border-top:1px solid #e2e8f0; }
+    .btn { background:linear-gradient(90deg,#3366ff,#6c5ce7); color:white; border:none; padding:12px 24px; border-radius:10px; font-weight:600; cursor:pointer; text-decoration:none; }
+    .btn:active { transform:translateY(1px) }
+    .btn-outline { background:none; border:2px solid #e2e8f0; color:#334155; padding:10px 20px; }
+    .back-link { color:#64748b; text-decoration:none; display:inline-flex; align-items:center; gap:6px; margin-bottom:12px; }
+    .back-link:hover { color:#0b1320; }
+  </style>
+</head>
+<body>
+  <nav class="top-navbar">
+    <div class="navbar-left">
+  <span class="navbar-title">MockTest Description</span>
+    </div>
+    <div class="navbar-right">
+      <div id="user-avatar" class="user-avatar"></div>
+    </div>
+  </nav>
+  <div class="container">
+  <style>
+    /* Navbar styles (copied from instructions) */
+    .top-navbar {
+      width: 100%;
+      background: linear-gradient(90deg,#0ea5e9 0%, #6366f1 50%, #7c3aed 100%);
+      background-size: 200% 100%;
+      animation: nav-gradient 8s linear infinite;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+    @keyframes nav-gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .navbar-left { display:flex; align-items:center; gap:12px }
+    .navbar-title { font-size:1.05rem; font-weight:700; color: #ffffff; letter-spacing:0.3px }
+    .navbar-right { display:flex; align-items:center; gap:12px }
+    .user-avatar {
+      width:44px; height:44px; border-radius:50%; background:#1e293b; color:#000; display:flex; align-items:center; justify-content:center;
+      font-size:1.15rem; font-weight:900; text-transform:uppercase; cursor:default; position:relative; box-shadow:0 6px 18px rgba(0,0,0,0.12);
+      border: 2px solid rgba(255,255,255,0.92); /* white ring to separate from navbar */
+      padding: 2px; /* space for the border */
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .user-avatar:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 22px rgba(0,0,0,0.16); }
+    .user-avatar[data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: calc(100% + 8px);
+      top: 50%; transform: translateY(-50%);
+      background: rgba(0,0,0,0.8); color: #fff; padding:6px 10px; border-radius:6px; white-space:nowrap; font-size:0.85rem;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      z-index: 120;
+    }
+    .user-avatar[data-tooltip]:hover::before {
+      content: '';
+      position: absolute; right: calc(100% + 2px); top: 50%; transform: translateY(-50%) rotate(45deg);
+      width:10px; height:10px; background: rgba(0,0,0,0.8); z-index:119;
+    }
+    @media (max-width: 720px) {
+      .top-navbar { padding: 0.5rem 0.9rem; }
+      .navbar-title { font-size:0.95rem }
+      .user-avatar { width:38px; height:38px; font-size:1rem }
+    }
+  </style>
+
+  <script>
+    // Avatar helper functions (copied from instructions)
+    function getUserName() {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && (user.name || user.username)) return user.name || user.username;
+      } catch (e) {}
+      return '';
+    }
+    function shadeColor(hex, percent) {
+      const num = parseInt(hex.slice(1),16), amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = ((num >> 8) & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return `#${(0x1000000 + (clamp(R,0,255)<<16) + (clamp(G,0,255)<<8) + clamp(B,0,255)).toString(16).slice(1)}`;
+    }
+    function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+    function stringToColor(str) {
+      const palette = ['#fee2e2','#fff7ed','#fffbeb','#ecfdf5','#ecfeff','#ecfeff','#fff1f2','#fff0f6','#ecfeff','#f0f9ff'];
+      let hash = 0; for (let i=0;i<str.length;i++) hash = str.charCodeAt(i) + ((hash<<5)-hash);
+      const idx = Math.abs(hash) % palette.length; const c = palette[idx];
+      return `linear-gradient(135deg, ${c}, ${shadeColor(c, -6)})`;
+    }
+    function setUserAvatar() {
+      const name = getUserName();
+      const avatar = document.getElementById('user-avatar');
+      if (!avatar) return;
+      if (name) {
+        avatar.textContent = name[0].toUpperCase();
+        const base = stringToColor(name);
+        avatar.style.backgroundImage = `radial-gradient(circle at 30% 22%, rgba(255,255,255,0.42), rgba(255,255,255,0.12) 40%), ${base}`;
+        avatar.setAttribute('data-tooltip', name);
+      } else {
+        avatar.textContent = '?';
+        avatar.style.backgroundImage = `radial-gradient(circle at 30% 22%, rgba(255,255,255,0.42), rgba(255,255,255,0.12) 40%), linear-gradient(135deg,#f1f5f9,#cbd5e1)`;
+        avatar.setAttribute('data-tooltip', 'Guest User');
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => { setUserAvatar(); const avatar = document.getElementById('user-avatar'); if (avatar) avatar.addEventListener('click', () => { const name = getUserName(); if (name) alert(`Signed in as ${name}`); else window.location.href = 'login-register.html'; }); });
+  </script>
+    <a href="index.html" class="back-link">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+      </svg>
+      Back to Tests
+    </a>
+    <div class="card" id="test-description-card">
+      <!-- Content will be loaded by JavaScript -->
+      <h1>Loading...</h1>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const testId = urlParams.get('testId');
+      const card = document.getElementById('test-description-card');
+
+      if (!testId) {
+        card.innerHTML = '<h1>Error</h1><p>No test specified. Please go back and select a test.</p>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/tests/${testId}`);
+        const data = await response.json();
+
+        if (!data.success || !data.test) {
+          throw new Error(data.message || 'Test not found.');
+        }
+
+        let test = data.test || {};
+
+        // Helper: try to load a test object from localStorage under common keys
+        function loadStoredTest() {
+          try {
+            const keys = [
+              'testData',
+              'previewTest',
+              'previewTestData',
+              `testData_${new URLSearchParams(window.location.search).get('cat')}`,
+              `testData_${test.categoryId || ''}`
+            ];
+            for (const k of keys) {
+              if (!k) continue;
+              const raw = localStorage.getItem(k);
+              if (!raw) continue;
+              try {
+                const obj = JSON.parse(raw);
+                if (obj && (obj.id || obj.name)) return obj;
+              } catch (e) {
+                // not JSON
+              }
+            }
+            // fallback: check if previewTestId/testId exist
+            const idOnly = localStorage.getItem('previewTestId') || localStorage.getItem('testId');
+            if (idOnly && idOnly === testId) return null; // caller can re-fetch API
+            return null;
+          } catch (err) {
+            return null;
+          }
+        }
+
+        // If API returned a minimal test, try to merge missing props from localStorage
+        const stored = loadStoredTest();
+        if (stored) {
+          // prefer API values, but fill in missing fields from stored object
+          test = Object.assign({}, stored, test);
+        }
+
+        // Normalize fields from different shapes
+        const durationRaw = test.timeLimit || test.durationMinutes || test.time || test.timeLimitMinutes || test.duration || null;
+        const durationMinutes = durationRaw ? Number(durationRaw) : null;
+
+        // Compute total questions from multiple possible sources
+        let totalQuestions = 0;
+        if (typeof test.numQuestions === 'number' && test.numQuestions > 0) {
+          totalQuestions = test.numQuestions;
+        } else if (Array.isArray(test.questions) && test.questions.length > 0) {
+          totalQuestions = test.questions.length;
+        } else if (Array.isArray(test.sections) && test.sections.length > 0) {
+          // sum section counts if provided
+          totalQuestions = test.sections.reduce((sum, s) => sum + (s.numQuestions || 0), 0);
+        } else if (typeof test.totalQuestions === 'number') {
+          totalQuestions = test.totalQuestions;
+        }
+
+        const marksPerQRaw = test.positiveMark || test.marksPerQuestion || test.positiveMarks || test.positive || test.markPerQuestion;
+        const marksPerQuestion = marksPerQRaw !== undefined && marksPerQRaw !== null ? Number(marksPerQRaw) : 1;
+        const totalMarks = totalQuestions * (Number.isFinite(marksPerQuestion) ? marksPerQuestion : 1);
+        
+        // Extract negative mark
+        const negativeMarkRaw = test.negativeMark || test.negativeMarks || test.negative || 0;
+        const negativeMark = negativeMarkRaw !== undefined && negativeMarkRaw !== null ? Number(negativeMarkRaw) : 0;
+
+        // category/exam fallbacks: use ids if names not provided
+        // avoid exposing raw object ids in UI - if a value looks like a 24-char hex id, prefer friendly fallback
+        function sanitizeLabel(value, fallback) {
+          if (!value) return fallback;
+          const s = String(value);
+          if (/^[a-f0-9]{24}$/i.test(s)) return fallback; // looks like MongoDB id
+          return s;
+        }
+        const categoryLabel = sanitizeLabel(test.categoryName || test.category || test.categoryId, 'General');
+        const examLabel = sanitizeLabel(test.examName || test.exam || test.examId, 'Exam');
+
+        // Build sections summary if sections exist
+        let sectionsHTML = '';
+        if (Array.isArray(test.sections) && test.sections.length > 0) {
+          const hasSectionalTiming = !!test.sectionalTiming;
+          const sectionRows = test.sections.map((s, idx) => {
+            const name = s.name || `Section ${idx + 1}`;
+            const count = (typeof s.numQuestions === 'number' && s.numQuestions >= 0) ? s.numQuestions : 0;
+            const timingLabel = hasSectionalTiming ? (s.timeLimit ? String(s.timeLimit) : '\u2014') : 'No sectional timing';
+            return `
+              <div class="section-row">
+                <h4>${name}</h4>
+                <div class="section-meta">
+                  <span class="item">Questions: <b>${count}</b></span>
+                  <span class="item">${hasSectionalTiming ? `Section time: <b>${timingLabel}</b>` : `<b>${timingLabel}</b>`}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+          sectionsHTML = `
+            <div class="sections">
+              ${sectionRows}
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <h1>${test.name || 'Untitled Test'}</h1>
+          <!-- category and exam labels removed as requested -->
+          <div class="details-grid">
+            <div class="detail-box">
+              <h4>Duration</h4>
+              <div class="value">${durationMinutes ? durationMinutes + ' mins' : '\u2014'}</div>
+            </div>
+            <div class="detail-box">
+              <h4>Total Questions</h4>
+              <div class="value">${totalQuestions || '\u2014'}</div>
+            </div>
+            <div class="detail-box">
+              <h4>Total Marks</h4>
+              <div class="value">${Number.isFinite(totalMarks) && totalQuestions > 0 ? totalMarks : '\u2014'}</div>
+            </div>
+            <div class="detail-box">
+              <h4>Correct Mark</h4>
+              <div class="value">${Number.isFinite(marksPerQuestion) ? marksPerQuestion : '\u2014'}</div>
+            </div>
+            <div class="detail-box">
+              <h4>Negative Mark</h4>
+              <div class="value">${Number.isFinite(negativeMark) ? negativeMark : '\u2014'}</div>
+            </div>
+          </div>
+          ${sectionsHTML}
+          <div class="action-row">
+            <button class="btn-outline" onclick="history.back()">Go Back</button>
+            <label style="display:flex; align-items:center; gap:12px;">
+              <input type="checkbox" id="consent-checkbox" />
+              <span style="font-size:0.95rem; color:#334155">I have read the instructions and agree to start the test</span>
+            </label>
+            <button class="btn" id="start-test-btn" disabled style="opacity:0.6; background:linear-gradient(90deg,#94a3b8,#94a3b8)">Start Test</button>
+          </div>
+        `;
+        // Wire checkbox to enable the Start button and navigate when clicked
+        const consent = card.querySelector('#consent-checkbox');
+        const startBtn = card.querySelector('#start-test-btn');
+        if (consent && startBtn) {
+          consent.addEventListener('change', () => {
+            startBtn.disabled = !consent.checked;
+            // change color when enabled
+            if (consent.checked) {
+              startBtn.style.opacity = '1';
+              startBtn.style.background = 'linear-gradient(90deg,#3366ff,#6c5ce7)';
+            } else {
+              startBtn.style.opacity = '0.6';
+              startBtn.style.background = 'linear-gradient(90deg,#94a3b8,#94a3b8)';
+            }
+          });
+          startBtn.addEventListener('click', () => {
+            if (!consent.checked) return;
+            // preserve previewTest in localStorage
+            try { localStorage.setItem('previewTest', JSON.stringify(test)); } catch(e){}
+            window.location.href = `mock-test?testId=${testId}`;
+          });
+        }
+      } catch (error) {
+        console.error('Error loading test:', error);
+        card.innerHTML = '<h1>Error</h1><p>Failed to load test details. Please try again later.</p>';
+      }
+    });
+  </script>
+</body>
+</html>

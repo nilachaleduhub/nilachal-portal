@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Free Tests | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+</head>
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="courses.html" class="nav-btn">Buy Course</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <div class="containernew">
+    <div class="buy-hero">
+      <h1>Practice with Free Tests</h1>
+      <p class="buy-tagline">Explore complimentary mock tests curated by Nilachal Eduhub. Log in to unlock the attempt experience and track your progress.</p>
+    </div>
+
+    <div id="free-tests-login-notice" class="login-notice" style="display:none;">
+      <strong>Heads up!</strong> Please log in to attempt these free tests.
+      <a class="login-link" href="login-register.html">Login / Register</a>
+    </div>
+
+    <section class="buy-section" aria-labelledby="free-tests-heading">
+      <div class="section-header">
+        <h2 id="free-tests-heading">Available Free Tests</h2>
+        <p>Dive into high-quality practice sets designed to build confidence without any cost.</p>
+      </div>
+
+      <div class="buy-subsection">
+        <div class="exam-grid" id="free-tests-container"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="assets/js/free-tests.js" type="module"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      if (user && loginBtn) {
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
+

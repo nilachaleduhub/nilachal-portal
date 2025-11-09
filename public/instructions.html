@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Instructions | MockTest</title>
+  <link rel="stylesheet" href="assets/css/category.css">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f3f6fb; color:#0b1320; }
+    .container { max-width: 900px; margin: 48px auto; padding: 20px; }
+    .card { background:white; border-radius:12px; padding:24px; box-shadow:0 12px 40px rgba(10,20,40,0.06); }
+    .card h1 { margin:0 0 8px 0; font-size:1.6rem; color:#0b1320; }
+    .meta { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap }
+    .meta .item { background:#eef6ff; color:#134e8b; padding:8px 12px; border-radius:999px; font-weight:600 }
+    .instructions { margin-top:12px; line-height:1.6; }
+    .instructions ol { margin-left:18px; }
+    .start-row { display:flex; justify-content:space-between; align-items:center; margin-top:22px; gap:12px }
+    .btn { background:linear-gradient(90deg,#3366ff,#6c5ce7); color:white; border:none; padding:12px 20px; border-radius:10px; font-weight:700; cursor:pointer }
+    .btn:active { transform:translateY(1px) }
+    .secondary { background:#eef2f7; color:#1f2937; padding:10px 14px; border-radius:8px }
+    .note { margin-top:12px; color:#334155; font-size:0.95rem }
+    
+    /* Question Status Guide Styles */
+    .question-status-guide {
+      margin: 16px 0;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0;
+      color: #475569;
+    }
+    .status-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .status-dot.not-visited { background: #e2e8f0; }
+    .status-dot.viewed { background: #ef4444; }
+    .status-dot.answered { background: #22c55e; }
+    .status-dot.marked { background: #9333ea; }
+    
+    @media (max-width: 600px) {
+      .question-status-guide {
+        padding: 12px;
+      }
+      .status-item {
+        margin: 8px 0;
+        font-size: 0.9rem;
+      }
+      .status-dot {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-navbar">
+    <div class="navbar-left">
+      <span class="navbar-title">MockTest Instructions</span>
+    </div>
+    <div class="navbar-right">
+      <div id="user-avatar" class="user-avatar"></div>
+    </div>
+  </nav>
+  <div class="container">
+  <style>
+    /* Enhanced navbar design */
+    .top-navbar {
+      width: 100%;
+      background: linear-gradient(90deg,#0ea5e9 0%, #6366f1 50%, #7c3aed 100%);
+      background-size: 200% 100%;
+      animation: nav-gradient 8s linear infinite;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+    @keyframes nav-gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .navbar-left { display:flex; align-items:center; gap:12px }
+    .brand-logo {
+      width:44px; height:44px; border-radius:10px; background: rgba(255,255,255,0.12);
+      display:flex; align-items:center; justify-content:center; font-weight:800; color: #fff; font-size:1.05rem;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+    .navbar-title { font-size:1.05rem; font-weight:700; color: #ffffff; letter-spacing:0.3px }
+
+    .navbar-right { display:flex; align-items:center; gap:12px }
+    .user-avatar {
+      width:44px; height:44px; border-radius:50%; background:#1e293b; color:#000; display:flex; align-items:center; justify-content:center;
+      font-size:1.15rem; font-weight:900; text-transform:uppercase; cursor:default; position:relative; box-shadow:0 6px 18px rgba(0,0,0,0.12);
+      border: 2px solid rgba(255,255,255,0.92); /* white ring to separate from navbar */
+      padding: 2px; /* space for the border */
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .user-avatar:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 22px rgba(0,0,0,0.16); }
+    /* Tooltip using pseudo-element */
+    .user-avatar[data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: calc(100% + 8px);
+      top: 50%; transform: translateY(-50%);
+      background: rgba(0,0,0,0.8); color: #fff; padding:6px 10px; border-radius:6px; white-space:nowrap; font-size:0.85rem;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      z-index: 120;
+    }
+    .user-avatar[data-tooltip]:hover::before {
+      content: '';
+      position: absolute; right: calc(100% + 2px); top: 50%; transform: translateY(-50%) rotate(45deg);
+      width:10px; height:10px; background: rgba(0,0,0,0.8); z-index:119;
+    }
+
+    @media (max-width: 720px) {
+      .top-navbar { padding: 0.5rem 0.9rem; }
+      .navbar-title { font-size:0.95rem }
+      .brand-logo { width:36px; height:36px; font-size:0.95rem }
+      .user-avatar { width:38px; height:38px; font-size:1rem }
+    }
+  </style>
+
+  <script>
+    // User avatar logic with color hashing and tooltip
+    function getUserName() {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && (user.name || user.username)) return user.name || user.username;
+      } catch (e) {}
+      return '';
+    }
+    function stringToColor(str) {
+      // Curated palette intentionally avoiding the navbar's primary colors
+      const palette = [
+        '#fee2e2', // light red
+        '#fff7ed', // light orange
+        '#fffbeb', // light amber
+        '#ecfdf5', // light green
+        '#ecfeff', // light teal
+        '#ecfeff', // light turquoise
+        '#fff1f2', // light pink
+        '#fff0f6', // light magenta
+        '#ecfeff', // very light teal
+        '#f0f9ff'  // very light aqua
+      ];
+      let hash = 0; for (let i=0;i<str.length;i++) hash = str.charCodeAt(i) + ((hash<<5)-hash);
+      const idx = Math.abs(hash) % palette.length;
+      // return a gradient for a richer look
+      const c = palette[idx];
+  // make the gradient very soft for a pastel effect
+  return `linear-gradient(135deg, ${c}, ${shadeColor(c, -6)})`;
+    }
+
+    function shadeColor(hex, percent) {
+      // hex in format #rrggbb
+      const num = parseInt(hex.slice(1),16), amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = ((num >> 8) & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return `#${(0x1000000 + (clamp(R,0,255)<<16) + (clamp(G,0,255)<<8) + clamp(B,0,255)).toString(16).slice(1)}`;
+    }
+    function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+    function setUserAvatar() {
+      const name = getUserName();
+      const avatar = document.getElementById('user-avatar');
+      if (!avatar) return;
+      if (name) {
+        avatar.textContent = name[0].toUpperCase();
+  // layered background: stronger, lighter sheen on top of the pastel gradient
+  const base = stringToColor(name);
+  avatar.style.backgroundImage = `radial-gradient(circle at 30% 22%, rgba(255,255,255,0.42), rgba(255,255,255,0.12) 40%), ${base}`;
+        avatar.setAttribute('data-tooltip', name);
+      } else {
+        avatar.textContent = '?';
+  avatar.style.backgroundImage = `radial-gradient(circle at 30% 22%, rgba(255,255,255,0.42), rgba(255,255,255,0.12) 40%), linear-gradient(135deg,#f1f5f9,#cbd5e1)`;
+        avatar.setAttribute('data-tooltip', 'Guest User');
+      }
+    }
+    // Add a small click action: show profile or login (placeholder)
+    document.addEventListener('DOMContentLoaded', () => {
+      setUserAvatar();
+      const avatar = document.getElementById('user-avatar');
+      if (avatar) avatar.addEventListener('click', () => {
+        const name = getUserName();
+        if (name) alert(`Signed in as ${name}`);
+        else window.location.href = 'login-register.html';
+      });
+    });
+  </script>
+    <div class="card">
+      <h1 id="test-title">Loading Test...</h1>
+      <div class="meta">
+        <div class="item" id="meta-questions">Questions: —</div>
+        <div class="item" id="meta-time">Time: —</div>
+        <!-- category removed from instructions view as requested -->
+      </div>
+
+      <div class="instructions">
+        <h3>Instructions</h3>
+        <ol>
+          <li>Read each question carefully before answering.</li>
+          <li>Each question carries marks as shown in the test details.</li>
+          <li>If sectional timing applies, you'll see time for each section.</li>
+          <li>You can navigate questions using Next / Previous or arrow keys.</li>
+          <li>Once you start, the timer will begin and cannot be paused.</li>
+        </ol>
+
+        <h3>Question Palette Guide</h3>
+        <div class="question-status-guide">
+          <div class="status-item">
+            <span class="status-dot not-visited"></span>
+            <span>Not Visited: Questions you haven't seen yet</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot viewed"></span>
+            <span>Viewed Not Answered: Questions you've seen but haven't answered</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot answered"></span>
+            <span>Answered: Questions you've completed</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot marked"></span>
+            <span>Marked for Review: Questions you want to review later</span>
+          </div>
+        </div>
+
+        <div class="note">Tip: Ensure a stable internet connection and avoid refreshing the page while taking the test.</div>
+      </div>
+
+      <div class="start-row">
+        <div class="secondary" id="instruction-short">Ready to proceed?</div>
+        <div style="margin-left:auto">
+          <a href="#" class="btn" id="start-test-btn">Next</a>
+        </div>
+      </div>
+      <script>
+        // Update Next button to preserve test context in URL
+        const startBtn = document.getElementById('start-test-btn');
+        const params = new URLSearchParams(window.location.search);
+        startBtn.href = `exam-description.html?testId=${params.get('testId')}&cat=${params.get('cat')}`;
+      </script>
+      <!-- debug panel removed for production -->
+    </div>
+  </div>
+
+  <script>
+    // Try to load test from multiple known storage keys used by the app
+
+    async function loadTestFromAPI() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const testId = urlParams.get('testId');
+      if (!testId) return null;
+      try {
+        // Backend returns { success: true, test: { ... } }
+        const res = await fetch(`/api/tests/${testId}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        // normalize to return the actual test object when possible
+        if (data && data.success && data.test) return data.test;
+        // some older code may return the test directly
+        if (data && (data.id || data._id || data.name)) return data;
+        return null;
+      } catch (err) {
+        console.error('API fetch error', err);
+        return null;
+      }
+    }
+
+    // Read test object from localStorage keys set by other pages (admin UI or exam-tests)
+    function loadStoredTest() {
+      try {
+        // Common keys used across the app
+        const candidates = [
+          localStorage.getItem('testData'),      // exam-tests.js stores full test here
+          localStorage.getItem('previewTest'),   // instructions page sometimes used this key
+          localStorage.getItem('previewTestData')
+        ];
+
+        for (const raw of candidates) {
+          if (!raw) continue;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && (parsed.id || parsed._id || parsed.name)) return parsed;
+          } catch (e) {
+            // not JSON, skip
+          }
+        }
+
+        // If only an id is available, try to re-fetch via API (best-effort)
+        const rawId = localStorage.getItem('testId') || localStorage.getItem('previewTestId');
+        if (rawId) {
+          // attempt synchronous fetch via navigator (caller will await loadTestFromAPI first), but here just return null
+          // The caller will try API again if needed.
+          return null;
+        }
+
+        return null;
+      } catch (err) {
+        console.warn('loadStoredTest error', err);
+        return null;
+      }
+    }
+
+    function populateInstructions(test) {
+      const titleEl = document.getElementById('test-title');
+      const metaQuestions = document.getElementById('meta-questions');
+      const metaTime = document.getElementById('meta-time');
+      const metaCategory = document.getElementById('meta-category');
+      const short = document.getElementById('instruction-short');
+
+      if (!test) {
+        titleEl.textContent = 'No test selected';
+        metaQuestions.textContent = 'Questions: —';
+        metaTime.textContent = 'Time: —';
+        metaCategory.textContent = 'Category: —';
+        short.textContent = 'Please select a test from the Test Series page.';
+        document.getElementById('start-test-btn').disabled = true;
+        return;
+      }
+
+      // normalize possible different property names
+      const name = test.name || test.testName || test.test_name || test.testTitle || 'Untitled Test';
+      const totalQ = test.numQuestions || test.totalQuestions || (Array.isArray(test.questions) ? test.questions.length : test.numQuestions) || '—';
+      const timeLimit = test.timeLimit || test.time || '—';
+      const category = test.category || test.examCategory || test.examName || test.exam || '—';
+
+      titleEl.textContent = name;
+      metaQuestions.textContent = 'Questions: ' + totalQ;
+      metaTime.textContent = 'Time: ' + timeLimit + (timeLimit && timeLimit !== '—' ? ' min' : '');
+      metaCategory.textContent = 'Category: ' + category;
+      short.textContent = 'You are about to start "' + name + '". Good luck!';
+
+      // enable start
+      document.getElementById('start-test-btn').disabled = false;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Try to load from API first
+      let test = await loadTestFromAPI();
+      // If not found, fallback to localStorage logic
+      if (!test) {
+        if (typeof loadStoredTest === 'function') {
+          test = loadStoredTest();
+        }
+      }
+      // debug output intentionally disabled for users
+      populateInstructions(test);
+
+      document.getElementById('start-test-btn').addEventListener('click', () => {
+        if (!test) return;
+        // Store test in localStorage for next page
+        try {
+          localStorage.setItem('previewTest', JSON.stringify(test));
+          // Go to exam-description.html with testId and cat
+          const urlParams = new URLSearchParams(window.location.search);
+          const cat = urlParams.get('cat') || (test.category || '');
+          window.location.href = `exam-description.html?testId=${test._id || test.id || ''}&cat=${cat}`;
+        } catch (err) { console.error('start error', err); alert('Could not start test.'); }
+      });
+    });
+  </script>
+</body>
+</html>

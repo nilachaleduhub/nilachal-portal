@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Test | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+</head>
+<body>
+  <!-- Reuse your navbar and header layout here -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <div class="containernew">
+    <h1 id="exam-title">Loading Tests…</h1>
+    <div class="exam-grid" id="test-container">
+      <!-- Test cards will be inserted here by exam-tests.js -->
+    </div>
+  </div>
+
+  <script src="assets/js/exam-tests.js"></script>
+  
+  <script>
+    // Check if user is logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        // User is already logged in, hide the login button
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
