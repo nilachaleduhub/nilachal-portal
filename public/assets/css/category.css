@@ -134,6 +134,7 @@
   padding: 0 1.5rem 4rem;
 }
 
+
 .buy-hero {
   background: linear-gradient(135deg, rgba(0, 191, 255, 0.12), rgba(10, 25, 49, 0.08));
   border-radius: 20px;
@@ -398,36 +399,150 @@
 }
 
 @media (max-width: 768px) {
-  .detail-card {
-    padding: 2rem 1.5rem;
+  .containernew {
+    margin: 1.5rem auto;
+    padding: 0 1rem 2rem;
   }
 
-  .detail-buy-btn {
-    width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
   .buy-hero {
     padding: 2rem 1.5rem;
+    text-align: center;
   }
 
   .buy-hero h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
   }
 
-  .buy-section {
-    padding: 2rem 1.5rem;
-  }
-
-  .buy-subsection {
-    padding: 1.25rem;
+  .buy-tagline {
+    font-size: 1rem;
+    max-width: 100%;
   }
 
   .buy-actions {
     gap: 0.5rem;
+    justify-content: center;
   }
+
   .buy-action-btn {
     width: 100%;
+    max-width: 300px;
+  }
+
+  .buy-section {
+    padding: 1.5rem 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .section-header h2 {
+    font-size: 1.6rem;
+  }
+
+  .buy-subsection {
+    padding: 1.25rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .buy-subsection h3 {
+    font-size: 1.1rem;
+  }
+
+  .exam-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .card {
+    padding: 1.25rem 1rem;
+  }
+
+  .card h3 {
+    font-size: 1.2rem;
+  }
+
+  .card p {
+    font-size: 0.9rem;
+  }
+
+  .detail-card {
+    padding: 1.5rem 1rem;
+  }
+
+  .detail-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .detail-meta {
+    gap: 0.5rem;
+  }
+
+  .detail-description {
+    font-size: 0.95rem;
+  }
+
+  .detail-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .detail-courses-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-buy-btn {
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+  }
+
+  .login-notice {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .login-notice .login-link {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .containernew {
+    margin: 1rem auto;
+    padding: 0 0.75rem 1.5rem;
+  }
+
+  .buy-hero {
+    padding: 1.5rem 1rem;
+  }
+
+  .buy-hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .buy-tagline {
+    font-size: 0.95rem;
+  }
+
+  .buy-section {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .buy-subsection {
+    padding: 1rem 0.75rem;
+  }
+
+  .card {
+    padding: 1rem 0.75rem;
+  }
+
+  .card h3 {
+    font-size: 1.1rem;
+  }
+
+  .detail-card {
+    padding: 1.25rem 0.75rem;
   }
 }

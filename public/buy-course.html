@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Buy Course | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+</head>
+<body>
+
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content" style="margin-left: 0;">
+    <!-- Hero Section -->
+    <section class="hero">
+      <h1>Invest in Your <span>Preparation</span></h1>
+      <p>Choose from expertly curated test series and immersive courses that match your exam goals.</p>
+    </section>
+
+    <!-- Test Series Section -->
+    <section class="recommended-section" id="test-series-section">
+      <div class="recommended-header">
+        <div class="recommended-badge">🎯 Test Series</div>
+        <h2>Mock Test Series & Exams</h2>
+        <p>Stay exam-ready with structured practice sets for every category</p>
+      </div>
+      
+      <div class="recommended-container">
+        <div class="recommended-content">
+          <div class="tab-content active">
+            <div style="margin-bottom: 2rem;">
+              <h3 style="font-size: 1.3rem; color: #0a1931; margin-bottom: 1rem; font-weight: 700;">Category Wise</h3>
+              <div class="recommended-grid" id="test-series-categories"></div>
+            </div>
+            <div>
+              <h3 style="font-size: 1.3rem; color: #0a1931; margin-bottom: 1rem; font-weight: 700;">Exams (Sub-category)</h3>
+              <div class="recommended-grid" id="test-series-exams"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Courses Section -->
+    <section class="recommended-section" id="courses-section">
+      <div class="recommended-header">
+        <div class="recommended-badge">📚 Courses</div>
+        <h2>Individual Courses</h2>
+        <p>Master concepts with comprehensive video lessons, PDFs, and doubt resolution</p>
+      </div>
+      
+      <div class="recommended-container">
+        <div class="recommended-content">
+          <div class="tab-content active">
+            <div class="recommended-grid" id="course-individual-container"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/buy-course.js"></script>
+  <script src="assets/js/search.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user && loginBtn) {
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
+
+

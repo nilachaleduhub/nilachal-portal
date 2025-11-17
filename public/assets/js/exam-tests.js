@@ -98,32 +98,46 @@
           console.warn('Error parsing localStorage purchases:', err);
         }
 
-        // Check server purchases (need to fetch courseValidity from original items)
-        // For now, we'll check localStorage for expiry info
+        // Combine all purchases for easier checking
+        const allPurchases = [...localPurchases.courses, ...localPurchases.tests];
+        
+        // Check server purchases first
         const hasServerAccess = serverPurchases.some(purchase => {
-          let hasAccess = false;
           // Check if purchased the specific test
           if (purchase.purchaseType === 'test' && purchase.purchaseId === testId) {
-            hasAccess = true;
-          }
-          // Check if purchased the exam (gives access to all tests in that exam)
-          else if (purchase.purchaseType === 'exam' && purchase.purchaseId === examId) {
-            hasAccess = true;
-          }
-          // Check if purchased the category (gives access to all tests in that category)
-          else if (purchase.purchaseType === 'category' && purchase.purchaseId === categoryId) {
-            hasAccess = true;
-          }
-          
-          if (hasAccess) {
-            // Check expiry from localStorage if available
-            const localMatch = [...localPurchases.courses, ...localPurchases.tests].find(p => 
-              (p.id || p.courseId || p.testId) === purchase.purchaseId
+            // Check expiry from localStorage
+            const localMatch = allPurchases.find(p => 
+              (p.id || p.courseId || p.testId || p._id) === purchase.purchaseId && 
+              (p.purchaseType === 'test' || p.type === 'test')
             );
             if (localMatch && isPurchaseExpired(localMatch.courseValidity, localMatch.purchasedAt)) {
               return false; // Expired
             }
-            // If no validity info, assume valid (for backward compatibility)
+            return true;
+          }
+          // Check if purchased the exam (gives access to all tests in that exam)
+          if (purchase.purchaseType === 'exam' && purchase.purchaseId === examId) {
+            // Check expiry from localStorage
+            const localMatch = allPurchases.find(p => 
+              (p.id || p.courseId || p.testId || p._id) === purchase.purchaseId && 
+              (p.purchaseType === 'exam' || p.type === 'exam')
+            );
+            if (localMatch && isPurchaseExpired(localMatch.courseValidity, localMatch.purchasedAt)) {
+              return false; // Expired
+            }
+            return true;
+          }
+          // Check if purchased the category (gives access to all tests in that category)
+          if (purchase.purchaseType === 'category' && purchase.purchaseId === categoryId) {
+            // Check expiry from localStorage
+            const localMatch = allPurchases.find(p => 
+              ((p.id || p.courseId || p.testId || p._id) === purchase.purchaseId && 
+               (p.purchaseType === 'category' || p.type === 'category')) ||
+              (p.categoryId === categoryId && (p.purchaseType === 'category' || p.type === 'category'))
+            );
+            if (localMatch && isPurchaseExpired(localMatch.courseValidity, localMatch.purchasedAt)) {
+              return false; // Expired
+            }
             return true;
           }
           return false;
@@ -131,10 +145,13 @@
 
         if (hasServerAccess) return true;
 
-        // Check localStorage purchases with expiry validation
+        // Check localStorage purchases with strict matching and expiry validation
+        // 1. Check if test itself is purchased
         const hasLocalTestAccess = localPurchases.tests.some(test => {
           const testPurchaseId = test.id || test.testId || test._id;
-          if (testPurchaseId === testId) {
+          const testPurchaseType = test.purchaseType || test.type;
+          // Must match test ID and be a test purchase
+          if (testPurchaseId === testId && (testPurchaseType === 'test' || !testPurchaseType)) {
             // Check if expired
             if (isPurchaseExpired(test.courseValidity, test.purchasedAt)) {
               return false; // Expired
@@ -144,10 +161,14 @@
           return false;
         });
 
+        if (hasLocalTestAccess) return true;
+
+        // 2. Check if exam is purchased (gives access to all tests in that exam)
         const hasLocalExamAccess = localPurchases.courses.some(course => {
           const courseId = course.id || course.courseId || course._id;
-          // Check if purchased the exam
-          if (courseId === examId) {
+          const coursePurchaseType = course.purchaseType || course.type;
+          // Must match exam ID and be an exam purchase
+          if (courseId === examId && (coursePurchaseType === 'exam' || coursePurchaseType === 'category')) {
             // Check if expired
             if (isPurchaseExpired(course.courseValidity, course.purchasedAt)) {
               return false; // Expired
@@ -157,11 +178,16 @@
           return false;
         });
 
+        if (hasLocalExamAccess) return true;
+
+        // 3. Check if category is purchased (gives access to all tests in that category)
         const hasLocalCategoryAccess = localPurchases.courses.some(course => {
           const courseId = course.id || course.courseId || course._id;
           const courseCategoryId = course.categoryId;
-          // Check if purchased the category
-          if (courseId === categoryId || courseCategoryId === categoryId) {
+          const coursePurchaseType = course.purchaseType || course.type;
+          // Must match category ID and be a category purchase
+          if ((courseId === categoryId || courseCategoryId === categoryId) && 
+              (coursePurchaseType === 'category')) {
             // Check if expired
             if (isPurchaseExpired(course.courseValidity, course.purchasedAt)) {
               return false; // Expired
@@ -171,7 +197,7 @@
           return false;
         });
 
-        return hasLocalTestAccess || hasLocalExamAccess || hasLocalCategoryAccess;
+        return hasLocalCategoryAccess;
       } catch (err) {
         console.error('Error checking purchase access:', err);
         return false;
@@ -248,8 +274,38 @@
             // Check if user has purchased access
             const hasAccess = isLoggedIn ? await hasPurchasedAccess(test.id, examId, categoryId) : false;
             
+            // Check if purchase is expired
+            let isExpired = false;
             if (hasAccess) {
-              // User has purchased, show "Start Test" button
+              // Check expiry from localStorage
+              try {
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                  const user = JSON.parse(userStr);
+                  const userId = user.id || user._id || user.email;
+                  const userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                  const userPurchaseData = userPurchases[userId];
+                  
+                  if (userPurchaseData) {
+                    const allPurchases = [...(userPurchaseData.courses || []), ...(userPurchaseData.tests || [])];
+                    const purchase = allPurchases.find(p => {
+                      const purchaseId = p.id || p.courseId || p.testId || p._id;
+                      return purchaseId === testId || purchaseId === examId || purchaseId === categoryId;
+                    });
+                    
+                    if (purchase && isPurchaseExpired(purchase.courseValidity, purchase.purchasedAt)) {
+                      isExpired = true;
+                      hasAccess = false;
+                    }
+                  }
+                }
+              } catch (err) {
+                console.warn('Error checking expiry:', err);
+              }
+            }
+            
+            if (hasAccess && !isExpired) {
+              // User has purchased and not expired, show "Start Test" button
               const params = new URLSearchParams();
               params.set('testId', test.id);
               if (typeof categoryId !== 'undefined' && categoryId) params.set('cat', categoryId);
@@ -291,10 +347,11 @@
                 window.location.href = testUrl;
               });
             } else {
-              // User hasn't purchased, show "Buy Now" button
+              // User hasn't purchased or it's expired, show "Buy Now" button
               const buyButtonText = isLoggedIn ? 'Buy Now' : 'Login to Buy';
               card.innerHTML = `
                 <h3>${test.name}</h3>
+                ${isExpired ? '<p style="color: #dc2626; font-size: 0.9rem; margin-bottom: 0.5rem;">⚠️ Your access has expired</p>' : ''}
                 <button class="btn card-btn" style="background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; transition: background 0.3s;">${buyButtonText}</button>
               `;
               

@@ -74,46 +74,47 @@ const loadFreeTests = async () => {
     data.tests.forEach(test => {
       const card = document.createElement('div');
       card.className = 'card';
+      card.style.cssText = 'background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 1rem;';
+      
+      card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-4px)';
+        card.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.12)';
+      });
+      
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+      });
 
       const title = document.createElement('h3');
       title.textContent = test.name || 'Free Test';
+      title.style.cssText = 'color: #0a1931; font-size: 1.3rem; font-weight: 700; margin: 0; line-height: 1.3;';
       card.appendChild(title);
-
-      const detailsContainer = document.createElement('div');
-      detailsContainer.className = 'card-details';
-
-      const detailConfigs = [
-        { label: 'Exam', value: test.examName || '' },
-        { label: 'Category', value: test.categoryName || '' },
-        { label: 'Time', value: formatTime(test.timeLimit) },
-        { label: 'Questions', value: typeof test.numQuestions === 'number' ? test.numQuestions : '' },
-        { label: 'Marking', value: buildMarkingSummary(test) }
-      ];
-
-      detailConfigs.forEach(item => {
-        const pill = createDetailPill(item.label, item.value);
-        if (pill) detailsContainer.appendChild(pill);
-      });
-
-      if (detailsContainer.childElementCount > 0) {
-        card.appendChild(detailsContainer);
-      }
-
-      if (test.description) {
-        const desc = document.createElement('p');
-        desc.textContent = test.description;
-        card.appendChild(desc);
-      }
 
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'buy-btn';
       button.textContent = user ? 'Attempt Now' : 'Login to Attempt';
+      button.style.cssText = 'background: linear-gradient(135deg, #00bfff, #0095cc); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; transition: all 0.3s ease; margin-top: auto; font-size: 1rem;';
+      
       if (!user) {
         button.classList.add('disabled');
+        button.style.opacity = '0.7';
       }
 
       button.disabled = !user;
+
+      button.addEventListener('mouseenter', () => {
+        if (user) {
+          button.style.transform = 'translateY(-2px)';
+          button.style.boxShadow = '0 4px 12px rgba(0, 191, 255, 0.4)';
+        }
+      });
+
+      button.addEventListener('mouseleave', () => {
+        button.style.transform = 'translateY(0)';
+        button.style.boxShadow = 'none';
+      });
 
       button.addEventListener('click', () => {
         if (!user) {

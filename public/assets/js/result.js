@@ -135,15 +135,28 @@ async function renderResult() {
       imageHTML = `<img src="${q.imageData}" alt="Question image" style="max-width: 100%; height: auto; margin: 12px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
     }
     
+    // Build explanation image HTML if available
+    let explanationImageHTML = '';
+    if (q.explanationImage && q.explanationImage.trim() !== '') {
+      explanationImageHTML = `<img src="${q.explanationImage}" alt="Explanation image" style="max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
+    }
+    
+    // Build table HTML if available
+    let tableHTML = '';
+    if (q.tableData && q.tableData.trim() !== '') {
+      tableHTML = `<div style="margin: 12px 0;">${q.tableData}</div>`;
+    }
+    
     qDiv.innerHTML = `
       <div class="question-title"><b>Q${i + 1}.</b> ${escapedQuestion}</div>
       ${imageHTML}
+      ${tableHTML}
       <ul class="option-list">
         ${escapedOptions}
       </ul>
       <div><b>Your Answer:</b> ${userAns !== undefined && userAns !== null ? String.fromCharCode(65 + userAns) : '<span style="color:#64748b">Not Attempted</span>'}</div>
       <div><b>Correct Answer:</b> ${q.answer !== undefined ? String.fromCharCode(65 + q.answer) : (q.correct !== undefined ? String.fromCharCode(65 + q.correct) : '?')}</div>
-      <div class="explanation"><b>Explanation:</b> ${escapedExplanation}</div>
+      <div class="explanation"><b>Explanation:</b> ${escapedExplanation}${explanationImageHTML}</div>
     `;
     qList.appendChild(qDiv);
   }

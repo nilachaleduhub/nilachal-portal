@@ -1,0 +1,211 @@
+<!-- Exam Details Form Section -->
+<div class="exam-details-form-section">
+    <h3>Add/Edit Exam Details</h3>
+    <form id="exam-details-form" enctype="multipart/form-data">
+        <input type="hidden" id="exam-details-id">
+        
+        <!-- Card 1: Exam Name, About Exam, About Exam Image -->
+        <div class="form-card">
+            <div class="card-header">
+                <h4><i class="fas fa-certificate"></i> Exam Information</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="exam-name">Exam Name <span class="required">*</span></label>
+                    <input type="text" id="exam-name" name="exam-name" placeholder="Enter exam name" required>
+                </div>
+                <div class="form-group">
+                    <label for="about-exam-text">About Exam</label>
+                    <textarea id="about-exam-text" placeholder="Enter detailed information about the exam" rows="6"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="about-exam-image">About Exam Image</label>
+                    <input type="file" id="about-exam-image" accept="image/*">
+                    <small>Upload an image related to the exam</small>
+                    <div id="about-exam-image-preview" class="image-preview" style="display: none;">
+                        <img id="about-exam-image-preview-img" src="" alt="Preview">
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('about-exam-image')">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Important Links -->
+        <div class="form-card">
+            <div class="card-header">
+                <h4><i class="fas fa-link"></i> Important Links</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <div id="links-container">
+                        <div class="link-item">
+                            <input type="text" class="link-caption" placeholder="Link Caption" name="link-caption[]">
+                            <input type="url" class="link-url" placeholder="https://example.com" name="link-url[]">
+                            <button type="button" class="remove-link-btn" onclick="removeLinkItem(this)" style="display: none;">Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" class="add-more-btn" onclick="addLinkItem()">
+                        <i class="fas fa-plus"></i> Add More Link
+                    </button>
+                    <div id="links-table-container" style="margin-top: 20px; display: none;">
+                        <h4>Added Links</h4>
+                        <table id="links-table" class="links-table">
+                            <thead>
+                                <tr>
+                                    <th>Caption</th>
+                                    <th>Link</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Exam Pattern -->
+        <div class="form-card">
+            <div class="card-header">
+                <h4><i class="fas fa-clipboard-list"></i> Exam Pattern</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <div id="exam-pattern-container">
+                        <div class="pattern-item">
+                            <input type="text" class="pattern-caption" placeholder="Pattern Caption (e.g., Exam Duration, Total Marks)" name="pattern-caption[]">
+                            <div class="pattern-content-options">
+                                <label><input type="radio" name="pattern-type-0" value="text" checked> Text</label>
+                                <label><input type="radio" name="pattern-type-0" value="picture"> Picture</label>
+                                <label><input type="radio" name="pattern-type-0" value="table"> Table</label>
+                            </div>
+                            <div class="pattern-content pattern-text-content">
+                                <textarea class="pattern-text" placeholder="Enter pattern details" rows="4" name="pattern-text[]"></textarea>
+                            </div>
+                            <div class="pattern-content pattern-picture-content" style="display: none;">
+                                <input type="file" class="pattern-image" accept="image/*" name="pattern-image[]">
+                                <div class="pattern-image-preview" style="display: none;">
+                                    <img class="pattern-image-preview-img" src="" alt="Preview">
+                                    <button type="button" class="remove-image-btn" onclick="removePatternImagePreview(this)">Remove</button>
+                                </div>
+                            </div>
+                            <div class="pattern-content pattern-table-content" style="display: none;">
+                                <div class="pattern-table-editor">
+                                    <div class="table-editor-controls">
+                                        <input type="number" class="pattern-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                                        <input type="number" class="pattern-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                                        <button type="button" class="btn-secondary" onclick="generatePatternTable(this)">Generate Table</button>
+                                        <button type="button" class="btn-secondary" onclick="cancelPatternTable(this)">Cancel</button>
+                                    </div>
+                                    <div class="pattern-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                                </div>
+                            </div>
+                            <button type="button" class="remove-pattern-btn" onclick="removePatternItem(this)" style="display: none;">Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" class="add-more-btn" onclick="addPatternItem()">
+                        <i class="fas fa-plus"></i> Add More Pattern
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Exam Syllabus -->
+        <div class="form-card">
+            <div class="card-header">
+                <h4><i class="fas fa-book"></i> Exam Syllabus</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="exam-syllabus-text">Exam Syllabus (Text)</label>
+                    <textarea id="exam-syllabus-text" placeholder="Enter syllabus details" rows="8"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="exam-syllabus-image">Exam Syllabus Image</label>
+                    <input type="file" id="exam-syllabus-image" accept="image/*">
+                    <small>Upload syllabus as an image</small>
+                    <div id="exam-syllabus-image-preview" class="image-preview" style="display: none;">
+                        <img id="exam-syllabus-image-preview-img" src="" alt="Preview">
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('exam-syllabus-image')">Remove</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Exam Syllabus Table</label>
+                    <div id="syllabus-table-container">
+                        <button type="button" class="add-table-btn" onclick="addSyllabusTable()">
+                            <i class="fas fa-table"></i> Add Syllabus Table
+                        </button>
+                        <div id="syllabus-table-editor" style="display: none; margin-top: 15px;">
+                            <div class="table-editor-controls">
+                                <input type="number" id="syllabus-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                                <input type="number" id="syllabus-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                                <button type="button" class="btn-secondary" onclick="generateSyllabusTable()">Generate Table</button>
+                                <button type="button" class="btn-secondary" onclick="cancelSyllabusTable()">Cancel</button>
+                            </div>
+                            <div id="syllabus-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 5: Previous Year Cut Off -->
+        <div class="form-card">
+            <div class="card-header">
+                <h4><i class="fas fa-chart-line"></i> Previous Year Cut Off</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="cutoff-image">Previous Year Cut Off Image</label>
+                    <input type="file" id="cutoff-image" accept="image/*">
+                    <small>Upload cut off as an image</small>
+                    <div id="cutoff-image-preview" class="image-preview" style="display: none;">
+                        <img id="cutoff-image-preview-img" src="" alt="Preview">
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('cutoff-image')">Remove</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Previous Year Cut Off Table</label>
+                    <div id="cutoff-table-container">
+                        <button type="button" class="add-table-btn" onclick="addCutoffTable()">
+                            <i class="fas fa-table"></i> Add Cut Off Table
+                        </button>
+                        <div id="cutoff-table-editor" style="display: none; margin-top: 15px;">
+                            <div class="table-editor-controls">
+                                <input type="number" id="cutoff-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                                <input type="number" id="cutoff-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                                <button type="button" class="btn-secondary" onclick="generateCutoffTable()">Generate Table</button>
+                                <button type="button" class="btn-secondary" onclick="cancelCutoffTable()">Cancel</button>
+                            </div>
+                            <div id="cutoff-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn-cancel" onclick="resetExamDetailsForm()">Reset</button>
+            <button type="submit" class="btn-submit">Save Exam Details</button>
+        </div>
+    </form>
+</div>
+
+<!-- Exam Details List Section -->
+<div class="exam-details-list-section">
+    <h3>Existing Exam Details</h3>
+    <div id="exam-details-list">
+        <div class="loading-message">Loading exam details...</div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+

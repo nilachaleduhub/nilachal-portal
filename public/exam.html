@@ -8,10 +8,11 @@
   <link rel="stylesheet" href="assets/css/category.css">
 </head>
 <body>
-  <!-- Reuse your navbar and header layout here -->
+  <!-- Header / Navbar -->
   <header class="navbar">
     <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
     <nav class="nav-links nav-buttons">
+      <a href="free-tests.html" class="nav-btn" style="background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981; color: white; font-weight: 700;">🆓 Attempt Free Test</a>
       <a href="index.html" class="nav-btn">Home</a>
       <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
     </nav>
@@ -25,6 +26,7 @@
   </div>
 
   <script src="assets/js/exam-tests.js"></script>
+  <script src="assets/js/search.js"></script>
   
   <script>
     // Check if user is logged in and hide login button
@@ -34,7 +36,7 @@
       
       if (user) {
         // User is already logged in, hide the login button
-        loginBtn.style.display = 'none';
+        if (loginBtn) loginBtn.style.display = 'none';
       }
     });
   </script>

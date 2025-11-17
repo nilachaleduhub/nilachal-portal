@@ -12,9 +12,9 @@
                         radial-gradient(900px 600px at 120% 10%, #ffe8f0 0%, transparent 50%),
                         #f3f6fb; 
             color:#0b1320; 
-            display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 32px 16px;
+            margin: 0; 
+            padding-top: 80px;
         }
-        .result-container { max-width: 1200px; width: 100%; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 16px 48px rgba(10,20,40,0.10); }
         h1 { color: #0f172a; margin-bottom: 6px; font-weight: 800; letter-spacing: .2px; }
         .subtle { color:#64748b; margin: 0 0 18px 0; }
         .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; margin-top: 18px; }
@@ -40,16 +40,123 @@
         .btn { background:linear-gradient(90deg,#3366ff,#6c5ce7); color:white; border:none; padding:12px 24px; border-radius:10px; font-weight:800; cursor:pointer; text-decoration:none; box-shadow: 0 10px 24px rgba(59,130,246,0.25); }
         .btn:hover { filter:brightness(1.05); transform: translateY(-1px); }
         .btn-outline { background:white; border:2px solid #e2e8f0; color:#334155; padding:10px 20px; border-radius:10px; font-weight:700; }
+
+        /* Mobile Responsive */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 16px 8px;
+            }
+            .result-container {
+                padding: 24px 16px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .subtle {
+                font-size: 0.9rem;
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            .kpi-card {
+                padding: 14px;
+            }
+            .kpi-title {
+                font-size: 0.85rem;
+            }
+            .kpi-value {
+                font-size: 1.3rem;
+            }
+            .score-wrap {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+            .score-circle {
+                width: 120px;
+                height: 120px;
+            }
+            .score-circle .score {
+                font-size: 1.8rem;
+            }
+            .meta-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .stat-box {
+                padding: 12px;
+            }
+            .section-card {
+                padding: 16px;
+                overflow-x: auto;
+            }
+            .section-table {
+                font-size: 0.85rem;
+                min-width: 500px;
+            }
+            .actions {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .btn, .btn-outline {
+                width: 100%;
+                padding: 12px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 12px 6px;
+            }
+            .result-container {
+                padding: 20px 12px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .score-circle {
+                width: 100px;
+                height: 100px;
+            }
+            .score-circle .score {
+                font-size: 1.5rem;
+            }
+            .section-table {
+                font-size: 0.8rem;
+                min-width: 400px;
+            }
+            .section-table th,
+            .section-table td {
+                padding: 8px 6px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="result-container">
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+
+    <div class="search-login">
+      <input type="text" class="search-box" placeholder="Search">
+    </div>
+  </header>
+
+    <div class="result-container" style="max-width: 1200px; width: 100%; margin: 2rem auto; padding: 32px; background: white; border-radius: 16px; box-shadow: 0 16px 48px rgba(10,20,40,0.10);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
             <div>
                 <h1>Test Submitted Successfully!</h1>
                 <p class="subtle">Here is your performance summary.</p>
             </div>
-            <button id="print-pdf-btn" class="btn btn-outline" style="margin:0;">Print to PDF</button>
         </div>
 
         <div class="score-wrap">
@@ -129,7 +236,7 @@
         @page { size: A4 portrait; margin: 15mm; }
         body { background: white !important; }
         .result-container { box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
-        #print-pdf-btn, .actions, .btn, .btn-outline { display: none !important; }
+        .actions, .btn, .btn-outline { display: none !important; }
         
         /* Add beautiful website header for print */
         .result-container::before {
@@ -586,27 +693,38 @@
                         imageHTML = `<img src="${q.imageData}" alt="Question image" style="max-width: 100%; height: auto; margin: 12px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
                     }
                     
+                    // Build explanation image HTML if available
+                    let explanationImageHTML = '';
+                    if (q.explanationImage && q.explanationImage.trim() !== '') {
+                        explanationImageHTML = `<img src="${q.explanationImage}" alt="Explanation image" style="max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
+                    }
+                    
                     const qDiv = document.createElement('div');
                     qDiv.innerHTML = `
                         <div class="question-title">Q${i+1}. ${escapedQuestion}</div>
                         ${imageHTML}
                         <div style="margin:6px 0 2px 0;"><b>Your Answer:</b> ${userAns !== undefined && userAns !== null ? String.fromCharCode(65 + userAns) + '. ' + escapedUserOption : "<span style=\"color:#64748b\">Not Attempted</span>"}</div>
                         <div><b>Correct Answer:</b> ${correctAns !== undefined && q.options && q.options[correctAns] !== undefined ? String.fromCharCode(65 + correctAns) + '. ' + escapedCorrectOption : '?'}</div>
-                        <div class="explanation"><b>Explanation:</b> <span style="color:#0b1320;">${escapedExplanation}</span></div>
+                        <div class="explanation"><b>Explanation:</b> <span style="color:#0b1320;">${escapedExplanation}</span>${explanationImageHTML}</div>
                     `;
                     answersList.appendChild(qDiv);
                 }
             }
         } catch (e) { console.error('Error rendering answers:', e); }
 
-        // Print to PDF handler
-        const printBtn = document.getElementById('print-pdf-btn');
-        if (printBtn) {
-            printBtn.addEventListener('click', () => {
-                window.print();
-            });
-        }
     });
     </script>
+  <script src="assets/js/search.js"></script>
+  <script>
+    // Check if user is already logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user && loginBtn) {
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
 </body>
 </html>

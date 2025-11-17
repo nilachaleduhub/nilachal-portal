@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Exam Pattern and Syllabus | Nilachal Eduhub</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/category.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/exam-pattern-syllabus.css">
+</head>
+<body>
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    
+    <nav class="nav-links nav-buttons">
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+
+    <div class="search-login">
+      <input type="text" class="search-box" placeholder="Search">
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="exam-pattern-container">
+    <!-- Left Sidebar - Table of Contents -->
+    <aside class="toc-sidebar" id="toc-sidebar">
+      <div class="toc-header">
+        <h3><i class="fas fa-list"></i> Table of Contents</h3>
+      </div>
+      <nav class="toc-nav">
+        <a href="#exam-name-section" class="toc-link" data-section="exam-name-section">
+          <span class="toc-number">1</span>
+          <span class="toc-text">Exam Name</span>
+        </a>
+        <a href="#about-exam-section" class="toc-link" data-section="about-exam-section">
+          <span class="toc-number">2</span>
+          <span class="toc-text">About Exam</span>
+        </a>
+        <a href="#links-section" class="toc-link" data-section="links-section">
+          <span class="toc-number">3</span>
+          <span class="toc-text">Important Links</span>
+        </a>
+        <a href="#pattern-section" class="toc-link" data-section="pattern-section">
+          <span class="toc-number">4</span>
+          <span class="toc-text">Exam Pattern</span>
+        </a>
+        <a href="#syllabus-section" class="toc-link" data-section="syllabus-section">
+          <span class="toc-number">5</span>
+          <span class="toc-text">Syllabus</span>
+        </a>
+        <a href="#cutoff-section" class="toc-link" data-section="cutoff-section">
+          <span class="toc-number">6</span>
+          <span class="toc-text">Previous Year Cut Off</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="exam-pattern-main">
+      <!-- Exam List View (when no exam selected) -->
+      <div id="exam-list-view" class="exam-list-view">
+        <div class="page-header">
+          <h1><i class="fas fa-clipboard-list"></i> Exam Pattern and Syllabus</h1>
+          <p>Select an exam to view detailed information about exam pattern, syllabus, and previous year cut-offs</p>
+        </div>
+        <div class="exam-grid" id="exam-list-grid">
+          <div class="loading-message">Loading exams...</div>
+        </div>
+      </div>
+
+      <!-- Exam Details View (when exam selected) -->
+      <div id="exam-details-view" class="exam-details-view" style="display: none;">
+        <button class="back-to-list-btn" onclick="showExamList()">
+          <i class="fas fa-arrow-left"></i> Back to Exam List
+        </button>
+
+        <!-- 1. Exam Name Section -->
+        <section id="exam-name-section" class="content-section">
+          <h2 class="section-title" id="exam-name-title">Exam Name</h2>
+        </section>
+
+        <!-- 2. About Exam Section -->
+        <section id="about-exam-section" class="content-section">
+          <h2 class="section-title">About Exam</h2>
+          <div id="about-exam-content" class="section-content">
+            <!-- Content will be loaded here -->
+          </div>
+        </section>
+
+        <!-- 3. Links Section -->
+        <section id="links-section" class="content-section">
+          <h2 class="section-title">Important Links</h2>
+          <div id="links-content" class="section-content">
+            <!-- Links table will be displayed here -->
+          </div>
+        </section>
+
+        <!-- 4. Exam Pattern Section -->
+        <section id="pattern-section" class="content-section">
+          <h2 class="section-title">Exam Pattern</h2>
+          <div id="pattern-content" class="section-content">
+            <!-- Exam pattern content will be displayed here -->
+          </div>
+        </section>
+
+        <!-- 5. Syllabus Section -->
+        <section id="syllabus-section" class="content-section">
+          <h2 class="section-title">Exam Syllabus</h2>
+          <div id="syllabus-content" class="section-content">
+            <!-- Syllabus content will be displayed here -->
+          </div>
+        </section>
+
+        <!-- 6. Previous Year Cut Off Section -->
+        <section id="cutoff-section" class="content-section">
+          <h2 class="section-title">Previous Year Cut Off</h2>
+          <div id="cutoff-content" class="section-content">
+            <!-- Cut off content will be displayed here -->
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/search.js"></script>
+  <script src="assets/js/exam-pattern-syllabus.js"></script>
+  <script>
+    // Check if user is logged in and hide login button
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginBtn = document.getElementById('login-btn');
+      const user = localStorage.getItem('user');
+      
+      if (user) {
+        loginBtn.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
+
+
+
+

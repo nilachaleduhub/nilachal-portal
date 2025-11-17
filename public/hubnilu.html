@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="main.css" >
     <link rel="stylesheet" href="assets/css/category.css">
     <link rel="stylesheet" href="assets/css/admin.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
         <!-- Admin Login/Register Modal -->
@@ -79,7 +80,7 @@
     </nav>
 
     <div class="search-login">
-      <input type="text" class="search-box" placeholder="Search tests...">
+      <input type="text" class="search-box" placeholder="Search">
     </div>
   </header>
 
@@ -92,6 +93,10 @@
         <!-- Main Menu Section -->
         <div class="admin-section" id="main-menu-section">
             <div style="text-align: center; margin-top: 60px; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                <button class="nav-btn" id="dashboard-btn" style="font-size: 1.2rem; padding: 20px 40px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3); transition: all 0.3s ease;">
+                    <span class="nav-icon" style="font-size: 1.5rem; margin-right: 10px;">📊</span>
+                    Dashboard
+                </button>
                 <button class="nav-btn" id="mocktests-btn" style="font-size: 1.2rem; padding: 20px 40px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
                     <span class="nav-icon" style="font-size: 1.5rem; margin-right: 10px;">📝</span>
                     Mocktests
@@ -100,9 +105,13 @@
                     <span class="nav-icon" style="font-size: 1.5rem; margin-right: 10px;">📚</span>
                     Courses
                 </button>
-                <button class="nav-btn" id="ads-btn" style="font-size: 1.2rem; padding: 20px 40px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); transition: all 0.3s ease;">
+                <a href="admanagement.html" class="nav-btn" id="ads-btn" style="font-size: 1.2rem; padding: 20px 40px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
                     <span class="nav-icon" style="font-size: 1.5rem; margin-right: 10px;">📢</span>
                     Ad Management
+                </a>
+                <button class="nav-btn" id="exam-details-btn" style="font-size: 1.2rem; padding: 20px 40px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); transition: all 0.3s ease;">
+                    <span class="nav-icon" style="font-size: 1.5rem; margin-right: 10px;">📋</span>
+                    Exam Details
                 </button>
             </div>
             <style>
@@ -117,6 +126,10 @@
                 #ads-btn:hover {
                     transform: translateY(-2px);
                     box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+                }
+                #exam-details-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
                 }
             </style>
         </div>
@@ -156,8 +169,28 @@
                 <input type="text" id="category-name" placeholder="Category Name" required>
                 <input type="text" id="category-desc" placeholder="Category Description">
                 <textarea id="category-course-details" placeholder="Course Details" rows="3"></textarea>
-                <input type="text" id="category-course-cost" placeholder="Course Cost">
-                <input type="text" id="category-course-validity" placeholder="Validity (e.g., 6 Months / 1 Year)">
+                <input type="text" id="category-course-cost" placeholder="Price (e.g., ₹499)">
+                <div class="form-row" style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <input type="number" id="category-validity-value" placeholder="Validity value" min="1" style="flex:1 1 140px;">
+                    <select id="category-validity-unit" style="flex:1 1 140px;">
+                        <option value="">Select unit</option>
+                        <option value="day">Day(s)</option>
+                        <option value="month">Month(s)</option>
+                        <option value="year">Year(s)</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin-top:12px;">
+                    <label style="font-weight: 600; margin-bottom: 6px; display:block;">Does the Category have discount?</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="category-has-discount" id="category-discount-yes" value="yes"> Yes</label>
+                        <label><input type="radio" name="category-has-discount" id="category-discount-no" value="no" checked> No</label>
+                    </div>
+                </div>
+                <div id="category-discount-fields" style="display:none; margin-top:10px;">
+                    <input type="number" id="category-discount-percent" placeholder="Discount % (e.g., 15)" min="0" max="100" step="0.01">
+                    <input type="text" id="category-discount-code" placeholder="Discount Code">
+                    <textarea id="category-discount-message" placeholder="Discount message for users" rows="2"></textarea>
+                </div>
                 <button type="submit" class="btn">Save Category</button>
             </form>
             <div id="category-list" class="admin-list"></div>
@@ -174,8 +207,28 @@
                 <input type="text" id="exam-name" placeholder="Exam Name" required>
                 <input type="text" id="exam-desc" placeholder="Exam Description">
                 <textarea id="exam-course-details" placeholder="Course Details" rows="3"></textarea>
-                <input type="text" id="exam-course-cost" placeholder="Course Cost">
-                <input type="text" id="exam-course-validity" placeholder="Validity (e.g., 6 Months / 1 Year)">
+                <input type="text" id="exam-course-cost" placeholder="Price (e.g., ₹499)">
+                <div class="form-row" style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <input type="number" id="exam-validity-value" placeholder="Validity value" min="1" style="flex:1 1 140px;">
+                    <select id="exam-validity-unit" style="flex:1 1 140px;">
+                        <option value="">Select unit</option>
+                        <option value="day">Day(s)</option>
+                        <option value="month">Month(s)</option>
+                        <option value="year">Year(s)</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin-top:12px;">
+                    <label style="font-weight: 600; margin-bottom: 6px; display:block;">Does the Exam have discount?</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="exam-has-discount" id="exam-discount-yes" value="yes"> Yes</label>
+                        <label><input type="radio" name="exam-has-discount" id="exam-discount-no" value="no" checked> No</label>
+                    </div>
+                </div>
+                    <div id="exam-discount-fields" style="display:none; margin-top:10px;">
+                        <input type="number" id="exam-discount-percent" placeholder="Discount % (e.g., 15)" min="0" max="100" step="0.01">
+                        <input type="text" id="exam-discount-code" placeholder="Discount Code">
+                        <textarea id="exam-discount-message" placeholder="Discount message for users" rows="2"></textarea>
+                    </div>
                 <button type="submit" class="btn">Save Exam</button>
             </form>
             <div id="exam-list" class="admin-list"></div>
@@ -422,53 +475,23 @@
         </div>
         <!-- End of Courses Section -->
 
-        <!-- Ad Management Section -->
-        <div class="admin-section" id="ads-section" style="display: none;">
+
+        <!-- Exam Details Section -->
+        <div class="admin-section" id="exam-details-section" style="display: none;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 20px;">
-                <h2>Ad Management</h2>
-                <button id="back-to-main-from-ads-btn" class="nav-btn" style="background:#64748b; color:#fff; border-radius:8px; padding:8px 14px;">← Back</button>
+                <h2>Exam Details Management</h2>
+                <button id="back-to-main-from-exam-details-btn" class="nav-btn" style="background:#64748b; color:#fff; border-radius:8px; padding:8px 14px;">← Back</button>
             </div>
-
-            <!-- Ad Form -->
-            <div class="admin-section" id="ad-form-section">
-                <h3>Add/Edit Ad</h3>
-                <form id="ad-form" enctype="multipart/form-data">
-                    <input type="hidden" id="ad-id">
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #334155;">Position Number</label>
-                        <input type="number" id="ad-position" placeholder="Enter position number (1, 2, 3...)" required min="1" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
-                        <small style="color: #64748b; display: block; margin-top: 5px;">Position determines the order of ads on homepage</small>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #334155;">Poster Image</label>
-                        <input type="file" id="ad-poster" accept="image/*" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
-                        <small style="color: #64748b; display: block; margin-top: 5px;">Upload poster image (JPG, PNG, etc.)</small>
-                        <div id="ad-poster-preview" style="margin-top: 10px; display: none;">
-                            <img id="ad-poster-preview-img" src="" alt="Poster Preview" style="max-width: 300px; max-height: 200px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155;">
-                            <input type="checkbox" id="ad-is-active" checked>
-                            <span>Active (Show on homepage)</span>
-                        </label>
-                    </div>
-                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;">Save Ad</button>
-                </form>
-            </div>
-
-            <!-- Ads List -->
-            <div class="admin-section" id="ads-list-section" style="margin-top: 30px;">
-                <h3>Existing Ads</h3>
-                <div id="ads-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
-                    <div style="text-align: center; padding: 20px; color: #64748b;">Loading ads...</div>
-                </div>
+            <div id="exam-details-content">
+                <!-- Content will be loaded from exam-details.html -->
             </div>
         </div>
-        <!-- End of Ad Management Section -->
+        <!-- End of Exam Details Section -->
         
     </div>
 
+    <link rel="stylesheet" href="assets/css/exam-details.css">
     <script src="assets/js/admin.js"></script>
+    <script src="assets/js/exam-details.js"></script>
 </body>
 </html>

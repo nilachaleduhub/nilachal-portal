@@ -63,11 +63,31 @@ body {
 
 /* Search Box */
 .search-box {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 25px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
   outline: none;
   width: 200px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.search-box::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-box:focus {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0a1931;
+  border-color: #00bfff;
+  width: 250px;
+  box-shadow: 0 4px 12px rgba(0, 191, 255, 0.3);
+}
+
+.search-box:focus::placeholder {
+  color: #94a3b8;
 }
 
 /* Search Login Container */
@@ -75,6 +95,11 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+/* Mobile Menu Toggle Button - Hidden on desktop */
+.mobile-menu-toggle {
+  display: none;
 }
 
 /* Vertical Navigation Bar */
@@ -501,6 +526,160 @@ body {
   font-size: 1.1rem;
 }
 
+/* Footer Styles */
+.site-footer {
+  background: linear-gradient(135deg, #0a1931 0%, #1e3a8a 100%);
+  color: #ffffff;
+  margin-top: 4rem;
+  margin-left: 220px;
+  padding: 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  transition: margin-left 0.3s ease;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 2rem 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.footer-brand h3 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+}
+
+.footer-brand h3 span {
+  color: #00bfff;
+}
+
+.footer-brand p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.social-media-section {
+  text-align: center;
+}
+
+.social-media-section h4 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+}
+
+.social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.social-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #ffffff;
+  font-size: 1.8rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.social-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.social-icon:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+.social-icon:hover {
+  transform: translateY(-5px) scale(1.1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.social-icon i {
+  position: relative;
+  z-index: 1;
+}
+
+/* Individual social media icon colors */
+.social-icon.youtube {
+  background: linear-gradient(135deg, #FF0000, #CC0000);
+}
+
+.social-icon.youtube:hover {
+  background: linear-gradient(135deg, #FF3333, #FF0000);
+}
+
+.social-icon.telegram {
+  background: linear-gradient(135deg, #0088cc, #006699);
+}
+
+.social-icon.telegram:hover {
+  background: linear-gradient(135deg, #00aaff, #0088cc);
+}
+
+.social-icon.whatsapp {
+  background: linear-gradient(135deg, #25D366, #128C7E);
+}
+
+.social-icon.whatsapp:hover {
+  background: linear-gradient(135deg, #2efd7a, #25D366);
+}
+
+.social-icon.instagram {
+  background: linear-gradient(135deg, #E4405F, #C13584, #833AB4, #5851DB);
+  background-size: 300% 300%;
+  animation: instagram-gradient 3s ease infinite;
+}
+
+@keyframes instagram-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.social-icon.instagram:hover {
+  animation-duration: 1.5s;
+}
+
+.footer-bottom {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem 2rem;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-bottom p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
 /* Responsive */
 @media screen and (max-width: 768px) {
   .navbar {
@@ -517,16 +696,56 @@ body {
     width: 100%;
   }
 
+  .search-box:focus {
+    width: 100%;
+  }
+
   .hero h1 {
     font-size: 2rem;
   }
 
-  /* Hide vertical nav on mobile */
+  /* Make vertical nav visible on mobile with hamburger menu */
   .vertical-nav {
-    display: none;
+    position: fixed;
+    left: -220px;
+    top: 80px;
+    width: 220px;
+    height: calc(100vh - 80px);
+    transition: left 0.3s ease;
+    z-index: 1001;
+  }
+
+  .vertical-nav.mobile-open {
+    left: 0;
+  }
+
+  /* Hamburger menu button */
+  .mobile-menu-toggle {
+    display: block;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1002;
+    background: #0a1931;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .main-content {
+    margin-left: 0;
+  }
+
+  .site-footer {
     margin-left: 0;
   }
 
@@ -548,5 +767,67 @@ body {
 
   .ads-section {
     padding: 1.5rem 1rem;
+  }
+
+  /* Footer Responsive */
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 2.5rem 1.5rem 1.5rem;
+    text-align: center;
+  }
+
+  .footer-brand h3 {
+    font-size: 1.5rem;
+  }
+
+  .footer-brand p {
+    font-size: 0.95rem;
+  }
+
+  .social-media-section h4 {
+    font-size: 1.1rem;
+  }
+
+  .social-icons {
+    gap: 1rem;
+  }
+
+  .social-icon {
+    width: 55px;
+    height: 55px;
+    font-size: 1.6rem;
+  }
+
+  .footer-bottom {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .footer-content {
+    padding: 2rem 1rem 1.5rem;
+  }
+
+  .footer-brand h3 {
+    font-size: 1.3rem;
+  }
+
+  .social-icons {
+    gap: 0.75rem;
+  }
+
+  .social-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.4rem;
+  }
+
+  .footer-bottom {
+    padding: 1rem;
+  }
+
+  .footer-bottom p {
+    font-size: 0.85rem;
   }
 }

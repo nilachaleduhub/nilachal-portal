@@ -32,80 +32,76 @@
 
   const formatValue = (value) => String(value).trim();
 
-  const createCard = ({ title, description, details = [], onCardClick, button }) => {
+  const createCard = ({ title, description, details = [], onCardClick, button, type = 'course', hasDiscount = false, discountPercent = 0, discountCode = '', discountMessage = '' }) => {
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'recommended-card';
 
-    if (typeof onCardClick === 'function') {
-      const handleActivate = () => onCardClick();
-      card.classList.add('card-clickable');
-      card.tabIndex = 0;
-      card.setAttribute('role', 'button');
-      if (title) {
-        card.setAttribute('aria-label', `View details for ${title}`);
-      }
-      card.addEventListener('click', handleActivate);
-      card.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          handleActivate();
-        }
-      });
+    // Determine badge and icon based on type
+    let badge, icon;
+    if (type === 'category') {
+      badge = 'Mock Test Series';
+      icon = '🎯';
+    } else if (type === 'exam') {
+      badge = 'Exam';
+      icon = '📝';
+    } else {
+      badge = 'Course';
+      icon = '📚';
     }
 
-    const heading = document.createElement('h3');
-    heading.textContent = title || 'Untitled';
-    card.appendChild(heading);
-
+    // Build details HTML exactly like recommendation page
+    let detailsHTML = '';
     if (Array.isArray(details) && details.some(item => item && hasValue(item.value))) {
-      const detailsContainer = document.createElement('div');
-      detailsContainer.className = 'card-details';
-
+      const detailItems = [];
       details.forEach(item => {
         if (!item || !hasValue(item.value)) return;
-        const badge = document.createElement('span');
-        badge.className = 'card-detail';
-
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'card-detail-label';
-        labelSpan.textContent = `${item.label}`;
-
-        const valueSpan = document.createElement('span');
-        valueSpan.className = 'card-detail-value';
-        valueSpan.textContent = formatValue(item.value);
-
-        badge.appendChild(labelSpan);
-        badge.appendChild(document.createTextNode(': '));
-        badge.appendChild(valueSpan);
-        detailsContainer.appendChild(badge);
+        const label = item.label || '';
+        const value = formatValue(item.value);
+        detailItems.push(`<span class="recommended-detail"><strong>${label}:</strong> ${value}</span>`);
       });
-
-      if (detailsContainer.childElementCount > 0) {
-        card.appendChild(detailsContainer);
+      if (detailItems.length > 0) {
+        detailsHTML = `<div class="recommended-card-details">${detailItems.join('')}</div>`;
       }
     }
 
-    if (description) {
-      const descEl = document.createElement('p');
-      descEl.textContent = description;
-      card.appendChild(descEl);
+    // Build discount message if available (exactly like recommendation page)
+    let discountInfo = '';
+    if (hasDiscount && discountPercent > 0 && discountCode) {
+      const discountText = discountMessage || `Get ${discountPercent}% discount using code ${discountCode}`;
+      discountInfo = `<div class="recommended-discount" style="margin-top: 0.5rem; padding: 0.5rem; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 6px; border-left: 3px solid #f59e0b; font-size: 0.85rem; color: #92400e; font-weight: 600;">
+        🎉 ${discountText}
+      </div>`;
     }
 
-    if (button !== null) {
-      const config = button || {};
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = config.className || 'buy-btn';
-      btn.textContent = config.label || 'Buy Now';
+    // Build button HTML
+    const buttonText = (button && button.label) ? button.label : 'Buy Now';
+    const buttonHTML = `<a href="#" class="recommended-card-btn">
+      ${buttonText}
+      <span class="arrow">→</span>
+    </a>`;
+
+    // Build card HTML exactly like recommendation page
+    card.innerHTML = `
+      <div class="recommended-card-badge">${icon} ${badge}</div>
+      <h3 class="recommended-card-title">${title || 'Untitled'}</h3>
+      <p class="recommended-card-desc">${description || 'Explore this content to enhance your preparation.'}</p>
+      ${detailsHTML}
+      ${discountInfo}
+      ${buttonHTML}
+    `;
+
+    // Add click handler to button
+    const btn = card.querySelector('.recommended-card-btn');
+    if (btn) {
       btn.addEventListener('click', (event) => {
+        event.preventDefault();
         event.stopPropagation();
-        if (typeof config.onClick === 'function') {
-          config.onClick(event);
+        if (typeof button === 'object' && typeof button.onClick === 'function') {
+          button.onClick(event);
         } else if (typeof onCardClick === 'function') {
           onCardClick();
         }
       });
-      card.appendChild(btn);
     }
 
     return card;
@@ -115,40 +111,59 @@
     if (!testSeriesCategoryContainer) return [];
 
     let categories = [];
-    let serverCategories = [];
 
+    // Primary source: Load from database API (admin panel mock management)
     try {
-      const res = await fetch('assets/data/categories.json');
-      if (res.ok) {
-        categories = await res.json();
-      }
-    } catch (err) {
-      console.warn('Unable to load categories from file:', err);
-    }
-
-    try {
-      const res = await fetch('/api/admin/categories');
+      const res = await fetch('/api/categories');
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.categories)) {
-          serverCategories = data.categories;
+          categories = data.categories;
         }
       }
     } catch (err) {
       console.warn('Unable to load categories from API:', err);
     }
 
-    try {
-      const storedAdmin = JSON.parse(localStorage.getItem('adminCategories') || '[]');
-      const storedMain = JSON.parse(localStorage.getItem('mainCategories') || '[]');
-      categories = [...categories, ...serverCategories, ...storedAdmin, ...storedMain];
-    } catch (err) {
-      console.warn('Unable to read categories from localStorage:', err);
-      categories = [...categories, ...serverCategories];
+    // Fallback: Try admin API endpoint
+    if (categories.length === 0) {
+      try {
+        const res = await fetch('/api/admin/categories');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.categories)) {
+            categories = data.categories;
+          }
+        }
+      } catch (err) {
+        console.warn('Unable to load categories from admin API:', err);
+      }
     }
 
-    if (categories.length === 0 && serverCategories.length > 0) {
-      categories = [...serverCategories];
+    // Additional fallback: Load from file (for backward compatibility)
+    if (categories.length === 0) {
+      try {
+        const res = await fetch('assets/data/categories.json');
+        if (res.ok) {
+          const fileData = await res.json();
+          if (Array.isArray(fileData)) {
+            categories = fileData;
+          }
+        }
+      } catch (err) {
+        console.warn('Unable to load categories from file:', err);
+      }
+    }
+
+    // Last fallback: localStorage (for backward compatibility)
+    if (categories.length === 0) {
+      try {
+        const storedAdmin = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+        const storedMain = JSON.parse(localStorage.getItem('mainCategories') || '[]');
+        categories = [...storedAdmin, ...storedMain];
+      } catch (err) {
+        console.warn('Unable to read categories from localStorage:', err);
+      }
     }
 
     const uniqueCategories = uniqueById(categories);
@@ -180,7 +195,12 @@
         description: category.description || '',
         details,
         onCardClick: navigateToDetails,
-        button: { onClick: navigateToDetails }
+        button: { onClick: navigateToDetails, label: 'Buy Now' },
+        type: 'category',
+        hasDiscount: category.hasDiscount || false,
+        discountPercent: category.discountPercent || 0,
+        discountCode: category.discountCode || '',
+        discountMessage: category.discountMessage || ''
       });
       testSeriesCategoryContainer.appendChild(card);
     });
@@ -206,7 +226,11 @@
               courseCost: exam.courseCost,
               courseValidity: exam.courseValidity,
               courseDetails: exam.courseDetails,
-              categoryId: exam.categoryId
+              categoryId: exam.categoryId,
+              hasDiscount: exam.hasDiscount || false,
+              discountPercent: exam.discountPercent || 0,
+              discountCode: exam.discountCode || '',
+              discountMessage: exam.discountMessage || ''
             });
           });
         }
@@ -229,7 +253,11 @@
                 courseCost: exam.courseCost,
                 courseValidity: exam.courseValidity,
                 courseDetails: exam.courseDetails,
-                categoryId: exam.categoryId
+                categoryId: exam.categoryId,
+                hasDiscount: exam.hasDiscount || false,
+                discountPercent: exam.discountPercent || 0,
+                discountCode: exam.discountCode || '',
+                discountMessage: exam.discountMessage || ''
               }));
             }
           } catch (parseErr) {
@@ -271,7 +299,12 @@
         description: exam.description || '',
         details,
         onCardClick: navigateToDetails,
-        button: { onClick: navigateToDetails }
+        button: { onClick: navigateToDetails, label: 'Buy Now' },
+        type: 'exam',
+        hasDiscount: exam.hasDiscount || false,
+        discountPercent: exam.discountPercent || 0,
+        discountCode: exam.discountCode || '',
+        discountMessage: exam.discountMessage || ''
       });
       testSeriesExamsContainer.appendChild(card);
     });
@@ -320,7 +353,11 @@
                 courseValidity: course.courseValidity,
                 courseDetails: course.courseDetails,
                 categoryId,
-                categoryName: category.name
+                categoryName: category.name,
+                hasDiscount: course.hasDiscount || false,
+                discountPercent: course.discountPercent || 0,
+                discountCode: course.discountCode || '',
+                discountMessage: course.discountMessage || ''
               });
             });
           }
@@ -359,7 +396,12 @@
         description: course.description || '',
         details,
         onCardClick: navigateToDetails,
-        button: { onClick: navigateToDetails }
+        button: { onClick: navigateToDetails, label: 'Buy Now' },
+        type: 'course',
+        hasDiscount: course.hasDiscount || false,
+        discountPercent: course.discountPercent || 0,
+        discountCode: course.discountCode || '',
+        discountMessage: course.discountMessage || ''
       });
       courseIndividualContainer.appendChild(card);
     });

@@ -28,6 +28,66 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Test series section
   const testSeriesSection = document.getElementById('test-series-section');
 
+  // Validate session on page load (graceful - doesn't block if validation fails)
+  async function validateSession() {
+    const sessionToken = localStorage.getItem('sessionToken');
+    const user = localStorage.getItem('user');
+    
+    // If no user at all, redirect to login
+    if (!user) {
+      localStorage.removeItem('sessionToken');
+      window.location.href = 'login-register.html';
+      return false;
+    }
+    
+    // If no session token but user exists, allow access (backward compatibility)
+    if (!sessionToken) {
+      console.warn('No session token found, but user exists. Allowing access for backward compatibility.');
+      return true;
+    }
+
+    try {
+      const response = await fetch(`/api/validate-session?sessionToken=${encodeURIComponent(sessionToken)}`, {
+        headers: {
+          'X-Session-Token': sessionToken
+        }
+      });
+      const data = await response.json();
+      
+      if (!data.success || !data.valid) {
+        // Session invalid - but check if user still exists in localStorage
+        // Only redirect if we're sure the session is truly invalid
+        if (data.message && data.message.includes('not found')) {
+          // Session was deleted (logged in from another device)
+          localStorage.removeItem('user');
+          localStorage.removeItem('sessionToken');
+          alert('Your session has expired or you have logged in from another device. Please login again.');
+          window.location.href = 'login-register.html';
+          return false;
+        }
+        // Otherwise, allow access (might be network issue)
+        console.warn('Session validation returned invalid, but allowing access:', data.message);
+        return true;
+      }
+      
+      // Session valid, update user data if needed
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      return true;
+    } catch (err) {
+      console.error('Session validation error:', err);
+      // On error, allow user to continue (network issues shouldn't block access)
+      return true;
+    }
+  }
+
+  // Validate session before proceeding (non-blocking)
+  const sessionValid = await validateSession();
+  if (!sessionValid) {
+    return; // Redirect will happen in validateSession
+  }
+
   // Get user from localStorage (set on login)
   let user = null;
   try {
@@ -239,14 +299,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       else if (userTestsFromItems.length > 0) tests = uniqueById([...tests, ...userTestsFromItems]);
 
       // Merge with server purchases and enrich with courseValidity from localStorage if available
+      // For renewals, localStorage will have the updated validity dates, so prefer localStorage data
       const enrichWithLocalData = (serverItems, localItems) => {
         return serverItems.map(serverItem => {
-          const localItem = localItems.find(l => (l.id || l.courseId || l.testId) === serverItem.id);
-          if (localItem && localItem.courseValidity && !serverItem.courseValidity) {
-            serverItem.courseValidity = localItem.courseValidity;
-          }
-          if (localItem && localItem.purchasedAt && !serverItem.purchasedAt) {
-            serverItem.purchasedAt = localItem.purchasedAt;
+          const localItem = localItems.find(l => {
+            const lId = l.id || l.courseId || l.testId || l._id;
+            const sId = serverItem.id || serverItem.courseId || serverItem.testId || serverItem._id;
+            return lId === sId;
+          });
+          if (localItem) {
+            // If localStorage has this item (especially for renewals), prefer its data
+            // This ensures renewed purchases show updated validity dates
+            if (localItem.courseValidity) {
+              serverItem.courseValidity = localItem.courseValidity;
+            }
+            if (localItem.purchasedAt) {
+              serverItem.purchasedAt = localItem.purchasedAt;
+            }
+            if (localItem.expiresAt) {
+              serverItem.expiresAt = localItem.expiresAt;
+            }
+            if (localItem.validityValue !== undefined) {
+              serverItem.validityValue = localItem.validityValue;
+            }
+            if (localItem.validityUnit) {
+              serverItem.validityUnit = localItem.validityUnit;
+            }
           }
           return serverItem;
         });
@@ -354,11 +432,79 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         ` : ''}
+        ${isExpired ? `
+          <div style="margin-bottom: 0.5rem; padding: 0.75rem; background: #fef3c7; border-radius: 6px; border: 1px solid #fbbf24;">
+            <p style="font-size: 0.85rem; color: #92400e; margin-bottom: 0.5rem; font-weight: 600;">Do you want to renew it?</p>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="renew-yes-btn" data-item-id="${c.id}" data-item-type="course" data-category-id="${c.categoryId || ''}" style="flex: 1; background: #10b981; color: white; border: none; padding: 0.5rem; border-radius: 5px; font-weight: 600; cursor: pointer;">Yes</button>
+              <button class="renew-no-btn" data-item-id="${c.id}" data-item-type="course" data-category-id="${c.categoryId || ''}" style="flex: 1; background: #6b7280; color: white; border: none; padding: 0.5rem; border-radius: 5px; font-weight: 600; cursor: pointer;">No</button>
+            </div>
+          </div>
+        ` : ''}
         <a href="${c.url || `courses-lessons.html?catId=${encodeURIComponent(c.categoryId||'')}&courseId=${encodeURIComponent(c.id||'')}`}" 
            style="text-decoration: none; background-color: ${isExpired ? '#94a3b8' : '#00bfff'}; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; transition: background 0.3s; text-align: center; display: block; ${isExpired ? 'pointer-events: none; cursor: not-allowed;' : ''}">
           ${isExpired ? 'Access Expired' : (c.url ? 'Open Course' : 'View Lessons')}
         </a>
       `;
+      
+      // Add event listeners for renewal buttons
+      if (isExpired) {
+        const renewYesBtn = card.querySelector('.renew-yes-btn');
+        const renewNoBtn = card.querySelector('.renew-no-btn');
+        if (renewYesBtn) {
+          renewYesBtn.addEventListener('click', () => {
+            const itemId = renewYesBtn.dataset.itemId;
+            const itemType = renewYesBtn.dataset.itemType;
+            const categoryId = renewYesBtn.dataset.categoryId;
+            window.location.href = `buy-course-details.html?type=${itemType}&id=${itemId}${categoryId ? `&categoryId=${categoryId}` : ''}`;
+          });
+        }
+        if (renewNoBtn) {
+          renewNoBtn.addEventListener('click', async () => {
+            const itemId = renewNoBtn.dataset.itemId;
+            const itemType = renewNoBtn.dataset.itemType;
+            
+            // Remove purchase from localStorage
+            try {
+              const userId = user && (user.id || user._id || user.userId || user.email);
+              if (!userId) return;
+              
+              let userPurchases = null;
+              try {
+                userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+              } catch (e) {
+                userPurchases = {};
+              }
+              
+              if (userPurchases[userId]) {
+                // Remove from courses array (for courses, categories, exams)
+                if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
+                  userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
+                    const pId = p.id || p.courseId || p.testId || p._id;
+                    const pType = p.purchaseType || p.type;
+                    return !(pId === itemId && pType === itemType);
+                  });
+                }
+                // Remove from tests array
+                else if (itemType === 'test') {
+                  userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
+                    const pId = p.id || p.courseId || p.testId || p._id;
+                    const pType = p.purchaseType || p.type;
+                    return !(pId === itemId && pType === itemType);
+                  });
+                }
+                
+                localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
+                
+                // Refresh the dashboard display
+                await showMyCourses();
+              }
+            } catch (e) {
+              console.error('Error removing purchase:', e);
+            }
+          });
+        }
+      }
       if (!isExpired) {
         card.addEventListener('mouseenter', () => {
           card.style.transform = 'translateY(-6px)';
@@ -432,11 +578,79 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         ` : ''}
+        ${isExpired ? `
+          <div style="margin-bottom: 0.5rem; padding: 0.75rem; background: #fef3c7; border-radius: 6px; border: 1px solid #fbbf24;">
+            <p style="font-size: 0.85rem; color: #92400e; margin-bottom: 0.5rem; font-weight: 600;">Do you want to renew it?</p>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="renew-yes-btn" data-item-id="${item.id}" data-item-type="${isCategory ? 'category' : isExam ? 'exam' : 'test'}" data-category-id="${item.categoryId || ''}" style="flex: 1; background: #10b981; color: white; border: none; padding: 0.5rem; border-radius: 5px; font-weight: 600; cursor: pointer;">Yes</button>
+              <button class="renew-no-btn" data-item-id="${item.id}" data-item-type="${isCategory ? 'category' : isExam ? 'exam' : 'test'}" data-category-id="${item.categoryId || ''}" style="flex: 1; background: #6b7280; color: white; border: none; padding: 0.5rem; border-radius: 5px; font-weight: 600; cursor: pointer;">No</button>
+            </div>
+          </div>
+        ` : ''}
         <a href="${linkUrl}" 
            style="text-decoration: none; background-color: ${isExpired ? '#94a3b8' : (isTest ? '#10b981' : '#00bfff')}; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; transition: background 0.3s; text-align: center; display: block; ${isExpired ? 'pointer-events: none; cursor: not-allowed;' : ''}">
           ${isExpired ? 'Access Expired' : linkText}
         </a>
       `;
+      
+      // Add event listeners for renewal buttons
+      if (isExpired) {
+        const renewYesBtn = card.querySelector('.renew-yes-btn');
+        const renewNoBtn = card.querySelector('.renew-no-btn');
+        if (renewYesBtn) {
+          renewYesBtn.addEventListener('click', () => {
+            const itemId = renewYesBtn.dataset.itemId;
+            const itemType = renewYesBtn.dataset.itemType;
+            const categoryId = renewYesBtn.dataset.categoryId;
+            window.location.href = `buy-course-details.html?type=${itemType}&id=${itemId}${categoryId ? `&categoryId=${categoryId}` : ''}`;
+          });
+        }
+        if (renewNoBtn) {
+          renewNoBtn.addEventListener('click', async () => {
+            const itemId = renewNoBtn.dataset.itemId;
+            const itemType = renewNoBtn.dataset.itemType;
+            
+            // Remove purchase from localStorage
+            try {
+              const userId = user && (user.id || user._id || user.userId || user.email);
+              if (!userId) return;
+              
+              let userPurchases = null;
+              try {
+                userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+              } catch (e) {
+                userPurchases = {};
+              }
+              
+              if (userPurchases[userId]) {
+                // Remove from courses array (for courses, categories, exams)
+                if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
+                  userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
+                    const pId = p.id || p.courseId || p.testId || p._id;
+                    const pType = p.purchaseType || p.type;
+                    return !(pId === itemId && pType === itemType);
+                  });
+                }
+                // Remove from tests array
+                else if (itemType === 'test') {
+                  userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
+                    const pId = p.id || p.courseId || p.testId || p._id;
+                    const pType = p.purchaseType || p.type;
+                    return !(pId === itemId && pType === itemType);
+                  });
+                }
+                
+                localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
+                
+                // Refresh the dashboard display
+                await showMyTests();
+              }
+            } catch (e) {
+              console.error('Error removing purchase:', e);
+            }
+          });
+        }
+      }
       if (!isExpired) {
         card.addEventListener('mouseenter', () => {
           card.style.transform = 'translateY(-6px)';
@@ -496,8 +710,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (myCoursesTab) myCoursesTab.addEventListener('click', showMyCourses);
   if (myTestsTab) myTestsTab.addEventListener('click', showMyTests);
-  // Default tab: My Course
-  showMyCourses();
+  // Default tab: My Test (changed from My Course)
+  showMyTests();
 
   profileName.textContent = user.name || 'User';
   profileEmail.textContent = user.email || '';
@@ -579,8 +793,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Logout
-  logoutBtn.addEventListener('click', () => {
+  logoutBtn.addEventListener('click', async () => {
+    const sessionToken = localStorage.getItem('sessionToken');
+    
+    // Call logout API to clear server session
+    if (sessionToken) {
+      try {
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Token': sessionToken
+          },
+          body: JSON.stringify({ sessionToken })
+        });
+      } catch (err) {
+        console.warn('Logout API call failed:', err);
+      }
+    }
+    
+    // Clear local storage
     localStorage.removeItem('user');
+    localStorage.removeItem('sessionToken');
     window.location.href = 'login-register.html';
   });
 

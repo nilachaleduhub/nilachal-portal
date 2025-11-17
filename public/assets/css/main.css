@@ -20,6 +20,23 @@
     align-items: center;
     color: white;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    width: 100%;
+  }
+  
+  /* Homepage navbar should not be fixed (already handled by homepage-specific styles) */
+  body.index-page .navbar,
+  body.homepage .navbar {
+    position: relative;
+  }
+  
+  /* Add padding to body to account for fixed navbar on non-homepage pages */
+  body:not(.index-page):not(.homepage) {
+    padding-top: 80px;
   }
   
   .site-name {
@@ -125,5 +142,87 @@
   border: none;
   outline: none;
   width: 200px;
+}
+
+/* Mobile Responsive Styles */
+@media screen and (max-width: 768px) {
+  .navbar {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .site-name {
+    font-size: 1.4rem;
+  }
+
+  .nav-links {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .nav-links a {
+    margin-left: 0;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .search-box {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .container {
+    margin: 1.5rem auto;
+    padding: 0 1rem;
+  }
+
+  .exam-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .exam-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .exam-card h3 {
+    font-size: 1.2rem;
+  }
+
+  .exam-card p {
+    font-size: 0.9rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .navbar {
+    padding: 0.75rem;
+  }
+
+  .site-name {
+    font-size: 1.2rem;
+  }
+
+  .nav-links a {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .container {
+    margin: 1rem auto;
+    padding: 0 0.75rem;
+  }
+
+  .exam-grid {
+    gap: 1rem;
+  }
+
+  .exam-card {
+    padding: 1rem 0.75rem;
+  }
 }
   

@@ -263,19 +263,91 @@ function renderQuestion() {
   if (imageData && typeof imageData === 'string' && imageData.trim() !== '' && imageData !== 'undefined' && !imageData.startsWith('undefined')) {
     const qImage = document.createElement('img');
     qImage.src = imageData;
-    qImage.style.maxWidth = '100%';
-    qImage.style.height = 'auto';
     qImage.style.marginTop = '12px';
     qImage.style.marginBottom = '12px';
     qImage.style.borderRadius = '8px';
     qImage.style.border = '1px solid #e2e8f0';
     qImage.style.display = 'block';
     qImage.alt = 'Question image';
+    
+    // Apply custom dimensions if provided (convert cm to pixels: 1cm ≈ 37.8px at 96 DPI)
+    const cmToPx = 37.7952755906; // Conversion factor: 1cm = 37.7952755906px at 96 DPI
+    if (q.imageWidth && typeof q.imageWidth === 'number' && q.imageWidth > 0) {
+      const widthPx = q.imageWidth * cmToPx;
+      qImage.style.width = widthPx + 'px';
+      qImage.style.maxWidth = widthPx + 'px'; // Set maxWidth to same value to enforce custom size
+      qImage.style.minWidth = '0'; // Allow shrinking if container is smaller
+    } else {
+      qImage.style.maxWidth = '100%';
+      qImage.style.width = 'auto';
+    }
+    
+    if (q.imageHeight && typeof q.imageHeight === 'number' && q.imageHeight > 0) {
+      const heightPx = q.imageHeight * cmToPx;
+      qImage.style.height = heightPx + 'px';
+      qImage.style.maxHeight = heightPx + 'px'; // Set maxHeight to same value to enforce custom size
+      qImage.style.minHeight = '0'; // Allow shrinking if container is smaller
+      qImage.style.objectFit = 'contain'; // Maintain aspect ratio
+    } else {
+      qImage.style.height = 'auto';
+      qImage.style.maxHeight = 'none';
+    }
+    
     qImage.onerror = function() {
       console.error('Failed to load question image:', imageData);
       this.style.display = 'none';
     };
     block.appendChild(qImage);
+  }
+  
+  // Question table (if available)
+  const tableData = q.tableData || '';
+  if (tableData && typeof tableData === 'string' && tableData.trim() !== '' && tableData !== 'undefined' && !tableData.startsWith('undefined')) {
+    const qTable = document.createElement('div');
+    qTable.style.marginTop = '12px';
+    qTable.style.marginBottom = '12px';
+    qTable.style.display = 'inline-block';
+    qTable.style.width = 'auto';
+    qTable.innerHTML = tableData;
+    // Auto-resize table cells based on content
+    const table = qTable.querySelector('table');
+    if (table) {
+      table.style.width = 'auto';
+      table.style.borderCollapse = 'collapse';
+      table.style.tableLayout = 'auto';
+      table.style.maxWidth = '100%';
+      const cells = table.querySelectorAll('td');
+      cells.forEach(td => {
+        td.style.verticalAlign = 'top';
+        td.style.wordWrap = 'break-word';
+        td.style.whiteSpace = 'pre-wrap';
+        td.style.height = 'auto';
+        td.style.minHeight = 'auto';
+        td.style.width = 'auto';
+        td.style.maxWidth = 'none';
+        // Force browser to recalculate height based on content
+        td.style.display = 'table-cell';
+      });
+      // After a brief delay, ensure all cells have proper height
+      setTimeout(() => {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(tr => {
+          let maxHeight = 0;
+          const rowCells = tr.querySelectorAll('td');
+          rowCells.forEach(td => {
+            const cellHeight = td.scrollHeight || td.offsetHeight;
+            maxHeight = Math.max(maxHeight, cellHeight);
+          });
+          // Set all cells in row to same height if needed
+          if (maxHeight > 30) {
+            rowCells.forEach(td => {
+              td.style.minHeight = maxHeight + 'px';
+            });
+          }
+        });
+      }, 50);
+    }
+    block.appendChild(qTable);
   }
   
   // Options list

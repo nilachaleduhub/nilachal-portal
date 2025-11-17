@@ -32,6 +32,18 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
+// Session schema for single-device login tracking
+const SessionSchema = new mongoose.Schema({
+  userId: { type: String, required: true, index: true },
+  userEmail: { type: String, index: true },
+  sessionToken: { type: String, required: true, unique: true, index: true },
+  deviceInfo: { type: String }, // Optional: store device/browser info
+  ipAddress: { type: String }, // Optional: store IP address
+  createdAt: { type: Date, default: Date.now },
+  lastActivity: { type: Date, default: Date.now }
+});
+const Session = mongoose.model('Session', SessionSchema);
+
 // Utility to generate frontend-compatible IDs (similar to admin script)
 function generateId(prefix = 'admin') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`;
@@ -45,6 +57,10 @@ const CategorySchema = new mongoose.Schema({
   courseDetails: String,
   courseCost: String,
   courseValidity: String,
+  hasDiscount: { type: Boolean, default: false },
+  discountPercent: { type: Number, default: 0 },
+  discountCode: { type: String, default: '' },
+  discountMessage: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 const Category = mongoose.model('Category', CategorySchema);
@@ -57,6 +73,10 @@ const ExamSchema = new mongoose.Schema({
   courseDetails: String,
   courseCost: String,
   courseValidity: String,
+  hasDiscount: { type: Boolean, default: false },
+  discountPercent: { type: Number, default: 0 },
+  discountCode: { type: String, default: '' },
+  discountMessage: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 const Exam = mongoose.model('Exam', ExamSchema);
@@ -67,6 +87,7 @@ const QuestionSchema = new mongoose.Schema({
   correctAnswer: Number,
   explanation: String,
   imageData: String,
+  explanationImage: String, // Image for answer explanation
   sectionIndex: Number
 }, { _id: false });
 
@@ -150,6 +171,33 @@ const AdSchema = new mongoose.Schema({
 });
 const Ad = mongoose.model('Ad', AdSchema);
 
+// Exam Detail Schema (for Exam Pattern and Syllabus page)
+const ExamDetailSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  examName: { type: String, required: true, unique: true },
+  aboutExamText: String,
+  aboutExamImagePath: String,
+  examSyllabusText: String,
+  examSyllabusImagePath: String,
+  cutoffImagePath: String,
+  links: [{
+    caption: String,
+    url: String
+  }],
+  patterns: [{
+    caption: String,
+    type: { type: String, enum: ['text', 'picture', 'table'] },
+    text: String,
+    imagePath: String,
+    table: String
+  }],
+  syllabusTable: String,
+  cutoffTable: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+const ExamDetail = mongoose.model('ExamDetail', ExamDetailSchema);
+
 // Setup multer for file uploads
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -160,6 +208,7 @@ const videosDir = path.join(uploadsDir, 'videos');
 const pdfsDir = path.join(uploadsDir, 'pdfs');
 const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
 const postersDir = path.join(uploadsDir, 'posters');
+const examDetailsDir = path.join(uploadsDir, 'exam-details');
 if (!fs.existsSync(videosDir)) {
   fs.mkdirSync(videosDir, { recursive: true });
 }
@@ -172,6 +221,9 @@ if (!fs.existsSync(thumbnailsDir)) {
 if (!fs.existsSync(postersDir)) {
   fs.mkdirSync(postersDir, { recursive: true });
 }
+if (!fs.existsSync(examDetailsDir)) {
+  fs.mkdirSync(examDetailsDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -183,6 +235,11 @@ const storage = multer.diskStorage({
       cb(null, thumbnailsDir);
     } else if (file.fieldname === 'poster') {
       cb(null, postersDir);
+    } else if (file.fieldname === 'aboutExamImage' || file.fieldname === 'examSyllabusImage' || 
+               file.fieldname === 'cutoffImage' || file.fieldname.startsWith('patternImage_')) {
+      cb(null, examDetailsDir);
+    } else {
+      cb(null, uploadsDir);
     }
   },
   filename: function (req, file, cb) {
@@ -211,6 +268,7 @@ const QuestionDocSchema = new mongoose.Schema({
   correctAnswer: Number,
   explanation: String,
   imageData: String,
+  explanationImage: String, // Image for answer explanation
   sectionIndex: Number,
   createdAt: { type: Date, default: Date.now }
 });
@@ -275,9 +333,57 @@ const PurchaseSchema = new mongoose.Schema({
   razorpayPaymentId: { type: String },
   razorpaySignature: { type: String },
   status: { type: String, default: 'pending', enum: ['pending', 'completed', 'failed'] },
-  purchasedAt: { type: Date, default: Date.now }
+  purchasedAt: { type: Date, default: Date.now },
+  // Expiry fields
+  courseValidity: { type: String }, // e.g., "6 months", "1 year", "30 days"
+  validityValue: { type: Number }, // e.g., 6, 1, 30
+  validityUnit: { type: String, enum: ['day', 'month', 'year'] }, // e.g., "month", "year", "day"
+  expiresAt: { type: Date } // Calculated expiry date
 });
 const Purchase = mongoose.model('Purchase', PurchaseSchema);
+
+// Utility function to calculate expiry date from validity string
+function calculateExpiryDate(courseValidity, purchasedAt) {
+  if (!courseValidity || !purchasedAt) return null;
+  
+  try {
+    const purchaseDate = purchasedAt instanceof Date ? purchasedAt : new Date(purchasedAt);
+    if (isNaN(purchaseDate.getTime())) return null;
+    
+    const validity = courseValidity.toLowerCase().trim();
+    const daysMatch = validity.match(/(\d+)\s*days?/);
+    const monthsMatch = validity.match(/(\d+)\s*months?/);
+    const yearsMatch = validity.match(/(\d+)\s*years?/);
+    
+    const expiryDate = new Date(purchaseDate);
+    
+    if (daysMatch) {
+      const days = parseInt(daysMatch[1], 10);
+      expiryDate.setDate(expiryDate.getDate() + days);
+      return { expiresAt: expiryDate, validityValue: days, validityUnit: 'day' };
+    } else if (monthsMatch) {
+      const months = parseInt(monthsMatch[1], 10);
+      expiryDate.setMonth(expiryDate.getMonth() + months);
+      return { expiresAt: expiryDate, validityValue: months, validityUnit: 'month' };
+    } else if (yearsMatch) {
+      const years = parseInt(yearsMatch[1], 10);
+      expiryDate.setFullYear(expiryDate.getFullYear() + years);
+      return { expiresAt: expiryDate, validityValue: years, validityUnit: 'year' };
+    }
+    
+    return null;
+  } catch (err) {
+    console.error('Error calculating expiry date:', err);
+    return null;
+  }
+}
+
+// Utility function to check if a purchase is expired
+function isPurchaseExpired(purchase) {
+  if (!purchase.expiresAt) return false; // No expiry means valid forever
+  const expiryDate = purchase.expiresAt instanceof Date ? purchase.expiresAt : new Date(purchase.expiresAt);
+  return expiryDate < new Date();
+}
 
 // --- API: Submit a test result ---
 app.post('/api/results', async (req, res) => {
@@ -517,6 +623,44 @@ app.get('/api/tests/:testId', async (req, res) => {
     if (!test) {
       return res.status(404).json({ success: false, message: 'Test not found' });
     }
+    
+    // PERMANENT SOLUTION: Fetch questions from QuestionDoc collection (primary source)
+    // This is the single source of truth for questions
+    let questions = [];
+    try {
+      const questionDocs = await QuestionDoc.find({ testId: test.id || testId }).sort({ sectionIndex: 1 }).lean();
+      
+      if (questionDocs && questionDocs.length > 0) {
+        // Convert QuestionDoc format to embedded question format for compatibility
+        questions = questionDocs.map(qDoc => ({
+          question: qDoc.question || '',
+          options: qDoc.options || [],
+          correctAnswer: qDoc.correctAnswer,
+          explanation: qDoc.explanation || '',
+          imageData: qDoc.imageData || '',
+          explanationImage: qDoc.explanationImage || '', // Include explanation image
+          sectionIndex: qDoc.sectionIndex !== undefined ? qDoc.sectionIndex : null
+        }));
+        console.log(`Loaded ${questions.length} questions from QuestionDoc for test: ${test.name || testId}`);
+      } else {
+        // BACKWARD COMPATIBILITY: Fallback to embedded questions if QuestionDoc is empty
+        if (test.questions && Array.isArray(test.questions) && test.questions.length > 0) {
+          questions = test.questions;
+          console.log(`Loaded ${questions.length} embedded questions (fallback) for test: ${test.name || testId}`);
+        }
+      }
+    } catch (questionErr) {
+      console.error('Error loading questions from QuestionDoc:', questionErr);
+      // Fallback to embedded questions on error
+      if (test.questions && Array.isArray(test.questions) && test.questions.length > 0) {
+        questions = test.questions;
+        console.log(`Using embedded questions (error fallback) for test: ${test.name || testId}`);
+      }
+    }
+    
+    // Attach questions to test object
+    test.questions = questions;
+    
     res.json({ success: true, test });
   } catch (err) {
     console.error(`Error fetching test ${req.params.testId}:`, err);
@@ -549,10 +693,153 @@ app.post('/api/login', async (req, res) => {
     if (!u) return res.json({ success: false, message: 'Invalid credentials' });
     const ok = await bcrypt.compare(password, u.passwordHash);
     if (!ok) return res.json({ success: false, message: 'Invalid credentials' });
-    res.json({ success: true, user: { id: u._id, name: u.name, email: u.email, phone: u.phone, createdAt: u.createdAt } });
+    
+    // Generate unique session token
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
+    // Get device info and IP address (optional)
+    const deviceInfo = req.headers['user-agent'] || 'Unknown';
+    const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
+    
+    // Invalidate all existing sessions for this user (single-device login)
+    try {
+      await Session.deleteMany({ 
+        $or: [
+          { userId: String(u._id) },
+          { userEmail: email }
+        ]
+      });
+    } catch (sessionDeleteErr) {
+      console.warn('Error deleting old sessions (non-critical):', sessionDeleteErr);
+      // Continue even if deletion fails
+    }
+    
+    // Create new session
+    try {
+      const session = new Session({
+        userId: String(u._id),
+        userEmail: email,
+        sessionToken: sessionToken,
+        deviceInfo: deviceInfo,
+        ipAddress: ipAddress
+      });
+      await session.save();
+    } catch (sessionErr) {
+      console.error('Error creating session:', sessionErr);
+      // If session creation fails, still allow login but log the error
+      // This ensures login works even if Session model has issues
+    }
+    
+    res.json({ 
+      success: true, 
+      user: { 
+        id: u._id, 
+        name: u.name, 
+        email: u.email, 
+        phone: u.phone, 
+        createdAt: u.createdAt 
+      },
+      sessionToken: sessionToken
+    });
   } catch (err) {
-    console.error('Login error', err);
+    console.error('Login error:', err);
+    res.json({ success: false, message: 'Server error: ' + (err.message || 'Unknown error') });
+  }
+});
+
+// Session verification middleware for user authentication
+async function verifyUserSession(req, res, next) {
+  const sessionToken = req.headers['authorization']?.replace('Bearer ', '') || 
+                       req.headers['x-session-token'] || 
+                       req.body?.sessionToken || 
+                       req.query?.sessionToken;
+  
+  if (!sessionToken) {
+    return res.status(401).json({ success: false, message: 'Session token required' });
+  }
+  
+  try {
+    const session = await Session.findOne({ sessionToken }).lean();
+    if (!session) {
+      return res.status(401).json({ success: false, message: 'Invalid or expired session' });
+    }
+    
+    // Update last activity
+    await Session.updateOne({ sessionToken }, { lastActivity: new Date() });
+    
+    // Attach session and user info to request
+    req.session = session;
+    req.userId = session.userId;
+    req.userEmail = session.userEmail;
+    
+    next();
+  } catch (err) {
+    console.error('Session verification error:', err);
+    return res.status(401).json({ success: false, message: 'Session verification failed' });
+  }
+}
+
+// Logout endpoint - clears session
+app.post('/api/logout', async (req, res) => {
+  const sessionToken = req.headers['authorization']?.replace('Bearer ', '') || 
+                       req.headers['x-session-token'] || 
+                       req.body?.sessionToken;
+  
+  if (!sessionToken) {
+    return res.json({ success: false, message: 'Session token required' });
+  }
+  
+  try {
+    await Session.deleteOne({ sessionToken });
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('Logout error:', err);
     res.json({ success: false, message: 'Server error' });
+  }
+});
+
+// Session validation endpoint - check if session is still valid
+app.get('/api/validate-session', async (req, res) => {
+  const sessionToken = req.headers['authorization']?.replace('Bearer ', '') || 
+                       req.headers['x-session-token'] || 
+                       req.query?.sessionToken;
+  
+  if (!sessionToken) {
+    return res.json({ success: false, valid: false, message: 'Session token required' });
+  }
+  
+  try {
+    const session = await Session.findOne({ sessionToken }).lean();
+    if (!session) {
+      return res.json({ success: true, valid: false, message: 'Session not found or expired' });
+    }
+    
+    // Update last activity
+    await Session.updateOne({ sessionToken }, { lastActivity: new Date() });
+    
+    // Get user info
+    const user = await User.findById(session.userId).lean();
+    if (!user) {
+      return res.json({ success: true, valid: false, message: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      valid: true, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        phone: user.phone 
+      },
+      session: {
+        createdAt: session.createdAt,
+        lastActivity: session.lastActivity
+      }
+    });
+  } catch (err) {
+    console.error('Session validation error:', err);
+    res.json({ success: false, valid: false, message: 'Server error' });
   }
 });
 
@@ -602,15 +889,30 @@ app.get('/api/admin/categories', async (req, res) => {
 
 // Create or update category
 app.post('/api/admin/categories', async (req, res) => {
-  const { id, name, description, courseDetails, courseCost, courseValidity } = req.body || {};
+  const { id, name, description, courseDetails, courseCost, courseValidity, hasDiscount, discountPercent, discountCode, discountMessage } = req.body || {};
   if (!name) return res.json({ success: false, message: 'Name required' });
   try {
     if (id) {
       const updateData = { name, description, courseDetails, courseCost, courseValidity };
+      if (hasDiscount !== undefined) updateData.hasDiscount = hasDiscount;
+      if (discountPercent !== undefined) updateData.discountPercent = discountPercent;
+      if (discountCode !== undefined) updateData.discountCode = discountCode;
+      if (discountMessage !== undefined) updateData.discountMessage = discountMessage;
       const updated = await Category.findOneAndUpdate({ id }, updateData, { new: true });
       return res.json({ success: !!updated, category: updated });
     }
-    const newCat = new Category({ id: generateId('cat'), name, description, courseDetails, courseCost, courseValidity });
+    const newCat = new Category({ 
+      id: generateId('cat'), 
+      name, 
+      description, 
+      courseDetails, 
+      courseCost, 
+      courseValidity,
+      hasDiscount: hasDiscount || false,
+      discountPercent: discountPercent || 0,
+      discountCode: discountCode || '',
+      discountMessage: discountMessage || ''
+    });
     await newCat.save();
     res.json({ success: true, category: newCat });
   } catch (err) { console.error(err); res.json({ success: false, message: 'Server error' }); }
@@ -637,15 +939,31 @@ app.get('/api/admin/exams/:categoryId', async (req, res) => {
 
 // Create or update exam
 app.post('/api/admin/exams', async (req, res) => {
-  const { id, categoryId, name, description, courseDetails, courseCost, courseValidity } = req.body || {};
+  const { id, categoryId, name, description, courseDetails, courseCost, courseValidity, hasDiscount, discountPercent, discountCode, discountMessage } = req.body || {};
   if (!categoryId || !name) return res.json({ success: false, message: 'categoryId and name required' });
   try {
     if (id) {
       const updateData = { name, description, courseDetails, courseCost, courseValidity };
+      if (hasDiscount !== undefined) updateData.hasDiscount = hasDiscount;
+      if (discountPercent !== undefined) updateData.discountPercent = discountPercent;
+      if (discountCode !== undefined) updateData.discountCode = discountCode;
+      if (discountMessage !== undefined) updateData.discountMessage = discountMessage;
       const updated = await Exam.findOneAndUpdate({ id }, updateData, { new: true });
-      return res.json({ success: !!updated, exam: updated });
+      return res.json({ success: !!updated, exam: updated, message: 'Exam updated successfully' });
     }
-    const ex = new Exam({ id: generateId('exam'), categoryId, name, description, courseDetails, courseCost, courseValidity });
+    const ex = new Exam({ 
+      id: generateId('exam'), 
+      categoryId, 
+      name, 
+      description, 
+      courseDetails, 
+      courseCost, 
+      courseValidity,
+      hasDiscount: hasDiscount || false,
+      discountPercent: discountPercent || 0,
+      discountCode: discountCode || '',
+      discountMessage: discountMessage || ''
+    });
     await ex.save();
     res.json({ success: true, exam: ex });
   } catch (err) { console.error(err); res.json({ success: false, message: 'Server error' }); }
@@ -676,8 +994,10 @@ app.post('/api/admin/tests', async (req, res) => {
   if (!categoryId || !examId || !name) return res.json({ success: false, message: 'categoryId, examId and name required' });
   try {
     if (id) {
-      const updated = await Test.findOneAndUpdate({ id }, body, { new: true });
-      return res.json({ success: !!updated, test: updated });
+      // Exclude id from update body since we're querying by it
+      const { id: _, ...updateData } = body;
+      const updated = await Test.findOneAndUpdate({ id }, updateData, { new: true });
+      return res.json({ success: !!updated, test: updated, message: 'Test updated successfully' });
     }
     const test = new Test({ id: generateId('test'), ...body });
     await test.save();
@@ -729,11 +1049,16 @@ app.post('/api/admin/tests/:id/questions', async (req, res) => {
         correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : null,
         explanation: q.explanation || '',
         imageData: q.imageData || '',
+        explanationImage: q.explanationImage || '', // Store explanation image
         sectionIndex: typeof q.sectionIndex !== 'undefined' ? q.sectionIndex : null
       };
       // Log if imageData is present for debugging
       if (doc.imageData && doc.imageData.trim() !== '') {
         console.log(`Question ${index + 1} has imageData:`, doc.imageData.substring(0, 50) + '...');
+      }
+      // Log if explanationImage is present
+      if (doc.explanationImage && doc.explanationImage.trim() !== '') {
+        console.log(`Question ${index + 1} has explanationImage:`, doc.explanationImage.substring(0, 50) + '...');
       }
       return doc;
     });
@@ -1064,6 +1389,31 @@ app.post('/api/payment/create-order', async (req, res) => {
 
     const order = await razorpayInstance.orders.create(options);
 
+    // Fetch the item to get courseValidity
+    let courseValidity = null;
+    try {
+      if (purchaseType === 'course') {
+        const course = await Course.findOne({ id: purchaseId }).lean();
+        if (course) courseValidity = course.courseValidity;
+      } else if (purchaseType === 'category') {
+        const category = await Category.findOne({ id: purchaseId }).lean();
+        if (category) courseValidity = category.courseValidity;
+      } else if (purchaseType === 'exam') {
+        const exam = await Exam.findOne({ id: purchaseId }).lean();
+        if (exam) courseValidity = exam.courseValidity;
+      }
+      // Note: 'test' type doesn't have courseValidity, so it remains null
+    } catch (err) {
+      console.warn('Error fetching item for expiry info:', err);
+    }
+
+    // Calculate expiry if courseValidity exists
+    let expiryData = null;
+    if (courseValidity) {
+      const purchaseDate = new Date();
+      expiryData = calculateExpiryDate(courseValidity, purchaseDate);
+    }
+
     // Save purchase record with pending status
     const user = await User.findById(userId).lean().catch(() => null) || 
                  await User.findOne({ email: userId }).lean().catch(() => null);
@@ -1079,7 +1429,11 @@ app.post('/api/payment/create-order', async (req, res) => {
       amount: parseFloat(amount),
       currency,
       razorpayOrderId: order.id,
-      status: 'pending'
+      status: 'pending',
+      courseValidity: courseValidity || null,
+      validityValue: expiryData ? expiryData.validityValue : null,
+      validityUnit: expiryData ? expiryData.validityUnit : null,
+      expiresAt: expiryData ? expiryData.expiresAt : null
     });
     await purchase.save();
 
@@ -1144,6 +1498,41 @@ app.post('/api/payment/verify', async (req, res) => {
       return res.json({ success: false, message: 'Purchase record not found' });
     }
 
+    // If expiry not set, fetch item and calculate expiry (for backward compatibility or if item was updated)
+    if (!purchase.expiresAt && purchase.purchaseType !== 'test') {
+      let courseValidity = purchase.courseValidity;
+      
+      // If courseValidity not set, fetch from item
+      if (!courseValidity) {
+        try {
+          if (purchase.purchaseType === 'course') {
+            const course = await Course.findOne({ id: purchase.purchaseId }).lean();
+            if (course) courseValidity = course.courseValidity;
+          } else if (purchase.purchaseType === 'category') {
+            const category = await Category.findOne({ id: purchase.purchaseId }).lean();
+            if (category) courseValidity = category.courseValidity;
+          } else if (purchase.purchaseType === 'exam') {
+            const exam = await Exam.findOne({ id: purchase.purchaseId }).lean();
+            if (exam) courseValidity = exam.courseValidity;
+          }
+        } catch (err) {
+          console.warn('Error fetching item for expiry info in verify:', err);
+        }
+      }
+
+      // Calculate expiry if courseValidity exists
+      if (courseValidity) {
+        const purchaseDate = purchase.purchasedAt || new Date();
+        const expiryData = calculateExpiryDate(courseValidity, purchaseDate);
+        if (expiryData) {
+          purchase.courseValidity = courseValidity;
+          purchase.validityValue = expiryData.validityValue;
+          purchase.validityUnit = expiryData.validityUnit;
+          purchase.expiresAt = expiryData.expiresAt;
+        }
+      }
+    }
+
     // Update purchase with payment details
     purchase.razorpayPaymentId = razorpay_payment_id;
     purchase.razorpaySignature = razorpay_signature;
@@ -1166,9 +1555,126 @@ app.post('/api/payment/verify', async (req, res) => {
   }
 });
 
+// Server-side access validation endpoint
+app.post('/api/check-access', async (req, res) => {
+  const { userId, itemId, itemType, categoryId } = req.body || {};
+  
+  if (!userId || !itemId || !itemType) {
+    return res.json({ success: false, message: 'userId, itemId, and itemType are required' });
+  }
+
+  try {
+    // Find user purchases
+    let purchases = await Purchase.find({ 
+      $or: [
+        { userId: userId },
+        { userEmail: userId }
+      ],
+      status: 'completed' 
+    }).lean();
+    
+    // If no purchases found, try to find user by email and use their _id
+    if (purchases.length === 0) {
+      const user = await User.findOne({ email: userId }).lean().catch(() => null);
+      if (user && user._id) {
+        purchases = await Purchase.find({ 
+          userId: String(user._id),
+          status: 'completed' 
+        }).lean();
+      }
+    }
+
+    // Filter out expired purchases
+    purchases = purchases.filter(purchase => !isPurchaseExpired(purchase));
+
+    // Check if user has access to the requested item
+    let hasAccess = false;
+    let purchase = null;
+    let isExpired = false;
+    let daysUntilExpiry = null;
+
+    for (const p of purchases) {
+      const purchaseId = p.purchaseId;
+      const purchaseType = p.purchaseType;
+
+      // Direct match
+      if (purchaseId === itemId) {
+        if (itemType === 'course' && purchaseType === 'course') {
+          hasAccess = true;
+          purchase = p;
+          break;
+        }
+        if (itemType === 'test' && purchaseType === 'test') {
+          hasAccess = true;
+          purchase = p;
+          break;
+        }
+        if (itemType === 'category' && purchaseType === 'category') {
+          hasAccess = true;
+          purchase = p;
+          break;
+        }
+        if (itemType === 'exam' && purchaseType === 'exam') {
+          hasAccess = true;
+          purchase = p;
+          break;
+        }
+      }
+
+      // Category access (category purchase grants access to exams/tests in that category)
+      if (categoryId && p.categoryId === categoryId && purchaseType === 'category') {
+        if (itemType === 'exam' || itemType === 'test') {
+          hasAccess = true;
+          purchase = p;
+          break;
+        }
+      }
+
+      // Exam access (exam purchase grants access to tests in that exam)
+      if (purchaseType === 'exam' && p.purchaseId === categoryId && itemType === 'test') {
+        hasAccess = true;
+        purchase = p;
+        break;
+      }
+    }
+
+    // Calculate days until expiry if purchase found
+    if (purchase && purchase.expiresAt) {
+      const expiryDate = purchase.expiresAt instanceof Date ? purchase.expiresAt : new Date(purchase.expiresAt);
+      const now = new Date();
+      const diffTime = expiryDate - now;
+      daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilExpiry < 0) {
+        isExpired = true;
+        hasAccess = false;
+      }
+    }
+
+    res.json({
+      success: true,
+      hasAccess,
+      isExpired,
+      purchase: purchase ? {
+        id: purchase._id,
+        purchaseType: purchase.purchaseType,
+        purchaseId: purchase.purchaseId,
+        purchaseName: purchase.purchaseName,
+        purchasedAt: purchase.purchasedAt,
+        expiresAt: purchase.expiresAt,
+        courseValidity: purchase.courseValidity
+      } : null,
+      daysUntilExpiry
+    });
+  } catch (err) {
+    console.error('Error checking access:', err);
+    res.json({ success: false, message: 'Server error' });
+  }
+});
+
 // Get user purchases
 app.get('/api/purchases', async (req, res) => {
-  const { userId } = req.query;
+  const { userId, includeExpired = 'false' } = req.query;
   if (!userId) {
     return res.json({ success: false, message: 'userId required' });
   }
@@ -1198,7 +1704,12 @@ app.get('/api/purchases', async (req, res) => {
       }
     }
     
-    console.log(`Found ${purchases.length} purchases for userId: ${userId}`);
+    // Filter out expired purchases unless includeExpired is true
+    if (includeExpired !== 'true') {
+      purchases = purchases.filter(purchase => !isPurchaseExpired(purchase));
+    }
+    
+    console.log(`Found ${purchases.length} ${includeExpired === 'true' ? '(including expired)' : '(active)'} purchases for userId: ${userId}`);
     res.json({ success: true, purchases });
   } catch (err) {
     console.error('Error fetching purchases:', err);
@@ -1313,10 +1824,638 @@ app.delete('/api/admin/ads/:id', async (req, res) => {
   }
 });
 
+// --- Exam Details API Endpoints (Admin) ---
+
+// Get all exam details
+app.get('/api/admin/exam-details', async (req, res) => {
+  try {
+      const rawDetails = await ExamDetail.find().sort({ examName: 1 }).lean();
+      
+      // Explicitly map data to guarantee 'examName' is included
+      const examDetails = rawDetails.map(detail => ({
+          id: detail.id, // Mongoose virtual ID
+          examName: detail.examName, // Guarantee correct property access
+          // Include all other required fields for the list view
+          updatedAt: detail.updatedAt,
+          createdAt: detail.createdAt,
+          // You may need to add more fields here if they are displayed in the list
+      }));
+      
+      res.json({ success: true, examDetails }); // Sends mapped list
+  } catch (err) { console.error(err); res.json({ success: false, message: 'Server error' }); }
+});
+
+// Create or update exam details
+app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
+  try {
+    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable } = req.body || {};
+    
+    // Extract and validate exam name with new approach
+    let examNameValue = null;
+    if (req.body && req.body.examName) {
+      examNameValue = req.body.examName.toString().replace(/^\s+|\s+$/g, '');
+    }
+    if (!examNameValue || examNameValue.length < 1) {
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+      }
+      return res.json({ success: false, message: 'Exam name must be provided' });
+    }
+
+    let aboutExamImagePath = null;
+    let examSyllabusImagePath = null;
+    let cutoffImagePath = null;
+
+    // Parse links and patterns from JSON strings
+    let linksArray = [];
+    let patternsArray = [];
+    try {
+      if (links) linksArray = typeof links === 'string' ? JSON.parse(links) : links;
+      if (patterns) {
+        patternsArray = typeof patterns === 'string' ? JSON.parse(patterns) : patterns;
+        console.log('Parsed patterns array:', JSON.stringify(patternsArray, null, 2));
+        console.log('Patterns array length:', patternsArray.length);
+      } else {
+        console.log('No patterns received in request body');
+      }
+    } catch (e) {
+      console.error('Error parsing links or patterns:', e);
+      console.error('Links value:', links);
+      console.error('Patterns value:', patterns);
+    }
+
+    // Handle pattern images - find files with patternImage_ prefix
+    if (patternsArray && Array.isArray(patternsArray) && req.files) {
+      patternsArray.forEach((pattern, index) => {
+        if (pattern.type === 'picture') {
+          const patternFile = req.files.find(f => f.fieldname === `patternImage_${index}`);
+          if (patternFile) {
+            pattern.imagePath = `/uploads/exam-details/${patternFile.filename}`;
+          }
+        }
+      });
+    }
+
+    // Extract main images from files array
+    if (req.files) {
+      const aboutExamFile = req.files.find(f => f.fieldname === 'aboutExamImage');
+      const examSyllabusFile = req.files.find(f => f.fieldname === 'examSyllabusImage');
+      const cutoffFile = req.files.find(f => f.fieldname === 'cutoffImage');
+      
+      if (aboutExamFile) aboutExamImagePath = `/uploads/exam-details/${aboutExamFile.filename}`;
+      if (examSyllabusFile) examSyllabusImagePath = `/uploads/exam-details/${examSyllabusFile.filename}`;
+      if (cutoffFile) cutoffImagePath = `/uploads/exam-details/${cutoffFile.filename}`;
+    }
+
+    if (id) {
+      // Build query to find by id field or _id (handle both string id and ObjectId _id)
+      let query;
+      // Check if id looks like a MongoDB ObjectId (24 hex characters)
+      if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
+        query = { $or: [{ id }, { _id: new mongoose.Types.ObjectId(id) }] };
+      } else {
+        query = { $or: [{ id }, { _id: id }] };
+      }
+      
+      // Update existing exam detail - try to find by id field first, then by _id
+      const existing = await ExamDetail.findOne(query);
+      if (!existing) {
+        // Clean up uploaded files
+        if (req.files) {
+          Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+        }
+        return res.json({ success: false, message: 'Exam detail not found' });
+      }
+      
+      // Check if examName is being changed and if the new name already exists
+      if (existing.examName !== examNameValue) {
+        const duplicate = await ExamDetail.findOne({ examName: examNameValue });
+        if (duplicate && String(duplicate._id) !== String(existing._id)) {
+          // Clean up uploaded files
+          if (req.files) {
+            Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+          }
+          return res.json({ success: false, message: 'An exam with this name already exists' });
+        }
+      }
+      
+      // Use the id field from the found document for the update
+      const updateId = existing.id || existing._id;
+
+      // Delete old images if new ones are uploaded
+      if (aboutExamImagePath && existing.aboutExamImagePath) {
+        const oldPath = path.join(__dirname, existing.aboutExamImagePath.replace(/^\//, ''));
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old image:', e); }
+        }
+      }
+      if (examSyllabusImagePath && existing.examSyllabusImagePath) {
+        const oldPath = path.join(__dirname, existing.examSyllabusImagePath.replace(/^\//, ''));
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old image:', e); }
+        }
+      }
+      if (cutoffImagePath && existing.cutoffImagePath) {
+        const oldPath = path.join(__dirname, existing.cutoffImagePath.replace(/^\//, ''));
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old image:', e); }
+        }
+      }
+
+      // Delete old pattern images if new ones are uploaded
+      if (patternsArray && existing.patterns) {
+        patternsArray.forEach((newPattern, index) => {
+          if (newPattern.type === 'picture' && newPattern.imagePath) {
+            const oldPattern = existing.patterns[index];
+            if (oldPattern && oldPattern.imagePath && oldPattern.imagePath !== newPattern.imagePath) {
+              const oldPath = path.join(__dirname, oldPattern.imagePath.replace(/^\//, ''));
+              if (fs.existsSync(oldPath)) {
+                try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old pattern image:', e); }
+              }
+            }
+          }
+        });
+      }
+
+      const updateData = {
+        examName: examNameValue,
+        aboutExamText: aboutExamText || '',
+        examSyllabusText: examSyllabusText || '',
+        links: linksArray,
+        patterns: patternsArray || [],
+        syllabusTable: syllabusTable || '',
+        cutoffTable: cutoffTable || '',
+        updatedAt: new Date()
+      };
+      
+      console.log('Update data patterns:', JSON.stringify(updateData.patterns, null, 2));
+
+      if (aboutExamImagePath) updateData.aboutExamImagePath = aboutExamImagePath;
+      if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
+      if (cutoffImagePath) updateData.cutoffImagePath = cutoffImagePath;
+
+      // Build update query - handle both string id and ObjectId _id
+      let updateQuery;
+      if (mongoose.Types.ObjectId.isValid(updateId) && String(updateId).length === 24) {
+        updateQuery = { $or: [{ id: updateId }, { _id: new mongoose.Types.ObjectId(updateId) }] };
+      } else {
+        updateQuery = { $or: [{ id: updateId }, { _id: updateId }] };
+      }
+
+      const updated = await ExamDetail.findOneAndUpdate(updateQuery, updateData, { new: true });
+      console.log('POST - Saved exam detail patterns:', JSON.stringify(updated?.patterns, null, 2));
+      console.log('POST - Saved patterns count:', updated?.patterns?.length || 0);
+      res.json({ success: true, examDetail: updated });
+    } else {
+      // Check if exam name already exists before creating new entry
+      const existingExam = await ExamDetail.findOne({ examName: examNameValue });
+      if (existingExam) {
+        // Clean up uploaded files
+        if (req.files) {
+          Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+        }
+        return res.json({ success: false, message: 'An exam with this name already exists' });
+      }
+      
+      // Create new exam detail
+      const newExamDetail = new ExamDetail({
+        id: generateId('examdetail'),
+        examName: examNameValue,
+        aboutExamText: aboutExamText || '',
+        aboutExamImagePath,
+        examSyllabusText: examSyllabusText || '',
+        examSyllabusImagePath,
+        cutoffImagePath,
+        links: linksArray,
+        patterns: patternsArray || [],
+        syllabusTable: syllabusTable || '',
+        cutoffTable: cutoffTable || ''
+      });
+      
+      console.log('POST - New exam detail patterns before save:', JSON.stringify(newExamDetail.patterns, null, 2));
+      await newExamDetail.save();
+      console.log('POST - Saved exam detail patterns:', JSON.stringify(newExamDetail.patterns, null, 2));
+      console.log('POST - Saved patterns count:', newExamDetail.patterns?.length || 0);
+      res.json({ success: true, examDetail: newExamDetail });
+    }
+  } catch (err) {
+    console.error('Error saving exam details:', err);
+    // Clean up uploaded files on error
+    if (req.files) {
+      Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+    }
+    // Handle MongoDB duplicate key error for examName
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.examName) {
+      return res.status(400).json({ success: false, message: 'An exam with this name already exists' });
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Update exam details (PUT method) - same logic as POST
+app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
+  // Reuse the POST handler logic by calling it directly
+  // The POST handler already handles both create and update based on id field
+  try {
+    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable } = req.body || {};
+    
+    // Extract and validate exam name with new approach
+    let examNameValue = null;
+    if (req.body && req.body.examName) {
+      examNameValue = req.body.examName.toString().replace(/^\s+|\s+$/g, '');
+    }
+    if (!examNameValue || examNameValue.length < 1) {
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+      }
+      return res.json({ success: false, message: 'Exam name must be provided' });
+    }
+
+    let aboutExamImagePath = null;
+    let examSyllabusImagePath = null;
+    let cutoffImagePath = null;
+
+    let linksArray = [];
+    let patternsArray = [];
+    try {
+      if (links) linksArray = typeof links === 'string' ? JSON.parse(links) : links;
+      if (patterns) {
+        patternsArray = typeof patterns === 'string' ? JSON.parse(patterns) : patterns;
+        console.log('PUT - Parsed patterns array:', JSON.stringify(patternsArray, null, 2));
+        console.log('PUT - Patterns array length:', patternsArray.length);
+      } else {
+        console.log('PUT - No patterns received in request body');
+      }
+    } catch (e) {
+      console.error('PUT - Error parsing links or patterns:', e);
+      console.error('PUT - Links value:', links);
+      console.error('PUT - Patterns value:', patterns);
+    }
+
+    // Handle pattern images - find files with patternImage_ prefix
+    if (patternsArray && Array.isArray(patternsArray) && req.files) {
+      patternsArray.forEach((pattern, index) => {
+        if (pattern.type === 'picture') {
+          const patternFile = req.files.find(f => f.fieldname === `patternImage_${index}`);
+          if (patternFile) {
+            pattern.imagePath = `/uploads/exam-details/${patternFile.filename}`;
+          }
+        }
+      });
+    }
+
+    // Extract main images from files array
+    if (req.files) {
+      const aboutExamFile = req.files.find(f => f.fieldname === 'aboutExamImage');
+      const examSyllabusFile = req.files.find(f => f.fieldname === 'examSyllabusImage');
+      const cutoffFile = req.files.find(f => f.fieldname === 'cutoffImage');
+      
+      if (aboutExamFile) aboutExamImagePath = `/uploads/exam-details/${aboutExamFile.filename}`;
+      if (examSyllabusFile) examSyllabusImagePath = `/uploads/exam-details/${examSyllabusFile.filename}`;
+      if (cutoffFile) cutoffImagePath = `/uploads/exam-details/${cutoffFile.filename}`;
+    }
+
+    if (!id) {
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+      }
+      return res.json({ success: false, message: 'ID required for update' });
+    }
+
+    // Build query to find by id field or _id (handle both string id and ObjectId _id)
+    let query;
+    // Check if id looks like a MongoDB ObjectId (24 hex characters)
+    if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
+      query = { $or: [{ id }, { _id: new mongoose.Types.ObjectId(id) }] };
+    } else {
+      query = { $or: [{ id }, { _id: id }] };
+    }
+    
+    // Try to find by id field first, then by _id
+    const existing = await ExamDetail.findOne(query);
+    if (!existing) {
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+      }
+      return res.json({ success: false, message: 'Exam detail not found' });
+    }
+    
+    // Check if examName is being changed and if the new name already exists
+    if (existing.examName !== examNameValue) {
+      const duplicate = await ExamDetail.findOne({ examName: examNameValue });
+      if (duplicate && String(duplicate._id) !== String(existing._id)) {
+        // Clean up uploaded files
+        if (req.files) {
+          Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+        }
+        return res.json({ success: false, message: 'An exam with this name already exists' });
+      }
+    }
+    
+    // Use the id field from the found document for the update
+    const updateId = existing.id || existing._id;
+
+    if (aboutExamImagePath && existing.aboutExamImagePath) {
+      const oldPath = path.join(__dirname, existing.aboutExamImagePath.replace(/^\//, ''));
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old image:', e); }
+      }
+    }
+    if (examSyllabusImagePath && existing.examSyllabusImagePath) {
+      const oldPath = path.join(__dirname, existing.examSyllabusImagePath.replace(/^\//, ''));
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old image:', e); }
+      }
+    }
+    if (cutoffImagePath && existing.cutoffImagePath) {
+      const oldPath = path.join(__dirname, existing.cutoffImagePath.replace(/^\//, ''));
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old image:', e); }
+      }
+    }
+
+    if (patternsArray && existing.patterns) {
+      patternsArray.forEach((newPattern, index) => {
+        if (newPattern.type === 'picture' && newPattern.imagePath) {
+          const oldPattern = existing.patterns[index];
+          if (oldPattern && oldPattern.imagePath && oldPattern.imagePath !== newPattern.imagePath) {
+            const oldPath = path.join(__dirname, oldPattern.imagePath.replace(/^\//, ''));
+            if (fs.existsSync(oldPath)) {
+              try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old pattern image:', e); }
+            }
+          }
+        }
+      });
+    }
+
+    const updateData = {
+      examName: examNameValue,
+      aboutExamText: aboutExamText || '',
+      examSyllabusText: examSyllabusText || '',
+      links: linksArray,
+      patterns: patternsArray || [],
+      syllabusTable: syllabusTable || '',
+      cutoffTable: cutoffTable || '',
+      updatedAt: new Date()
+    };
+    
+    console.log('PUT - Update data patterns:', JSON.stringify(updateData.patterns, null, 2));
+
+    if (aboutExamImagePath) updateData.aboutExamImagePath = aboutExamImagePath;
+    if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
+    if (cutoffImagePath) updateData.cutoffImagePath = cutoffImagePath;
+
+    // Build update query - handle both string id and ObjectId _id
+    let updateQuery;
+    if (mongoose.Types.ObjectId.isValid(updateId) && String(updateId).length === 24) {
+      updateQuery = { $or: [{ id: updateId }, { _id: new mongoose.Types.ObjectId(updateId) }] };
+    } else {
+      updateQuery = { $or: [{ id: updateId }, { _id: updateId }] };
+    }
+
+    const updated = await ExamDetail.findOneAndUpdate(updateQuery, updateData, { new: true });
+    console.log('PUT - Saved exam detail patterns:', JSON.stringify(updated?.patterns, null, 2));
+    console.log('PUT - Saved patterns count:', updated?.patterns?.length || 0);
+    res.json({ success: true, examDetail: updated });
+  } catch (err) {
+    console.error('Error updating exam details:', err);
+    if (req.files) {
+      Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+    }
+    // Handle MongoDB duplicate key error for examName
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.examName) {
+      return res.status(400).json({ success: false, message: 'An exam with this name already exists' });
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Delete exam details
+app.delete('/api/admin/exam-details/:id', async (req, res) => {
+  try {
+    const examId = req.params.id;
+    
+    // New approach: Try multiple lookup methods
+    let foundDoc = null;
+    
+    // Method 1: Search by custom id field
+    foundDoc = await ExamDetail.findOne({ id: examId }).lean();
+    
+    // Method 2: If not found, try MongoDB _id
+    if (!foundDoc) {
+      if (mongoose.Types.ObjectId.isValid(examId)) {
+        foundDoc = await ExamDetail.findById(examId).lean();
+      }
+    }
+    
+    // Method 3: Last attempt - search by _id as string
+    if (!foundDoc) {
+      foundDoc = await ExamDetail.findOne({ _id: examId }).lean();
+    }
+    
+    if (!foundDoc) {
+      return res.json({ success: false, message: 'Exam detail not found' });
+    }
+
+    // Collect all image paths to delete
+    const filesToDelete = [];
+    ['aboutExamImagePath', 'examSyllabusImagePath', 'cutoffImagePath'].forEach(field => {
+      if (foundDoc[field]) filesToDelete.push(foundDoc[field]);
+    });
+    
+    // Collect pattern images
+    if (Array.isArray(foundDoc.patterns)) {
+      foundDoc.patterns.forEach(p => {
+        if (p && p.imagePath) filesToDelete.push(p.imagePath);
+      });
+    }
+
+    // Remove image files
+    filesToDelete.forEach(filePath => {
+      try {
+        const absolutePath = path.resolve(__dirname, filePath.startsWith('/') ? filePath.slice(1) : filePath);
+        if (fs.existsSync(absolutePath)) {
+          fs.unlinkSync(absolutePath);
+        }
+      } catch (fileErr) {
+        // Silent fail for file deletion
+      }
+    });
+
+    // Remove document from database using the found document's _id
+    await ExamDetail.findByIdAndDelete(foundDoc._id);
+    
+    res.json({ success: true, message: 'Deleted successfully' });
+  } catch (err) {
+    console.error('Delete error:', err);
+    res.status(500).json({ success: false, message: 'Server error occurred' });
+  }
+});
+
+// --- Exam Details API Endpoints (Public) ---
+
+// Get all exam details (public)
+app.get('/api/exam-details', async (req, res) => {
+  try {
+    const examDetails = await ExamDetail.find().sort({ examName: 1 }).lean();
+    res.json({ success: true, examDetails });
+  } catch (err) {
+    console.error('Error fetching exam details:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get single exam detail by ID (public)
+app.get('/api/exam-details/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const examDetail = await ExamDetail.findOne({ $or: [{ id }, { _id: id }] }).lean();
+    if (!examDetail) {
+      return res.json({ success: false, message: 'Exam detail not found' });
+    }
+    res.json({ success: true, examDetail });
+  } catch (err) {
+    console.error('Error fetching exam detail:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // 404 handler for debugging API routes (must be last)
 app.use('/api', (req, res) => {
   console.log('404 - API route not found:', req.method, req.originalUrl, req.path);
   res.status(404).json({ success: false, message: 'API route not found: ' + req.method + ' ' + req.originalUrl });
 });
 
+// ============================================
+// AUTOMATIC CLEANUP JOB FOR EXPIRED PURCHASES
+// ============================================
+async function cleanupExpiredPurchases() {
+  try {
+    const now = new Date();
+    // Find purchases that expired more than 90 days ago
+    const cutoffDate = new Date(now);
+    cutoffDate.setDate(cutoffDate.getDate() - 90);
+    
+    const result = await Purchase.deleteMany({
+      status: 'completed',
+      expiresAt: { $exists: true, $lt: cutoffDate }
+    });
+    
+    if (result.deletedCount > 0) {
+      console.log(`[Cleanup Job] Deleted ${result.deletedCount} expired purchases (expired more than 90 days ago)`);
+    }
+  } catch (err) {
+    console.error('[Cleanup Job] Error cleaning up expired purchases:', err);
+  }
+}
+
+// Run cleanup job every 24 hours (86400000 ms)
+const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+setInterval(cleanupExpiredPurchases, CLEANUP_INTERVAL);
+// Run immediately on server start
+cleanupExpiredPurchases();
+
+// ============================================
+// EXPIRY REMINDER/NOTIFICATION SYSTEM
+// ============================================
+async function checkAndNotifyExpiringPurchases() {
+  try {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now);
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    
+    const sevenDaysFromNow = new Date(now);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    
+    const oneDayFromNow = new Date(now);
+    oneDayFromNow.setDate(oneDayFromNow.getDate() + 1);
+    
+    // Find purchases expiring in the next 30 days
+    const expiringPurchases = await Purchase.find({
+      status: 'completed',
+      expiresAt: { 
+        $exists: true, 
+        $gte: now,
+        $lte: thirtyDaysFromNow
+      }
+    }).lean();
+    
+    // Group by user and check reminder thresholds
+    const userReminders = {};
+    
+    for (const purchase of expiringPurchases) {
+      if (!purchase.expiresAt) continue;
+      
+      const expiryDate = purchase.expiresAt instanceof Date ? purchase.expiresAt : new Date(purchase.expiresAt);
+      const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+      
+      const userId = purchase.userId || purchase.userEmail;
+      if (!userId) continue;
+      
+      if (!userReminders[userId]) {
+        userReminders[userId] = {
+          userId,
+          userEmail: purchase.userEmail,
+          reminders: []
+        };
+      }
+      
+      // Determine which reminder to send
+      let reminderType = null;
+      if (daysUntilExpiry <= 1 && daysUntilExpiry > 0) {
+        reminderType = '1day';
+      } else if (daysUntilExpiry <= 7 && daysUntilExpiry > 1) {
+        reminderType = '7days';
+      } else if (daysUntilExpiry <= 30 && daysUntilExpiry > 7) {
+        reminderType = '30days';
+      }
+      
+      if (reminderType) {
+        userReminders[userId].reminders.push({
+          purchaseId: purchase.purchaseId,
+          purchaseName: purchase.purchaseName,
+          purchaseType: purchase.purchaseType,
+          expiresAt: purchase.expiresAt,
+          daysUntilExpiry,
+          reminderType
+        });
+      }
+    }
+    
+    // Log reminders (in production, you would send emails/push notifications here)
+    for (const userId in userReminders) {
+      const userData = userReminders[userId];
+      for (const reminder of userData.reminders) {
+        console.log(`[Expiry Reminder] User: ${userData.userEmail || userId}, Purchase: ${reminder.purchaseName}, Expires in: ${reminder.daysUntilExpiry} days, Type: ${reminder.reminderType}`);
+      }
+    }
+    
+    if (Object.keys(userReminders).length > 0) {
+      console.log(`[Expiry Reminder] Checked ${expiringPurchases.length} purchases, found ${Object.keys(userReminders).length} users with expiring purchases`);
+    }
+  } catch (err) {
+    console.error('[Expiry Reminder] Error checking expiring purchases:', err);
+  }
+}
+
+// API endpoint to manually trigger reminder check
+app.get('/api/admin/check-expiry-reminders', async (req, res) => {
+  try {
+    await checkAndNotifyExpiringPurchases();
+    res.json({ success: true, message: 'Expiry reminder check completed' });
+  } catch (err) {
+    console.error('Error in manual reminder check:', err);
+    res.json({ success: false, message: 'Error checking reminders' });
+  }
+});
+
+// Run reminder check every 12 hours (43200000 ms)
+const REMINDER_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+setInterval(checkAndNotifyExpiringPurchases, REMINDER_INTERVAL);
+// Run immediately on server start
+checkAndNotifyExpiringPurchases();
+
+// ============================================
+// SERVER START
+// ============================================
 app.listen(PORT, () => console.log('Server listening on port', PORT));

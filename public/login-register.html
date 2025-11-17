@@ -77,6 +77,56 @@
       color: #721c24;
       border: 1px solid #f5c6cb;
     }
+
+    /* Mobile Responsive */
+    @media screen and (max-width: 768px) {
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem;
+        gap: 1rem;
+      }
+
+      .nav-buttons {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .nav-btn {
+        width: 100%;
+        text-align: center;
+      }
+
+      .search-login {
+        width: 100%;
+      }
+
+      .search-box {
+        width: 100%;
+      }
+
+      .auth-container {
+        max-width: 100%;
+        margin: 2rem auto;
+        padding: 1.5rem;
+      }
+
+      .auth-form input {
+        font-size: 16px; /* Prevents zoom on iOS */
+      }
+    }
+
+    @media screen and (max-width: 480px) {
+      .auth-container {
+        margin: 1rem auto;
+        padding: 1.25rem;
+      }
+
+      .site-name {
+        font-size: 1.4rem;
+      }
+    }
   </style>
 </head>
 
@@ -91,7 +141,7 @@
     </nav>
 
     <div class="search-login">
-      <input type="text" class="search-box" placeholder="Search tests...">
+      <input type="text" class="search-box" placeholder="Search">
     </div>
   </header>
 
@@ -123,6 +173,7 @@
     </form>
   </div>
 
+  <script src="assets/js/search.js"></script>
   <script>
     function toggleForm() {
       const loginForm = document.getElementById('loginForm');
@@ -176,8 +227,11 @@
       try {
         const resp = await postJSON('/login', { email, password });
         if (resp && resp.success && resp.user) {
-          // Save user info to localStorage for dashboard
+          // Save user info and session token to localStorage
           localStorage.setItem('user', JSON.stringify(resp.user));
+          if (resp.sessionToken) {
+            localStorage.setItem('sessionToken', resp.sessionToken);
+          }
           // Hide login button since user is now logged in
           const loginBtn = document.getElementById('login-btn');
           if (loginBtn) {
@@ -213,9 +267,9 @@
       try {
         const resp = await postJSON('/register', { name, email, phone, password });
         if (resp && resp.success) {
-          showMessage('Registered successfully. You can log in now.', 'success');
-          // switch to login form
-          setTimeout(() => { toggleForm(); }, 800);
+          showMessage('Registered successfully', 'success');
+          // Redirect to login page after showing message
+          setTimeout(() => { window.location.href = 'login-register.html'; }, 1500);
         } else {
           showMessage(resp.message || 'Registration failed', 'error');
         }

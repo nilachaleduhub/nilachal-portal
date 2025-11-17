@@ -169,173 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // --- Ad Management Section Navigation ---
-        const adsSection = document.getElementById('ads-section');
-        const adsBtn = document.getElementById('ads-btn');
-        const backToMainFromAdsBtn = document.getElementById('back-to-main-from-ads-btn');
-        
-        // Show Ads section when Ad Management button is clicked
-        if (adsBtn && !adsBtn.dataset.listenerAttached) {
-            adsBtn.dataset.listenerAttached = 'true';
-            adsBtn.addEventListener('click', () => {
-                if (mainMenuSection) mainMenuSection.style.display = 'none';
-                if (adsSection) adsSection.style.display = 'block';
-                loadAds();
+        // --- Dashboard Navigation ---
+        const dashboardBtn = document.getElementById('dashboard-btn');
+        if (dashboardBtn && !dashboardBtn.dataset.listenerAttached) {
+            dashboardBtn.dataset.listenerAttached = 'true';
+            dashboardBtn.addEventListener('click', () => {
+                window.location.href = 'admin-dashboard.html';
             });
-        }
-        
-        // Go back to main menu from Ads section
-        if (backToMainFromAdsBtn && !backToMainFromAdsBtn.dataset.listenerAttached) {
-            backToMainFromAdsBtn.dataset.listenerAttached = 'true';
-            backToMainFromAdsBtn.addEventListener('click', () => {
-                if (adsSection) adsSection.style.display = 'none';
-                if (mainMenuSection) mainMenuSection.style.display = 'block';
-            });
-        }
-
-        // Ad form handling
-        const adForm = document.getElementById('ad-form');
-        const adPosterInput = document.getElementById('ad-poster');
-        const adPosterPreview = document.getElementById('ad-poster-preview');
-        const adPosterPreviewImg = document.getElementById('ad-poster-preview-img');
-
-        // Preview poster image
-        if (adPosterInput) {
-            adPosterInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        adPosterPreviewImg.src = event.target.result;
-                        adPosterPreview.style.display = 'block';
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
-
-        // Submit ad form
-        if (adForm) {
-            adForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData();
-                const adId = document.getElementById('ad-id').value;
-                const position = document.getElementById('ad-position').value;
-                const isActive = document.getElementById('ad-is-active').checked;
-                const posterFile = adPosterInput.files[0];
-
-                if (adId) formData.append('id', adId);
-                formData.append('position', position);
-                formData.append('isActive', isActive);
-                if (posterFile) formData.append('poster', posterFile);
-
-                try {
-                    const res = await adminFetch('/api/admin/ads', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        alert('Ad saved successfully!');
-                        adForm.reset();
-                        document.getElementById('ad-id').value = '';
-                        adPosterPreview.style.display = 'none';
-                        loadAds();
-                    } else {
-                        alert('Error: ' + (data.message || 'Failed to save ad'));
-                    }
-                } catch (err) {
-                    console.error('Error saving ad:', err);
-                    alert('Error saving ad. Please try again.');
-                }
-            });
-        }
-
-        // Load and display ads
-        async function loadAds() {
-            const adsList = document.getElementById('ads-list');
-            if (!adsList) return;
-
-            try {
-                const res = await adminFetch('/api/admin/ads');
-                const data = await res.json();
-                if (data.success && Array.isArray(data.ads)) {
-                    if (data.ads.length === 0) {
-                        adsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No ads created yet.</div>';
-                        return;
-                    }
-                    adsList.innerHTML = '';
-                    data.ads.forEach(ad => {
-                        const adCard = document.createElement('div');
-                        adCard.style.cssText = 'background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);';
-                        adCard.innerHTML = `
-                            <div style="margin-bottom: 15px;">
-                                <strong style="color: #334155;">Position: ${ad.position}</strong>
-                                <span style="margin-left: 10px; padding: 4px 8px; background: ${ad.isActive ? '#10b981' : '#94a3b8'}; color: white; border-radius: 4px; font-size: 0.85rem;">
-                                    ${ad.isActive ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
-                            ${ad.posterPath ? `
-                                <img src="${ad.posterPath}" alt="Ad Poster" style="width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; margin-bottom: 15px; background: #f8fafc;">
-                            ` : '<div style="padding: 40px; text-align: center; background: #f8fafc; border-radius: 8px; margin-bottom: 15px; color: #94a3b8;">No poster uploaded</div>'}
-                            <div style="display: flex; gap: 10px;">
-                                <button class="edit-ad-btn" data-ad-id="${ad.id}" style="flex: 1; padding: 8px; background: #3366ff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Edit</button>
-                                <button class="delete-ad-btn" data-ad-id="${ad.id}" style="flex: 1; padding: 8px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Delete</button>
-                            </div>
-                        `;
-                        adsList.appendChild(adCard);
-                    });
-
-                    // Edit button handlers
-                    adsList.querySelectorAll('.edit-ad-btn').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            const adId = btn.dataset.adId;
-                            const ad = data.ads.find(a => a.id === adId);
-                            if (ad) {
-                                document.getElementById('ad-id').value = ad.id;
-                                document.getElementById('ad-position').value = ad.position;
-                                document.getElementById('ad-is-active').checked = ad.isActive;
-                                if (ad.posterPath) {
-                                    adPosterPreviewImg.src = ad.posterPath;
-                                    adPosterPreview.style.display = 'block';
-                                } else {
-                                    adPosterPreview.style.display = 'none';
-                                }
-                                document.getElementById('ad-form-section').scrollIntoView({ behavior: 'smooth' });
-                            }
-                        });
-                    });
-
-                    // Delete button handlers
-                    adsList.querySelectorAll('.delete-ad-btn').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            if (!confirm('Are you sure you want to delete this ad?')) return;
-                            const adId = btn.dataset.adId;
-                            try {
-                                const res = await adminFetch(`/api/admin/ads/${adId}`, { method: 'DELETE' });
-                                const data = await res.json();
-                                if (data.success) {
-                                    alert('Ad deleted successfully!');
-                                    loadAds();
-                                } else {
-                                    alert('Error: ' + (data.message || 'Failed to delete ad'));
-                                }
-                            } catch (err) {
-                                console.error('Error deleting ad:', err);
-                                alert('Error deleting ad. Please try again.');
-                            }
-                        });
-                    });
-                } else {
-                    adsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #e53e3e;">Error loading ads.</div>';
-                }
-            } catch (err) {
-                console.error('Error loading ads:', err);
-                const adsList = document.getElementById('ads-list');
-                if (adsList) {
-                    adsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #e53e3e;">Error loading ads. Please try again.</div>';
-                }
-            }
         }
     }
 
@@ -439,7 +279,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoryDescInput = document.getElementById('category-desc');
     const categoryCourseDetailsInput = document.getElementById('category-course-details');
     const categoryCourseCostInput = document.getElementById('category-course-cost');
-    const categoryCourseValidityInput = document.getElementById('category-course-validity');
+    const categoryValidityValueInput = document.getElementById('category-validity-value');
+    const categoryValidityUnitSelect = document.getElementById('category-validity-unit');
+    const categoryDiscountYes = document.getElementById('category-discount-yes');
+    const categoryDiscountNo = document.getElementById('category-discount-no');
+    const categoryDiscountFields = document.getElementById('category-discount-fields');
+    const categoryDiscountPercentInput = document.getElementById('category-discount-percent');
+    const categoryDiscountCodeInput = document.getElementById('category-discount-code');
+    const categoryDiscountMessageInput = document.getElementById('category-discount-message');
     const categoryList = document.getElementById('category-list');
 
     const examForm = document.getElementById('exam-form');
@@ -449,7 +296,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const examDescInput = document.getElementById('exam-desc');
     const examCourseDetailsInput = document.getElementById('exam-course-details');
     const examCourseCostInput = document.getElementById('exam-course-cost');
-    const examCourseValidityInput = document.getElementById('exam-course-validity');
+    const examValidityValueInput = document.getElementById('exam-validity-value');
+    const examValidityUnitSelect = document.getElementById('exam-validity-unit');
+    const examDiscountYes = document.getElementById('exam-discount-yes');
+    const examDiscountNo = document.getElementById('exam-discount-no');
+    const examDiscountFields = document.getElementById('exam-discount-fields');
+    const examDiscountPercentInput = document.getElementById('exam-discount-percent');
+    const examDiscountCodeInput = document.getElementById('exam-discount-code');
+    const examDiscountMessageInput = document.getElementById('exam-discount-message');
     const examList = document.getElementById('exam-list');
 
     const testForm = document.getElementById('test-form');
@@ -492,17 +346,111 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveToLS = (key, data) => localStorage.setItem(key, JSON.stringify(data));
     const generateId = () => `admin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Initialize media handlers for a question block: image preview and simple canvas drawing
+    const VALIDITY_UNIT_LABELS = {
+        day: 'Day',
+        month: 'Month',
+        year: 'Year'
+    };
+
+    function formatValidity(value, unit) {
+        if (!value || !unit) return '';
+        const numericValue = parseInt(value, 10);
+        if (Number.isNaN(numericValue) || numericValue <= 0) return '';
+        const label = VALIDITY_UNIT_LABELS[unit] || unit;
+        const suffix = numericValue === 1 ? label : `${label}s`;
+        return `${numericValue} ${suffix}`;
+    }
+
+    function parseValidityString(input) {
+        if (!input || typeof input !== 'string') {
+            return { value: '', unit: '' };
+        }
+        const match = input.trim().match(/^(\d+)\s*([a-zA-Z]+)/);
+        if (!match) {
+            return { value: '', unit: '' };
+        }
+        const value = match[1];
+        let unit = match[2].toLowerCase();
+        if (unit.endsWith('s')) {
+            unit = unit.slice(0, -1);
+        }
+        if (!VALIDITY_UNIT_LABELS[unit]) {
+            return { value: '', unit: '' };
+        }
+        return { value, unit };
+    }
+
+    function resolveValidityParts(entity = {}) {
+        if (entity && entity.validityValue && entity.validityUnit) {
+            return {
+                value: entity.validityValue,
+                unit: entity.validityUnit
+            };
+        }
+        return parseValidityString(entity.courseValidity || '');
+    }
+
+    function normaliseDiscountCode(code) {
+        if (!code) return '';
+        return String(code).trim().toUpperCase();
+    }
+
+    function toggleDiscountSection(sectionEl, shouldShow, inputs = []) {
+        if (!sectionEl) return;
+        sectionEl.style.display = shouldShow ? 'block' : 'none';
+        if (!shouldShow && Array.isArray(inputs)) {
+            inputs.forEach(input => {
+                if (!input) return;
+                if (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA') {
+                    input.value = '';
+                }
+            });
+        }
+    }
+
+    const updateCategoryDiscountVisibility = () => {
+        const shouldShow = categoryDiscountYes ? !!categoryDiscountYes.checked : false;
+        toggleDiscountSection(categoryDiscountFields, shouldShow, [
+            categoryDiscountPercentInput,
+            categoryDiscountCodeInput,
+            categoryDiscountMessageInput
+        ]);
+    };
+
+    if (categoryDiscountYes && categoryDiscountNo) {
+        categoryDiscountYes.addEventListener('change', updateCategoryDiscountVisibility);
+        categoryDiscountNo.addEventListener('change', updateCategoryDiscountVisibility);
+        updateCategoryDiscountVisibility();
+    }
+
+    const updateExamDiscountVisibility = () => {
+        const shouldShow = examDiscountYes ? !!examDiscountYes.checked : false;
+        toggleDiscountSection(examDiscountFields, shouldShow, [
+            examDiscountPercentInput,
+            examDiscountCodeInput,
+            examDiscountMessageInput
+        ]);
+    };
+
+    if (examDiscountYes && examDiscountNo) {
+        examDiscountYes.addEventListener('change', updateExamDiscountVisibility);
+        examDiscountNo.addEventListener('change', updateExamDiscountVisibility);
+        updateExamDiscountVisibility();
+    }
+
+    // Initialize media handlers for a question block: image preview and table editor
     function initMediaHandlers(block) {
         try {
             const fileInput = block.querySelector('.question-image-file');
             const imgPreview = block.querySelector('.question-image-preview');
-            const canvas = block.querySelector('.question-canvas');
-            const startDrawBtn = block.querySelector('.start-draw-btn');
-            const clearDrawBtn = block.querySelector('.clear-draw-btn');
-
-            let drawing = false;
-            let ctx = null;
+            const removeImageBtn = block.querySelector('.remove-image-btn');
+            const imageDimensionsContainer = block.querySelector('.image-dimensions-container');
+            const imageWidthInput = block.querySelector('.image-width-input');
+            const imageHeightInput = block.querySelector('.image-height-input');
+            const addTableBtn = block.querySelector('.add-table-btn');
+            const removeTableBtn = block.querySelector('.remove-table-btn');
+            const tableContainer = block.querySelector('.table-editor-container');
+            const tableWrapper = block.querySelector('.table-editor-wrapper');
             if (fileInput) {
                 fileInput.addEventListener('change', (e) => {
                     const f = e.target.files[0];
@@ -539,10 +487,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Convert to JPEG with 0.85 quality (good balance between size and quality)
                             const compressedDataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
                             
-                            imgPreview.src = compressedDataUrl;
-                            imgPreview.style.display = 'block';
-                            imgPreview.style.visibility = 'visible';
-                            if (canvas) { canvas.style.display = 'none'; }
+                    imgPreview.src = compressedDataUrl;
+                    imgPreview.style.display = 'block';
+                    imgPreview.style.visibility = 'visible';
+                    if (removeImageBtn) { removeImageBtn.style.display = 'block'; }
+                    if (imageDimensionsContainer) { imageDimensionsContainer.style.display = 'block'; }
+                    if (tableContainer) { tableContainer.style.display = 'none'; }
+                    if (addTableBtn) { addTableBtn.style.display = 'inline-block'; }
+                    if (removeTableBtn) { removeTableBtn.style.display = 'none'; }
                             
                             const originalSize = (f.size / 1024).toFixed(2);
                             const compressedSize = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
@@ -558,30 +510,268 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            if (startDrawBtn && canvas) {
-                startDrawBtn.addEventListener('click', () => {
+            // Remove image button functionality
+            if (removeImageBtn) {
+                removeImageBtn.addEventListener('click', () => {
+                    // Clear the image preview
+                    imgPreview.src = '';
                     imgPreview.style.display = 'none';
-                    canvas.style.display = 'block';
-                    canvas.width = 600; canvas.height = 300;
-                    ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width, canvas.height);
-                    drawing = false;
-
-                    canvas.onmousedown = (e) => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
-                    canvas.onmousemove = (e) => { if (drawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
-                    canvas.onmouseup = () => { drawing = false; };
-                    canvas.onmouseleave = () => { drawing = false; };
+                    imgPreview.style.visibility = 'hidden';
+                    removeImageBtn.style.display = 'none';
+                    // Hide and clear dimension inputs
+                    if (imageDimensionsContainer) {
+                        imageDimensionsContainer.style.display = 'none';
+                    }
+                    if (imageWidthInput) {
+                        imageWidthInput.value = '';
+                    }
+                    if (imageHeightInput) {
+                        imageHeightInput.value = '';
+                    }
+                    // Clear the file input
+                    if (fileInput) {
+                        fileInput.value = '';
+                    }
                 });
             }
 
-            if (clearDrawBtn && canvas) {
-                clearDrawBtn.addEventListener('click', () => {
-                    if (canvas) { ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width, canvas.height); canvas.style.display = 'none'; imgPreview.src = ''; imgPreview.style.display = 'none'; if (fileInput) fileInput.value = ''; }
+            // Table editor functionality
+            if (addTableBtn && tableContainer) {
+                addTableBtn.addEventListener('click', () => {
+                    imgPreview.style.display = 'none';
+                    if (removeImageBtn) { removeImageBtn.style.display = 'none'; }
+                    if (imageDimensionsContainer) { imageDimensionsContainer.style.display = 'none'; }
+                    tableContainer.style.display = 'block';
+                    addTableBtn.style.display = 'none';
+                    removeTableBtn.style.display = 'inline-block';
+                    // Generate default 2x2 table if empty
+                    if (!tableWrapper.querySelector('table')) {
+                        generateTableForBlock(block);
+                    }
+                });
+            }
+
+            if (removeTableBtn && tableContainer) {
+                removeTableBtn.addEventListener('click', () => {
+                    tableContainer.style.display = 'none';
+                    addTableBtn.style.display = 'inline-block';
+                    removeTableBtn.style.display = 'none';
+                    if (tableWrapper) {
+                        tableWrapper.innerHTML = '';
+                    }
+                });
+            }
+
+            // Explanation image handler
+            const explanationFileInput = block.querySelector('.explanation-image-file');
+            const explanationImgPreview = block.querySelector('.explanation-image-preview');
+            const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+            
+            if (explanationFileInput) {
+                explanationFileInput.addEventListener('change', (e) => {
+                    const f = e.target.files[0];
+                    if (!f) return;
+                    
+                    // Compress and resize image before converting to base64
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            // Calculate new dimensions (max 1200px width, maintain aspect ratio)
+                            const maxWidth = 1200;
+                            const maxHeight = 1200;
+                            let width = img.width;
+                            let height = img.height;
+                            
+                            if (width > maxWidth || height > maxHeight) {
+                                if (width > height) {
+                                    height = (height * maxWidth) / width;
+                                    width = maxWidth;
+                                } else {
+                                    width = (width * maxHeight) / height;
+                                    height = maxHeight;
+                                }
+                            }
+                            
+                            // Create temporary canvas to compress image
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = width;
+                            tempCanvas.height = height;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            tempCtx.drawImage(img, 0, 0, width, height);
+                            
+                            // Convert to JPEG with 0.85 quality
+                            const compressedDataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
+                            
+                            explanationImgPreview.src = compressedDataUrl;
+                            explanationImgPreview.style.display = 'block';
+                            if (removeExplanationImageBtn) {
+                                removeExplanationImageBtn.style.display = 'block';
+                            }
+                            
+                            const originalSize = (f.size / 1024).toFixed(2);
+                            const compressedSize = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
+                            console.log(`Explanation image compressed: ${originalSize}KB -> ~${compressedSize}KB`);
+                        };
+                        img.onerror = () => {
+                            console.error('Failed to load explanation image');
+                            alert('Failed to load image. Please try a different image.');
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(f);
+                });
+            }
+
+            // Remove explanation image button
+            if (removeExplanationImageBtn) {
+                removeExplanationImageBtn.addEventListener('click', () => {
+                    explanationImgPreview.src = '';
+                    explanationImgPreview.style.display = 'none';
+                    removeExplanationImageBtn.style.display = 'none';
+                    if (explanationFileInput) {
+                        explanationFileInput.value = '';
+                    }
                 });
             }
         } catch (err) {
             console.error('initMediaHandlers error', err);
         }
+    }
+
+    // Function to convert table cells to editable textareas (for restoring tables)
+    function convertTableToEditable(wrapper) {
+        const table = wrapper.querySelector('table');
+        if (!table) {
+            console.warn('No table found in wrapper');
+            return;
+        }
+        
+        const cells = table.querySelectorAll('td');
+        if (cells.length === 0) {
+            console.warn('No cells found in table');
+            return;
+        }
+        
+        cells.forEach((td, index) => {
+            // Skip if already has a textarea
+            if (td.querySelector('.table-cell-input')) {
+                return;
+            }
+            
+            // Get text content, converting <br> tags to newlines
+            let currentText = td.innerHTML || '';
+            // Convert <br> and <br/> to newlines
+            currentText = currentText.replace(/<br\s*\/?>/gi, '\n');
+            // Remove any remaining HTML tags but preserve text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = currentText;
+            currentText = tempDiv.textContent || tempDiv.innerText || '';
+            
+            const textarea = document.createElement('textarea');
+            textarea.className = 'table-cell-input';
+            textarea.value = currentText;
+            textarea.placeholder = `Cell ${index + 1}`;
+            textarea.style.cssText = 'width:100%; border:none; outline:none; padding:4px; min-height:30px; resize:none; overflow:hidden; font-family:inherit; font-size:inherit;';
+            // Auto-resize on input
+            textarea.addEventListener('input', function() {
+                autoResizeTableCell(this);
+            });
+            // Initial resize
+            setTimeout(() => {
+                autoResizeTableCell(textarea);
+            }, 10);
+            
+            // Clear and add textarea
+            td.innerHTML = '';
+            td.appendChild(textarea);
+            td.style.border = '1px solid #ddd';
+            td.style.padding = '8px';
+            td.style.verticalAlign = 'top';
+        });
+        
+        console.log('Converted', cells.length, 'table cells to editable textareas');
+    }
+    
+    // Function to auto-resize table cell based on content
+    function autoResizeTableCell(textarea) {
+        // Reset height to auto to get the correct scrollHeight
+        textarea.style.height = 'auto';
+        // Set height based on content, with min height
+        const newHeight = Math.max(30, textarea.scrollHeight);
+        textarea.style.height = newHeight + 'px';
+        
+        // Also adjust row height if needed - find max height in row
+        const td = textarea.parentElement;
+        const tr = td.parentElement;
+        if (tr) {
+            let maxHeight = 0;
+            tr.querySelectorAll('.table-cell-input').forEach(cell => {
+                cell.style.height = 'auto';
+                maxHeight = Math.max(maxHeight, cell.scrollHeight);
+                cell.style.height = Math.max(30, cell.scrollHeight) + 'px';
+            });
+        }
+    }
+    
+    // Table generation function (global for onclick)
+    window.generateTable = function(btn) {
+        const container = btn.closest('.table-editor-container');
+        const wrapper = container.querySelector('.table-editor-wrapper');
+        const rowsInput = container.querySelector('.table-rows-input');
+        const colsInput = container.querySelector('.table-cols-input');
+        const rows = parseInt(rowsInput.value) || 2;
+        const cols = parseInt(colsInput.value) || 2;
+        
+        let html = '<table style="width:100%; border-collapse:collapse; border:1px solid #ddd; margin-top:8px; table-layout:auto;">';
+        for (let r = 0; r < rows; r++) {
+            html += '<tr>';
+            for (let c = 0; c < cols; c++) {
+                html += `<td style="border:1px solid #ddd; padding:8px; vertical-align:top;"><input type="text" class="table-cell-input" placeholder="Cell ${r+1},${c+1}" style="width:100%; border:none; outline:none; padding:4px; min-height:30px; resize:none;"></td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        wrapper.innerHTML = html;
+        
+        // Add auto-resize listeners to all inputs
+        const inputs = wrapper.querySelectorAll('.table-cell-input');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                autoResizeTableCell(this);
+            });
+        });
+    };
+    
+    // Helper function to generate table for a block
+    function generateTableForBlock(block) {
+        const container = block.querySelector('.table-editor-container');
+        const wrapper = container.querySelector('.table-editor-wrapper');
+        const rowsInput = container.querySelector('.table-rows-input');
+        const colsInput = container.querySelector('.table-cols-input');
+        const rows = parseInt(rowsInput.value) || 2;
+        const cols = parseInt(colsInput.value) || 2;
+        
+        let html = '<table style="width:100%; border-collapse:collapse; border:1px solid #ddd; margin-top:8px; table-layout:auto;">';
+        for (let r = 0; r < rows; r++) {
+            html += '<tr>';
+            for (let c = 0; c < cols; c++) {
+                html += `<td style="border:1px solid #ddd; padding:8px; vertical-align:top;"><textarea class="table-cell-input" placeholder="Cell ${r+1},${c+1}" style="width:100%; border:none; outline:none; padding:4px; min-height:30px; resize:none; overflow:hidden; font-family:inherit; font-size:inherit;"></textarea></td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        wrapper.innerHTML = html;
+        
+        // Add auto-resize listeners to all textareas
+        const textareas = wrapper.querySelectorAll('.table-cell-input');
+        textareas.forEach(textarea => {
+            textarea.addEventListener('input', function() {
+                autoResizeTableCell(this);
+            });
+            // Initial resize
+            autoResizeTableCell(textarea);
+        });
     }
 
     // --- Question Management ---
@@ -609,10 +799,24 @@ document.addEventListener('DOMContentLoaded', () => {
             <textarea class="question-text" placeholder="Question text" required></textarea>
             <div class="media-controls">
                 <label class="file-label">Attach image <input type="file" class="question-image-file" accept="image/*"></label>
-                <button type="button" class="btn-gray start-draw-btn">Draw</button>
-                <button type="button" class="btn-gray clear-draw-btn">Clear</button>
-                <div class="image-preview-wrap"><img class="question-image-preview" style="max-width:100%; display:none; margin-top:8px;"/></div>
-                <canvas class="question-canvas" style="border:1px solid #ddd; display:none; margin-top:8px;"></canvas>
+                <button type="button" class="btn-gray add-table-btn">Add Table</button>
+                <button type="button" class="btn-gray remove-table-btn" style="display:none;">Remove Table</button>
+                <div class="image-preview-wrap" style="position:relative; display:inline-block;">
+                    <img class="question-image-preview" style="max-width:100%; display:none; margin-top:8px;"/>
+                    <button type="button" class="remove-image-btn" style="display:none; position:absolute; top:8px; right:8px; background:#ff4444; color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:16px; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="Remove image">×</button>
+                </div>
+                <div class="image-dimensions-container" style="display:none; margin-top:8px; padding:8px; background:#f5f5f5; border-radius:4px;">
+                    <label style="margin-right:12px;">Width (cm): <input type="number" class="image-width-input" min="0.1" step="0.1" style="width:80px; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:14px;" placeholder="Auto"></label>
+                    <label>Height (cm): <input type="number" class="image-height-input" min="0.1" step="0.1" style="width:80px; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:14px;" placeholder="Auto"></label>
+                </div>
+                <div class="table-editor-container" style="display:none; margin-top:8px; border:1px solid #ddd; padding:12px; background:#fff; border-radius:4px;">
+                    <div style="margin-bottom:8px;">
+                        <label style="margin-right:12px;">Rows: <input type="number" class="table-rows-input" value="2" min="1" max="10" style="width:80px; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:14px;"></label>
+                        <label style="margin-right:12px;">Columns: <input type="number" class="table-cols-input" value="2" min="1" max="10" style="width:80px; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:14px;"></label>
+                        <button type="button" class="btn-gray" style="padding:6px 16px; font-size:0.9rem;" onclick="generateTable(this)">Generate Table</button>
+                    </div>
+                    <div class="table-editor-wrapper"></div>
+                </div>
             </div>
             <div class="options-grid">
                 <div class="option-item">
@@ -633,6 +837,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
             <textarea class="explanation-text" placeholder="Answer explanation"></textarea>
+            <div class="explanation-image-controls" style="margin-top: 8px;">
+                <label class="file-label" style="display: inline-block; margin-right: 10px;">Attach explanation image <input type="file" class="explanation-image-file" accept="image/*"></label>
+                <div class="explanation-image-preview-wrap" style="position:relative; display:inline-block; margin-top:8px;">
+                    <img class="explanation-image-preview" style="max-width:300px; max-height:200px; display:none; margin-top:8px; border-radius:8px; border:1px solid #ddd;"/>
+                    <button type="button" class="remove-explanation-image-btn" style="display:none; position:absolute; top:8px; right:8px; background:#ff4444; color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:16px; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="Remove image">×</button>
+                </div>
+            </div>
         `;
 
         // Append to proper container
@@ -746,8 +957,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span>ID: ${cat.id}</span>
                     ${cat.description ? `<span>Description: ${cat.description}</span>` : ''}
                     ${cat.courseDetails ? `<span>Course Details: ${cat.courseDetails}</span>` : ''}
-                    ${cat.courseCost ? `<span>Course Cost: ${cat.courseCost}</span>` : ''}
+                    ${cat.courseCost ? `<span>Price: ${cat.courseCost}</span>` : ''}
                     ${cat.courseValidity ? `<span>Validity: ${cat.courseValidity}</span>` : ''}
+                    ${cat.hasDiscount ? `<span>Discount: ${cat.discountPercent || 0}%${cat.discountCode ? ` (Code: ${cat.discountCode})` : ''}</span>` : ''}
+                    ${cat.discountMessage ? `<span>Discount Message: ${cat.discountMessage}</span>` : ''}
                 </div>
                 <div class="list-item-actions">
                     <button class="btn-edit" data-id="${cat.id}">Edit</button>
@@ -781,8 +994,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>Category: ${cat.name} | ID: ${exam.id}</span>
                         ${exam.description ? `<span>Description: ${exam.description}</span>` : ''}
                         ${exam.courseDetails ? `<span>Course Details: ${exam.courseDetails}</span>` : ''}
-                        ${exam.courseCost ? `<span>Course Cost: ${exam.courseCost}</span>` : ''}
+                        ${exam.courseCost ? `<span>Price: ${exam.courseCost}</span>` : ''}
                         ${exam.courseValidity ? `<span>Validity: ${exam.courseValidity}</span>` : ''}
+                        ${exam.hasDiscount ? `<span>Discount: ${exam.discountPercent || 0}%${exam.discountCode ? ` (Code: ${exam.discountCode})` : ''}</span>` : ''}
+                        ${exam.discountMessage ? `<span>Discount Message: ${exam.discountMessage}</span>` : ''}
                     </div>
                     <div class="list-item-actions">
                         <button class="btn-edit" data-id="${exam.id}" data-cat-id="${cat.id}">Edit</button>
@@ -802,7 +1017,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get tests from both storage locations
             const examTests = [];
             const exams = getFromLS(`${EXAM_DATA_PREFIX}${cat.id}`);
+            
+            // Create a map of examId to examName for quick lookup
+            // Store both string and number versions to handle type mismatches
+            const examNameMap = {};
             exams.forEach(exam => {
+                // Store with both string and number keys to handle type mismatches
+                const examIdStr = String(exam.id);
+                const examIdNum = exam.id;
+                examNameMap[examIdStr] = exam.name;
+                examNameMap[examIdNum] = exam.name;
                 (exam.tests || []).forEach(test => {
                     examTests.push({...test, examName: exam.name, examId: exam.id});
                 });
@@ -811,8 +1035,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get tests from separate test storage
             const separateTests = getFromLS(`${TEST_DATA_PREFIX}${cat.id}`, []);
             
+            // Add exam name to separate tests by looking up in examNameMap
+            const separateTestsWithExamName = separateTests.map(test => {
+                let examName = 'Unknown';
+                if (test.examId) {
+                    // Try both string and number versions of examId
+                    examName = examNameMap[test.examId] || examNameMap[String(test.examId)] || examNameMap[Number(test.examId)] || 'Unknown';
+                }
+                return {...test, examName: examName};
+            });
+            
             // Combine and remove duplicates
-            const allTests = [...examTests, ...separateTests];
+            const allTests = [...examTests, ...separateTestsWithExamName];
             const uniqueTests = allTests.filter((test, index, self) => 
                 index === self.findIndex(t => t.id === test.id)
             );
@@ -1141,14 +1375,45 @@ document.addEventListener('DOMContentLoaded', () => {
                         const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
                         if (radio) radio.checked = true;
                         block.querySelector('.explanation-text').value = q.explanation || '';
-                        // populate image or canvas preview if available
+                        // populate image or table preview if available
                         const imgPreview = block.querySelector('.question-image-preview');
+                        const removeImageBtn = block.querySelector('.remove-image-btn');
                         if (q.imageData && q.imageData.trim() !== '' && imgPreview) {
                             imgPreview.src = q.imageData;
                             imgPreview.style.display = 'block';
                             imgPreview.style.visibility = 'visible';
+                            if (removeImageBtn) { removeImageBtn.style.display = 'block'; }
                             console.log('Restored image for question:', q.imageData.substring(0, 50) + '...');
                         }
+                        // Restore explanation image if available
+                        const explanationImgPreview = block.querySelector('.explanation-image-preview');
+                        const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+                        if (q.explanationImage && q.explanationImage.trim() !== '' && explanationImgPreview) {
+                            explanationImgPreview.src = q.explanationImage;
+                            explanationImgPreview.style.display = 'block';
+                            if (removeExplanationImageBtn) { removeExplanationImageBtn.style.display = 'block'; }
+                            console.log('Restored explanation image for question:', q.explanationImage.substring(0, 50) + '...');
+                        }
+                        // Restore table if available
+                        if (q.tableData && q.tableData.trim() !== '') {
+                            const tableContainer = block.querySelector('.table-editor-container');
+                            const tableWrapper = block.querySelector('.table-editor-wrapper');
+                            const addTableBtn = block.querySelector('.add-table-btn');
+                            const removeTableBtn = block.querySelector('.remove-table-btn');
+                            if (tableContainer && tableWrapper) {
+                                tableWrapper.innerHTML = q.tableData;
+                                tableContainer.style.display = 'block';
+                                if (addTableBtn) addTableBtn.style.display = 'none';
+                                if (removeTableBtn) removeTableBtn.style.display = 'inline-block';
+                                // Wait for DOM to update, then convert table cells back to editable textareas
+                                setTimeout(() => {
+                                    convertTableToEditable(tableWrapper);
+                                    console.log('Restored table for question');
+                                }, 100);
+                            }
+                        }
+                        // Re-initialize media handlers for this block
+                        initMediaHandlers(block);
                     }
                 });
             } else {
@@ -1165,13 +1430,55 @@ document.addEventListener('DOMContentLoaded', () => {
                         const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
                         if (radio) radio.checked = true;
                         block.querySelector('.explanation-text').value = q.explanation || '';
+                        // Restore explanation image if available
+                        const explanationImgPreview = block.querySelector('.explanation-image-preview');
+                        const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+                        if (q.explanationImage && q.explanationImage.trim() !== '' && explanationImgPreview) {
+                            explanationImgPreview.src = q.explanationImage;
+                            explanationImgPreview.style.display = 'block';
+                            if (removeExplanationImageBtn) { removeExplanationImageBtn.style.display = 'block'; }
+                            console.log('Restored explanation image for question:', q.explanationImage.substring(0, 50) + '...');
+                        }
                         const imgPreview = block.querySelector('.question-image-preview');
+                        const removeImageBtn = block.querySelector('.remove-image-btn');
+                        const imageDimensionsContainer = block.querySelector('.image-dimensions-container');
+                        const imageWidthInput = block.querySelector('.image-width-input');
+                        const imageHeightInput = block.querySelector('.image-height-input');
                         if (q.imageData && q.imageData.trim() !== '' && imgPreview) {
                             imgPreview.src = q.imageData;
                             imgPreview.style.display = 'block';
                             imgPreview.style.visibility = 'visible';
+                            if (removeImageBtn) { removeImageBtn.style.display = 'block'; }
+                            if (imageDimensionsContainer) { imageDimensionsContainer.style.display = 'block'; }
+                            // Restore image dimensions if available
+                            if (imageWidthInput && q.imageWidth) {
+                                imageWidthInput.value = q.imageWidth;
+                            }
+                            if (imageHeightInput && q.imageHeight) {
+                                imageHeightInput.value = q.imageHeight;
+                            }
                             console.log('Restored image for question:', q.imageData.substring(0, 50) + '...');
                         }
+                        // Restore table if available
+                        if (q.tableData && q.tableData.trim() !== '') {
+                            const tableContainer = block.querySelector('.table-editor-container');
+                            const tableWrapper = block.querySelector('.table-editor-wrapper');
+                            const addTableBtn = block.querySelector('.add-table-btn');
+                            const removeTableBtn = block.querySelector('.remove-table-btn');
+                            if (tableContainer && tableWrapper) {
+                                tableWrapper.innerHTML = q.tableData;
+                                tableContainer.style.display = 'block';
+                                if (addTableBtn) addTableBtn.style.display = 'none';
+                                if (removeTableBtn) removeTableBtn.style.display = 'inline-block';
+                                // Wait for DOM to update, then convert table cells back to editable textareas
+                                setTimeout(() => {
+                                    convertTableToEditable(tableWrapper);
+                                    console.log('Restored table for question');
+                                }, 100);
+                            }
+                        }
+                        // Re-initialize media handlers for this block
+                        initMediaHandlers(block);
                     }
                 });
             }
@@ -1194,13 +1501,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = categoryDescInput.value.trim();
         const courseDetails = categoryCourseDetailsInput ? categoryCourseDetailsInput.value.trim() : '';
         const courseCost = categoryCourseCostInput ? categoryCourseCostInput.value.trim() : '';
-        const courseValidity = categoryCourseValidityInput ? categoryCourseValidityInput.value.trim() : '';
+
+        const validityValueRaw = categoryValidityValueInput ? categoryValidityValueInput.value.trim() : '';
+        let validityValue = validityValueRaw ? parseInt(validityValueRaw, 10) : null;
+        const validityUnit = categoryValidityUnitSelect ? categoryValidityUnitSelect.value : '';
+
+        if (validityValueRaw && (Number.isNaN(validityValue) || validityValue <= 0)) {
+            alert('Please enter a valid validity value greater than zero.');
+            return;
+        }
+        if (validityValue && !validityUnit) {
+            alert('Please select a validity unit.');
+            return;
+        }
+        if (!validityValue && validityUnit) {
+            alert('Please enter a validity value.');
+            return;
+        }
+        if (!validityValue) {
+            validityValue = null;
+        }
+        const courseValidity = validityValue ? formatValidity(validityValue, validityUnit) : '';
+
+        const hasDiscount = categoryDiscountYes ? !!categoryDiscountYes.checked : false;
+        let discountPercent = 0;
+        let discountCode = '';
+        let discountMessage = '';
+        if (hasDiscount) {
+            const percentRaw = categoryDiscountPercentInput ? categoryDiscountPercentInput.value.trim() : '';
+            discountPercent = percentRaw ? parseFloat(percentRaw) : 0;
+            if (!percentRaw || Number.isNaN(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+                alert('Please enter a valid discount percentage between 0 and 100.');
+                return;
+            }
+            discountCode = normaliseDiscountCode(categoryDiscountCodeInput ? categoryDiscountCodeInput.value : '');
+            if (!discountCode) {
+                alert('Please provide a discount code.');
+                return;
+            }
+            discountMessage = categoryDiscountMessageInput ? categoryDiscountMessageInput.value.trim() : '';
+            if (!discountMessage) {
+                alert('Please provide a discount message for users.');
+                return;
+            }
+        }
+
+        const payload = {
+            id: id || undefined,
+            name,
+            description,
+            courseDetails,
+            courseCost,
+            courseValidity,
+            validityValue,
+            validityUnit: validityValue ? validityUnit : '',
+            hasDiscount,
+            discountPercent: hasDiscount ? discountPercent : 0,
+            discountCode: hasDiscount ? discountCode : '',
+            discountMessage: hasDiscount ? discountMessage : ''
+        };
+
         let serverSuccess = false;
         try {
             const res = await adminFetch('/api/admin/categories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id || undefined, name, description, courseDetails, courseCost, courseValidity })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.success && data.category) {
@@ -1219,19 +1585,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!serverSuccess) {
             let categories = getFromLS(ADMIN_CATEGORIES_KEY);
             if (id) {
-                categories = categories.map(cat => cat.id === id ? { ...cat, name, description, courseDetails, courseCost, courseValidity } : cat);
+                categories = categories.map(cat => cat.id === id ? {
+                    ...cat,
+                    name,
+                    description,
+                    courseDetails,
+                    courseCost,
+                    courseValidity,
+                    validityValue,
+                    validityUnit: validityValue ? validityUnit : '',
+                    hasDiscount,
+                    discountPercent: hasDiscount ? discountPercent : 0,
+                    discountCode: hasDiscount ? discountCode : '',
+                    discountMessage: hasDiscount ? discountMessage : ''
+                } : cat);
             } else {
-                categories.push({ id: generateId(), name, description, courseDetails, courseCost, courseValidity });
+                categories.push({
+                    id: generateId(),
+                    name,
+                    description,
+                    courseDetails,
+                    courseCost,
+                    courseValidity,
+                    validityValue,
+                    validityUnit: validityValue ? validityUnit : '',
+                    hasDiscount,
+                    discountPercent: hasDiscount ? discountPercent : 0,
+                    discountCode: hasDiscount ? discountCode : '',
+                    discountMessage: hasDiscount ? discountMessage : ''
+                });
             }
             saveToLS(ADMIN_CATEGORIES_KEY, categories);
             alert('Category saved locally (localStorage). Server unavailable.');
         }
         // Explicitly clear the ID field to prevent creating duplicates
-        categoryIdInput.value = '';
-        if (categoryCourseDetailsInput) categoryCourseDetailsInput.value = '';
-        if (categoryCourseCostInput) categoryCourseCostInput.value = '';
-        if (categoryCourseValidityInput) categoryCourseValidityInput.value = '';
         categoryForm.reset();
+        categoryIdInput.value = '';
+        if (categoryDiscountNo) categoryDiscountNo.checked = true;
+        if (categoryValidityUnitSelect) categoryValidityUnitSelect.value = '';
+        updateCategoryDiscountVisibility();
         loadAllData();
     });
 
@@ -1244,13 +1636,73 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = examDescInput.value;
         const courseDetails = examCourseDetailsInput ? examCourseDetailsInput.value.trim() : '';
         const courseCost = examCourseCostInput ? examCourseCostInput.value.trim() : '';
-        const courseValidity = examCourseValidityInput ? examCourseValidityInput.value.trim() : '';
+
+        const validityValueRaw = examValidityValueInput ? examValidityValueInput.value.trim() : '';
+        let validityValue = validityValueRaw ? parseInt(validityValueRaw, 10) : null;
+        const validityUnit = examValidityUnitSelect ? examValidityUnitSelect.value : '';
+
+        if (validityValueRaw && (Number.isNaN(validityValue) || validityValue <= 0)) {
+            alert('Please enter a valid validity value greater than zero.');
+            return;
+        }
+        if (validityValue && !validityUnit) {
+            alert('Please select a validity unit.');
+            return;
+        }
+        if (!validityValue && validityUnit) {
+            alert('Please enter a validity value.');
+            return;
+        }
+        if (!validityValue) {
+            validityValue = null;
+        }
+        const courseValidity = validityValue ? formatValidity(validityValue, validityUnit) : '';
+
+        const hasDiscount = examDiscountYes ? !!examDiscountYes.checked : false;
+        let discountPercent = 0;
+        let discountCode = '';
+        let discountMessage = '';
+        if (hasDiscount) {
+            const percentRaw = examDiscountPercentInput ? examDiscountPercentInput.value.trim() : '';
+            discountPercent = percentRaw ? parseFloat(percentRaw) : 0;
+            if (!percentRaw || Number.isNaN(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+                alert('Please enter a valid discount percentage between 0 and 100.');
+                return;
+            }
+            discountCode = normaliseDiscountCode(examDiscountCodeInput ? examDiscountCodeInput.value : '');
+            if (!discountCode) {
+                alert('Please provide a discount code.');
+                return;
+            }
+            discountMessage = examDiscountMessageInput ? examDiscountMessageInput.value.trim() : '';
+            if (!discountMessage) {
+                alert('Please provide a discount message for users.');
+                return;
+            }
+        }
+
+        const payload = {
+            id: id || undefined,
+            categoryId,
+            name,
+            description,
+            courseDetails,
+            courseCost,
+            courseValidity,
+            validityValue,
+            validityUnit: validityValue ? validityUnit : '',
+            hasDiscount,
+            discountPercent: hasDiscount ? discountPercent : 0,
+            discountCode: hasDiscount ? discountCode : '',
+            discountMessage: hasDiscount ? discountMessage : ''
+        };
+
         let serverSuccess = false;
         try {
             const res = await adminFetch('/api/admin/exams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id || undefined, categoryId, name, description, courseDetails, courseCost, courseValidity })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.success && data.exam) {
@@ -1261,7 +1713,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (all.success && Array.isArray(all.exams)) {
                     saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, all.exams);
                 }
-                alert('Exam saved to server (MongoDB) and synced to localStorage!');
+                const isUpdate = id && id.length > 0;
+                alert(isUpdate ? 'Exam updated successfully!' : 'Exam saved to server (MongoDB) and synced to localStorage!');
             }
         } catch (err) {
             console.warn('Server save failed, falling back to localStorage', err);
@@ -1269,18 +1722,46 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!serverSuccess) {
             let exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
             if (id) {
-                exams = exams.map(ex => ex.id === id ? { ...ex, name, description, courseDetails, courseCost, courseValidity, tests: ex.tests || [] } : ex);
+                exams = exams.map(ex => ex.id === id ? {
+                    ...ex,
+                    name,
+                    description,
+                    courseDetails,
+                    courseCost,
+                    courseValidity,
+                    validityValue,
+                    validityUnit: validityValue ? validityUnit : '',
+                    hasDiscount,
+                    discountPercent: hasDiscount ? discountPercent : 0,
+                    discountCode: hasDiscount ? discountCode : '',
+                    discountMessage: hasDiscount ? discountMessage : '',
+                    tests: ex.tests || []
+                } : ex);
             } else {
-                exams.push({ id: generateId(), name, description, courseDetails, courseCost, courseValidity, tests: [] });
+                exams.push({
+                    id: generateId(),
+                    name,
+                    description,
+                    courseDetails,
+                    courseCost,
+                    courseValidity,
+                    validityValue,
+                    validityUnit: validityValue ? validityUnit : '',
+                    hasDiscount,
+                    discountPercent: hasDiscount ? discountPercent : 0,
+                    discountCode: hasDiscount ? discountCode : '',
+                    discountMessage: hasDiscount ? discountMessage : '',
+                    tests: []
+                });
             }
             saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
             alert('Exam saved locally (localStorage). Server unavailable.');
         }
-        examIdInput.value = '';
-        if (examCourseDetailsInput) examCourseDetailsInput.value = '';
-        if (examCourseCostInput) examCourseCostInput.value = '';
-        if (examCourseValidityInput) examCourseValidityInput.value = '';
         examForm.reset();
+        examIdInput.value = '';
+        if (examDiscountNo) examDiscountNo.checked = true;
+        if (examValidityUnitSelect) examValidityUnitSelect.value = '';
+        updateExamDiscountVisibility();
         loadAllData();
     });
 
@@ -1296,8 +1777,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const negativeMark = testNegativeMarkInput.value;
         if (!categoryId || !examId || !name) return;
 
+        const testId = testIdInput ? testIdInput.value.trim() : '';
         const newTest = {
-            // id will be generated by server
+            id: testId || undefined,
             categoryId,
             examId,
             name,
@@ -1347,7 +1829,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (all.success && Array.isArray(all.tests)) {
                     saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, all.tests);
                 }
-                alert('Test saved to server (MongoDB) and synced to localStorage!');
+                const isUpdate = testId && testId.length > 0;
+                alert(isUpdate ? 'Test updated successfully!' : 'Test saved to server (MongoDB) and synced to localStorage!');
             }
         } catch (err) {
             console.warn('Server save failed, falling back to localStorage', err);
@@ -1383,7 +1866,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 categoryDescInput.value = category.description || '';
                 if (categoryCourseDetailsInput) categoryCourseDetailsInput.value = category.courseDetails || '';
                 if (categoryCourseCostInput) categoryCourseCostInput.value = category.courseCost || '';
-                if (categoryCourseValidityInput) categoryCourseValidityInput.value = category.courseValidity || '';
+                const { value, unit } = resolveValidityParts(category);
+                if (categoryValidityValueInput) categoryValidityValueInput.value = value || '';
+                if (categoryValidityUnitSelect) categoryValidityUnitSelect.value = unit || '';
+                const hasDiscount = !!category.hasDiscount;
+                if (categoryDiscountYes && categoryDiscountNo) {
+                    categoryDiscountYes.checked = hasDiscount;
+                    categoryDiscountNo.checked = !hasDiscount;
+                }
+                if (categoryDiscountPercentInput) categoryDiscountPercentInput.value = hasDiscount ? (category.discountPercent ?? '') : '';
+                if (categoryDiscountCodeInput) categoryDiscountCodeInput.value = hasDiscount ? (category.discountCode || '') : '';
+                if (categoryDiscountMessageInput) categoryDiscountMessageInput.value = hasDiscount ? (category.discountMessage || '') : '';
+                updateCategoryDiscountVisibility();
             }
         }
     });
@@ -1401,7 +1895,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 examDescInput.value = exam.description || '';
                 if (examCourseDetailsInput) examCourseDetailsInput.value = exam.courseDetails || '';
                 if (examCourseCostInput) examCourseCostInput.value = exam.courseCost || '';
-                if (examCourseValidityInput) examCourseValidityInput.value = exam.courseValidity || '';
+                const { value, unit } = resolveValidityParts(exam);
+                if (examValidityValueInput) examValidityValueInput.value = value || '';
+                if (examValidityUnitSelect) examValidityUnitSelect.value = unit || '';
+                const hasDiscount = !!exam.hasDiscount;
+                if (examDiscountYes && examDiscountNo) {
+                    examDiscountYes.checked = hasDiscount;
+                    examDiscountNo.checked = !hasDiscount;
+                }
+                if (examDiscountPercentInput) examDiscountPercentInput.value = hasDiscount ? (exam.discountPercent ?? '') : '';
+                if (examDiscountCodeInput) examDiscountCodeInput.value = hasDiscount ? (exam.discountCode || '') : '';
+                if (examDiscountMessageInput) examDiscountMessageInput.value = hasDiscount ? (exam.discountMessage || '') : '';
+                updateExamDiscountVisibility();
             }
         }
     });
@@ -1430,7 +1935,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (test) {
                 testIdInput.value = test.id;
                 testCategorySelect.value = categoryId;
-                testExamSelect.value = examId;
+                // Populate exam select dropdown before setting the value
+                populateTestExamSelect();
+                // Get examId from test object if not available from dataset, handling type mismatches
+                const testExamId = examId || test.examId;
+                if (testExamId) {
+                    const examIdStr = String(testExamId);
+                    const examIdNum = Number(testExamId);
+                    // Find matching option by iterating through all options, handling type mismatches
+                    let foundOption = null;
+                    for (let i = 0; i < testExamSelect.options.length; i++) {
+                        const option = testExamSelect.options[i];
+                        const optionValueStr = String(option.value);
+                        const optionValueNum = Number(option.value);
+                        if (option.value === testExamId || option.value === examIdStr || option.value === examIdNum ||
+                            optionValueStr === examIdStr || optionValueNum === examIdNum) {
+                            foundOption = option.value;
+                            break;
+                        }
+                    }
+                    // Set the value if found
+                    if (foundOption) {
+                        testExamSelect.value = foundOption;
+                    } else {
+                        // Fallback: try setting directly (might work if types match)
+                        testExamSelect.value = testExamId;
+                    }
+                }
                 testNameInput.value = test.name;
                 testNumQuestionsInput.value = test.numQuestions;
                 testTimeLimitInput.value = test.timeLimit;
@@ -1507,6 +2038,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
                                 if (radio) radio.checked = true;
                                 block.querySelector('.explanation-text').value = q.explanation || '';
+                                // Restore explanation image if available
+                                const explanationImgPreview = block.querySelector('.explanation-image-preview');
+                                const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+                                if (q.explanationImage && q.explanationImage.trim() !== '' && explanationImgPreview) {
+                                    explanationImgPreview.src = q.explanationImage;
+                                    explanationImgPreview.style.display = 'block';
+                                    if (removeExplanationImageBtn) { removeExplanationImageBtn.style.display = 'block'; }
+                                }
                             }
                         });
                     } else {
@@ -1728,9 +2267,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     correctAnswer: correctAnswer,
                     explanation: explanation
                 };
-                // capture image or canvas data if present
+                // capture image or table data if present
                 const imgPreview = block.querySelector('.question-image-preview');
-                const canvas = block.querySelector('.question-canvas');
+                const imageWidthInput = block.querySelector('.image-width-input');
+                const imageHeightInput = block.querySelector('.image-height-input');
+                const tableContainer = block.querySelector('.table-editor-container');
+                const tableWrapper = block.querySelector('.table-editor-wrapper');
+                
+                // Capture explanation image if present
+                const explanationImgPreview = block.querySelector('.explanation-image-preview');
+                if (explanationImgPreview && explanationImgPreview.src) {
+                    const explanationImgSrc = explanationImgPreview.src.trim();
+                    const isNotHidden = explanationImgPreview.style.display !== 'none' && 
+                                       window.getComputedStyle(explanationImgPreview).display !== 'none';
+                    
+                    if (explanationImgSrc && explanationImgSrc !== '' && explanationImgSrc !== 'undefined' && 
+                        !explanationImgSrc.startsWith('undefined') && 
+                        (explanationImgSrc.startsWith('data:') || explanationImgSrc.startsWith('http')) &&
+                        isNotHidden) {
+                        qObj.explanationImage = explanationImgSrc;
+                        console.log('Captured explanation image data for question');
+                    }
+                }
                 
                 // Check for uploaded image first
                 if (imgPreview && imgPreview.src) {
@@ -1745,6 +2303,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         (imgSrc.startsWith('data:') || imgSrc.startsWith('http')) &&
                         isNotHidden) {
                         qObj.imageData = imgSrc;
+                        // Capture image dimensions if provided
+                        if (imageWidthInput && imageWidthInput.value) {
+                            const width = parseFloat(imageWidthInput.value);
+                            if (!isNaN(width) && width > 0) {
+                                qObj.imageWidth = width;
+                            }
+                        }
+                        if (imageHeightInput && imageHeightInput.value) {
+                            const height = parseFloat(imageHeightInput.value);
+                            if (!isNaN(height) && height > 0) {
+                                qObj.imageHeight = height;
+                            }
+                        }
                         console.log('Captured image data for question:', qObj.imageData.substring(0, 50) + '...');
                     } else {
                         console.log('Image preview found but not captured. src:', imgSrc ? imgSrc.substring(0, 50) : 'empty', 'isNotHidden:', isNotHidden);
@@ -1753,16 +2324,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('No image preview found for question block');
                 }
                 
-                // If no image from preview, check canvas
-                if (!qObj.imageData && canvas) {
-                    const canvasVisible = canvas.style.display !== 'none' && 
-                                         window.getComputedStyle(canvas).display !== 'none';
-                    if (canvasVisible) {
-                        try { 
-                            qObj.imageData = canvas.toDataURL('image/png');
-                            console.log('Captured canvas data for question');
-                        } catch (err) { 
-                            console.warn('canvas toDataURL failed', err); 
+                // If no image from preview, check table
+                if (!qObj.imageData && tableContainer && tableWrapper) {
+                    const tableVisible = tableContainer.style.display !== 'none' && 
+                                        window.getComputedStyle(tableContainer).display !== 'none';
+                    if (tableVisible) {
+                        const table = tableWrapper.querySelector('table');
+                        if (table) {
+                            // Convert table textareas to actual table cells with text
+                            const tableClone = table.cloneNode(true);
+                            const cells = tableClone.querySelectorAll('.table-cell-input');
+                            cells.forEach(textarea => {
+                                const td = textarea.parentElement;
+                                const text = textarea.value || '';
+                                // Replace textarea with text content, preserving line breaks
+                                td.innerHTML = text.replace(/\n/g, '<br>');
+                                td.style.border = '1px solid #ddd';
+                                td.style.padding = '8px';
+                                td.style.verticalAlign = 'top';
+                            });
+                            // Save table HTML
+                            qObj.tableData = tableClone.outerHTML;
+                            console.log('Captured table data for question');
                         }
                     }
                 }
@@ -1891,8 +2474,54 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('=== END DEBUG ===');
     };
 
-    // Load All Data on Page Load
-    function loadAllData() {
+    // Load All Data on Page Load - Fetch from database first, then sync to localStorage
+    async function loadAllData() {
+        try {
+            // Step 1: Fetch categories from database
+            const categoriesRes = await adminFetch('/api/admin/categories');
+            const categoriesData = await categoriesRes.json();
+            
+            if (categoriesData.success && Array.isArray(categoriesData.categories)) {
+                // Save categories to localStorage
+                saveToLS(ADMIN_CATEGORIES_KEY, categoriesData.categories);
+                
+                // Step 2: For each category, fetch exams and tests
+                for (const category of categoriesData.categories) {
+                    const categoryId = category.id;
+                    
+                    // Fetch exams for this category
+                    try {
+                        const examsRes = await adminFetch(`/api/admin/exams/${categoryId}`);
+                        const examsData = await examsRes.json();
+                        if (examsData.success && Array.isArray(examsData.exams)) {
+                            // Save exams to localStorage
+                            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, examsData.exams);
+                        }
+                    } catch (err) {
+                        console.warn(`Error loading exams for category ${categoryId}:`, err);
+                    }
+                    
+                    // Fetch tests for this category
+                    try {
+                        const testsRes = await adminFetch(`/api/admin/tests/${categoryId}`);
+                        const testsData = await testsRes.json();
+                        if (testsData.success && Array.isArray(testsData.tests)) {
+                            // Save tests to localStorage
+                            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, testsData.tests);
+                        }
+                    } catch (err) {
+                        console.warn(`Error loading tests for category ${categoryId}:`, err);
+                    }
+                }
+            } else {
+                console.warn('Failed to load categories from database, using localStorage data');
+            }
+        } catch (err) {
+            console.error('Error loading data from database:', err);
+            console.warn('Falling back to localStorage data');
+        }
+        
+        // Step 3: Render all data (from localStorage, which now has synced database data)
         renderCategories();
         renderExams();
         renderTests();

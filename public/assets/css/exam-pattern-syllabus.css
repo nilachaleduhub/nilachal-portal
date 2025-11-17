@@ -1,0 +1,466 @@
+/* exam-pattern-syllabus.css - Styles for exam pattern and syllabus page */
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.exam-pattern-container {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  margin-top: 80px;
+}
+
+/* Table of Contents Sidebar */
+.toc-sidebar {
+  width: 280px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+  position: fixed;
+  left: 0;
+  top: 80px;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  z-index: 998;
+  transition: all 0.3s ease;
+  display: none; /* Hidden by default, shown when exam details are displayed */
+}
+
+.toc-header {
+  padding: 1.5rem 1rem;
+  background: linear-gradient(135deg, #0a1931, #1e3a8a);
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.toc-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toc-nav {
+  list-style: none;
+  padding: 1rem 0;
+  margin: 0;
+}
+
+.toc-link {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  color: #475569;
+  border-radius: 0;
+  transition: all 0.3s ease;
+  position: relative;
+  font-size: 0.95rem;
+  border-left: 3px solid transparent;
+}
+
+.toc-link:hover {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  color: #0a1931;
+  border-left-color: #00bfff;
+  transform: translateX(4px);
+}
+
+.toc-link.active {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  color: #0a1931;
+  border-left-color: #8b5cf6;
+  font-weight: 600;
+}
+
+.toc-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.toc-link.active .toc-number {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.toc-text {
+  font-weight: 500;
+}
+
+/* Main Content Area */
+.exam-pattern-main {
+  margin-left: 0;
+  flex: 1;
+  padding: 2rem;
+  max-width: 100%;
+  transition: margin-left 0.3s ease;
+}
+
+.exam-pattern-main.with-sidebar {
+  margin-left: 280px;
+  max-width: calc(100% - 280px);
+}
+
+/* Exam List View */
+.exam-list-view {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.page-header h1 {
+  font-size: 2.5rem;
+  color: #0a1931;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.page-header h1 i {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-header p {
+  font-size: 1.1rem;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.exam-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.exam-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 180px;
+  justify-content: space-between;
+}
+
+.exam-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15);
+  border-color: #8b5cf6;
+}
+
+.exam-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: white;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.25);
+  flex-shrink: 0;
+}
+
+.exam-card h3 {
+  font-size: 1.1rem;
+  color: #0a1931;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+  min-height: 2.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.view-details-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 12px rgba(139, 92, 246, 0.25);
+  margin-top: auto;
+  font-size: 0.9rem;
+}
+
+.view-details-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+}
+
+.loading-message,
+.empty-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+/* Exam Details View */
+.exam-details-view {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.back-to-list-btn {
+  background: #64748b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.back-to-list-btn:hover {
+  background: #475569;
+  transform: translateX(-4px);
+}
+
+.content-section {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  scroll-margin-top: 100px;
+}
+
+.section-title {
+  font-size: 2rem;
+  color: #0a1931;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid #8b5cf6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title i {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.section-content {
+  color: #334155;
+  line-height: 1.8;
+  font-size: 1.05rem;
+}
+
+.section-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1.5rem 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.section-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section-content table th {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  padding: 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.section-content table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.section-content table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.section-content table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.section-content a {
+  color: #8b5cf6;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.section-content a:hover {
+  color: #7c3aed;
+  text-decoration: underline;
+}
+
+.no-content {
+  text-align: center;
+  padding: 2rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .toc-sidebar {
+    width: 240px;
+  }
+
+  .exam-pattern-main.with-sidebar {
+    margin-left: 240px;
+    max-width: calc(100% - 240px);
+  }
+}
+
+@media (max-width: 768px) {
+  .exam-pattern-container {
+    flex-direction: column;
+  }
+
+  .toc-sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    top: 0;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .toc-nav {
+    display: flex;
+    overflow-x: auto;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .toc-link {
+    flex-direction: column;
+    padding: 0.75rem 1rem;
+    min-width: 100px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 8px;
+  }
+
+  .toc-link:hover,
+  .toc-link.active {
+    transform: none;
+    border-left: none;
+    border-bottom-color: #8b5cf6;
+  }
+
+  .toc-number {
+    margin-right: 0;
+    margin-bottom: 6px;
+  }
+
+  .exam-pattern-main {
+    margin-left: 0 !important;
+    max-width: 100% !important;
+    padding: 1.5rem 1rem;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
+  }
+
+  .exam-list-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .content-section {
+    padding: 1.5rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .exam-pattern-main {
+    padding: 1rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .content-section {
+    padding: 1.25rem;
+  }
+
+  .section-title {
+    font-size: 1.3rem;
+  }
+
+  .section-content {
+    font-size: 1rem;
+  }
+}
+

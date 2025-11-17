@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>User Dashboard | MockTest Master</title>
   <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="main.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
@@ -15,6 +16,7 @@
       min-height: 100vh;
       margin: 0;
       padding: 0;
+      padding-top: 80px; /* Account for fixed navbar */
     }
 
     .dashboard-container { 
@@ -29,6 +31,7 @@
       padding: 20px 0;
       border-bottom: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      margin-top: 0; /* No margin since navbar is above */
     }
 
     .header-content {
@@ -581,8 +584,24 @@
   </style>
 </head>
 <body>
+  <!-- Mobile Menu Toggle Button -->
+  <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
+
+  <!-- Header / Navbar (exactly like homepage) -->
+  <header class="navbar">
+    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    
+    <nav class="nav-links nav-buttons">
+      <!-- Navigation buttons removed - moved to vertical nav -->
+    </nav>
+
+    <div class="search-login">
+      <input type="text" class="search-box" placeholder="Search">
+    </div>
+  </header>
+
   <div class="dashboard-container">
-    <!-- Header Section -->
+    <!-- Dashboard Header Section -->
     <header class="dashboard-header">
       <div class="header-content">
         <div class="welcome-section">
@@ -644,8 +663,8 @@
           </h2>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
-          <button id="my-courses-tab" class="btn-primary"><i class="fas fa-book"></i> My Course</button>
           <button id="my-tests-tab" class="btn-primary"><i class="fas fa-file-alt"></i> My Test</button>
+          <button id="my-courses-tab" class="btn-primary"><i class="fas fa-book"></i> My Course</button>
         </div>
         <div id="my-courses-section" style="display:none;">
           <div id="my-courses-list" class="exam-grid"></div>
@@ -653,7 +672,7 @@
             <i class="fas fa-layer-group"></i>
             <h3>No Courses Yet</h3>
             <p>Purchased courses will appear here.</p>
-            <a href="courses.html" class="cta-button"><i class="fas fa-compass"></i> Browse Courses</a>
+            <a href="buy-course.html" class="cta-button"><i class="fas fa-compass"></i> Browse Courses</a>
           </div>
         </div>
         <div id="my-tests-section" style="display:none;">
@@ -714,5 +733,30 @@
   </div>
 
   <script src="assets/js/dashboard.js"></script>
+  <script>
+    // Mobile menu toggle functionality (for consistency with homepage)
+    document.addEventListener('DOMContentLoaded', function() {
+      const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+      const verticalNav = document.querySelector('.vertical-nav');
+      
+      if (mobileMenuToggle && verticalNav) {
+        mobileMenuToggle.addEventListener('click', function() {
+          verticalNav.classList.toggle('mobile-open');
+        });
+        
+        // Close menu when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+          if (window.innerWidth <= 768) {
+            const isClickInsideNav = verticalNav.contains(event.target);
+            const isClickOnToggle = mobileMenuToggle.contains(event.target);
+            
+            if (!isClickInsideNav && !isClickOnToggle && verticalNav.classList.contains('mobile-open')) {
+              verticalNav.classList.remove('mobile-open');
+            }
+          }
+        });
+      }
+    });
+  </script>
 </body>
 </html>

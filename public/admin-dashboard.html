@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 24px 32px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .dashboard-title {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+            font-weight: 700;
+        }
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .logout-btn {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            box-shadow: 0 4px 15px rgba(229, 62, 62, 0.3);
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 62, 62, 0.4);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+        }
+        .stat-card:nth-child(1) { border-left-color: #3b82f6; }
+        .stat-card:nth-child(2) { border-left-color: #10b981; }
+        .stat-card:nth-child(3) { border-left-color: #f59e0b; }
+        .stat-card:nth-child(4) { border-left-color: #8b5cf6; }
+        .stat-card:nth-child(5) { border-left-color: #ec4899; }
+        .stat-card:nth-child(6) { border-left-color: #06b6d4; }
+        .stat-card:nth-child(7) { border-left-color: #f97316; }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        .stat-card h3 {
+            margin: 0 0 12px 0;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card .value {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+        }
+        .data-section {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+        .data-section:hover {
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        .data-section h2 {
+            margin: 0 0 24px 0;
+            color: #0b1320;
+            font-size: 1.75rem;
+            font-weight: 700;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 12px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th {
+            background: #f8fafc;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #0b1320;
+        }
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+        .data-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .data-list li {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #0b1320;
+        }
+        .data-list li:last-child {
+            border-bottom: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        .error {
+            color: #e53e3e;
+            padding: 12px;
+            background: #fee2e2;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .back-btn {
+            background: white;
+            color: #334155;
+            border: 2px solid #e2e8f0;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .back-btn:hover {
+            background: #f8fafc;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .purchase-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .purchase-type.course {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .purchase-type.test {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .purchase-type.category {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .purchase-type.exam {
+            background: #e9d5ff;
+            color: #6b21a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <button class="back-btn" onclick="window.location.href='hubnilu.html'">← Back to Admin Panel</button>
+        
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">📊 Admin Dashboard</h1>
+            <div class="header-actions">
+                <button class="logout-btn" id="admin-logout-btn">Logout</button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Registered Users</h3>
+                <p class="value" id="total-users">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Visitors</h3>
+                <p class="value" id="total-visitors">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Purchases</h3>
+                <p class="value" id="total-purchases">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Test Categories</h3>
+                <p class="value" id="total-categories">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Exams</h3>
+                <p class="value" id="total-exams">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Mock Tests</h3>
+                <p class="value" id="total-tests">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Courses</h3>
+                <p class="value" id="total-courses">-</p>
+            </div>
+        </div>
+
+        <!-- Registered Users Section -->
+        <div class="data-section">
+            <h2>Registered Users</h2>
+            <div id="users-content">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+
+        <!-- Purchases Section -->
+        <div class="data-section">
+            <h2>Test & Course Purchasers</h2>
+            <div id="purchases-content">
+                <div class="loading">Loading purchases...</div>
+            </div>
+        </div>
+
+        <!-- Test Categories Section -->
+        <div class="data-section">
+            <h2>Test Categories</h2>
+            <div id="categories-content">
+                <div class="loading">Loading categories...</div>
+            </div>
+        </div>
+
+        <!-- Test Exams Section -->
+        <div class="data-section">
+            <h2>Test Exams</h2>
+            <div id="exams-content">
+                <div class="loading">Loading exams...</div>
+            </div>
+        </div>
+
+        <!-- Mock Tests Section -->
+        <div class="data-section">
+            <h2>Mock Tests</h2>
+            <div id="tests-content">
+                <div class="loading">Loading tests...</div>
+            </div>
+        </div>
+
+        <!-- Lesson Courses Section -->
+        <div class="data-section">
+            <h2>Lesson Courses</h2>
+            <div id="courses-content">
+                <div class="loading">Loading courses...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/admin-dashboard.js"></script>
+</body>
+</html>
+

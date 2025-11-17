@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MockTest Master</title>
   <link rel="stylesheet" href="main.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body>
+<body class="index-page">
+
+  <!-- Mobile Menu Toggle Button -->
+  <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
 
   <!-- Header / Navbar -->
   <header class="navbar">
@@ -17,7 +21,7 @@
     </nav>
 
     <div class="search-login">
-      <input type="text" class="search-box" placeholder="Search tests...">
+      <input type="text" class="search-box" placeholder="Search">
     </div>
   </header>
 
@@ -46,7 +50,7 @@
         </a>
       </li>
       <li class="nav-item">
-        <a href="courses.html" class="nav-link">
+        <a href="buy-course.html" class="nav-link">
           <span class="nav-icon">🛒</span>
           <span class="nav-text">Buy Course</span>
         </a>
@@ -64,7 +68,7 @@
         </a>
       </li>
       <li class="nav-item">
-        <a href="exam-description.html" class="nav-link">
+        <a href="exam-pattern-syllabus.html" class="nav-link">
           <span class="nav-icon">📋</span>
           <span class="nav-text">Exam Pattern and Syllabus</span>
         </a>
@@ -118,10 +122,86 @@
     </section>
   </main>
 
+  <!-- Footer with Social Media Links -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📘 Nilachal <span>Eduhub</span></h3>
+        <p>Your trusted partner for competitive exam preparation</p>
+      </div>
+      <div class="social-media-section">
+        <h4>Follow Us</h4>
+        <div class="social-icons">
+          <a href="https://youtube.com/@nilachaleduhub?si=HY4xLpxJPn6Rdp0e" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             class="social-icon youtube"
+             aria-label="Visit our YouTube channel">
+            <i class="fab fa-youtube"></i>
+          </a>
+          <a href="https://t.me/nilachaleduhub2" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             class="social-icon telegram"
+             aria-label="Join our Telegram channel">
+            <i class="fab fa-telegram"></i>
+          </a>
+          <a href="https://www.whatsapp.com/channel/0029ValN7x3Ae5ViyxmGT30h" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             class="social-icon whatsapp"
+             aria-label="Follow us on WhatsApp">
+            <i class="fab fa-whatsapp"></i>
+          </a>
+          <a href="https://www.instagram.com/nilachal_eduhub/#" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             class="social-icon instagram"
+             aria-label="Follow us on Instagram">
+            <i class="fab fa-instagram"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 Nilachal Eduhub. All rights reserved.</p>
+    </div>
+  </footer>
+
   <script src="assets/js/recommended.js"></script>
+  <script src="assets/js/search.js"></script>
   <script>
-    // Check if user is logged in and hide login button, show dashboard
+    // Track visitor
+    fetch('/api/track-visitor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: window.location.pathname })
+    }).catch(err => console.warn('Visitor tracking failed:', err));
+    
+    // Mobile menu toggle functionality
     document.addEventListener('DOMContentLoaded', function() {
+      const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+      const verticalNav = document.querySelector('.vertical-nav');
+      
+      if (mobileMenuToggle && verticalNav) {
+        mobileMenuToggle.addEventListener('click', function() {
+          verticalNav.classList.toggle('mobile-open');
+        });
+        
+        // Close menu when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+          if (window.innerWidth <= 768) {
+            const isClickInsideNav = verticalNav.contains(event.target);
+            const isClickOnToggle = mobileMenuToggle.contains(event.target);
+            
+            if (!isClickInsideNav && !isClickOnToggle && verticalNav.classList.contains('mobile-open')) {
+              verticalNav.classList.remove('mobile-open');
+            }
+          }
+        });
+      }
+      
+      // Check if user is logged in and hide login button, show dashboard
       const loginNavItem = document.getElementById('login-nav-item');
       const dashboardNavItem = document.getElementById('dashboard-nav-item');
       const user = localStorage.getItem('user');

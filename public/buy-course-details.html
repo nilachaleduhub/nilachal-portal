@@ -16,7 +16,7 @@
 
     <nav class="nav-links nav-buttons">
       <a href="index.html" class="nav-btn">Home</a>
-      <a href="courses.html" class="nav-btn">← Back to Buy Course</a>
+      <a href="buy-course.html" class="nav-btn">← Back to Buy Course</a>
       <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
     </nav>
   </header>
@@ -35,6 +35,17 @@
         <h2>Course Details</h2>
         <ul id="detail-list" class="detail-list"></ul>
       </section>
+
+      <div id="detail-price-summary" class="detail-price-summary" style="display:none; margin-top:16px;"></div>
+
+      <div id="detail-discount-section" class="detail-discount" style="display:none; margin-top:12px;">
+        <p id="detail-discount-message" class="detail-discount-message"></p>
+        <div class="detail-discount-input" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+          <input type="text" id="detail-discount-code-input" placeholder="Enter discount code" style="flex:1 1 200px; padding:10px; border-radius:8px; border:1px solid #d1d5db;">
+          <button type="button" id="detail-apply-discount-btn" class="detail-discount-apply-btn" style="padding:10px 18px; border:none; border-radius:8px; background:#2563eb; color:#fff; cursor:pointer;">Apply</button>
+        </div>
+        <p id="detail-discount-feedback" class="detail-discount-feedback" style="display:none; margin-top:8px; font-weight:600;"></p>
+      </div>
 
       <section id="detail-courses-section" class="detail-section" style="display:none;">
         <h2>Included Courses</h2>
@@ -65,7 +76,251 @@
       const coursesSection = document.getElementById('detail-courses-section');
       const coursesGrid = document.getElementById('detail-courses');
       const buyBtn = document.getElementById('detail-buy-btn');
+      const priceSummaryEl = document.getElementById('detail-price-summary');
+      const discountSection = document.getElementById('detail-discount-section');
+      const discountMessageEl = document.getElementById('detail-discount-message');
+      const discountCodeInput = document.getElementById('detail-discount-code-input');
+      const discountApplyBtn = document.getElementById('detail-apply-discount-btn');
+      const discountFeedbackEl = document.getElementById('detail-discount-feedback');
 
+      const pricingState = {
+        baseAmount: 0,
+        currencySymbol: '₹',
+        discountActive: false,
+        discountPercent: 0,
+        discountCode: '',
+        discountMessage: '',
+        appliedDiscount: false,
+        appliedCode: '',
+        finalAmount: 0,
+        rawPrice: ''
+      };
+
+      const VALIDITY_UNITS = ['day', 'month', 'year'];
+
+      const parseValidityString = (input) => {
+        if (!input) return { value: null, unit: '' };
+        const trimmed = String(input).toLowerCase();
+        const match = trimmed.match(/(\d+)\s*(day|days|month|months|year|years)/);
+        if (!match) return { value: null, unit: '' };
+        const value = parseInt(match[1], 10);
+        if (Number.isNaN(value) || value <= 0) return { value: null, unit: '' };
+        let unit = match[2];
+        if (unit.endsWith('s')) unit = unit.slice(0, -1);
+        if (!VALIDITY_UNITS.includes(unit)) return { value: null, unit: '' };
+        return { value, unit };
+      };
+
+      const formatValidityString = (value, unit) => {
+        if (!value || !unit) return '';
+        const suffix = value === 1 ? unit : `${unit}s`;
+        return `${value} ${suffix}`;
+      };
+
+      const deriveValidityForItem = (item = {}) => {
+        if (!item) return { courseValidity: '', validityValue: null, validityUnit: '' };
+        let { courseValidity = '', validityValue = null, validityUnit = '' } = item;
+
+        if ((!validityValue || !validityUnit) && courseValidity) {
+          const parsed = parseValidityString(courseValidity);
+          validityValue = parsed.value;
+          validityUnit = parsed.unit;
+        }
+
+        if (validityValue && !validityUnit) validityUnit = '';
+
+        if (validityValue && validityUnit && !courseValidity) {
+          courseValidity = formatValidityString(validityValue, validityUnit);
+        }
+
+        return {
+          courseValidity: courseValidity || '',
+          validityValue: validityValue || null,
+          validityUnit: validityValue ? validityUnit : ''
+        };
+      };
+
+      const computeExpiryDate = (value, unit, baseDate = new Date()) => {
+        if (!value || !unit || !VALIDITY_UNITS.includes(unit)) return null;
+        const expiry = new Date(baseDate);
+        switch (unit) {
+          case 'day':
+            expiry.setDate(expiry.getDate() + value);
+            break;
+          case 'month':
+            expiry.setMonth(expiry.getMonth() + value);
+            break;
+          case 'year':
+            expiry.setFullYear(expiry.getFullYear() + value);
+            break;
+          default:
+            return null;
+        }
+        return expiry;
+      };
+
+      const extractPriceInfo = (input) => {
+        if (input === undefined || input === null) {
+          return { amount: 0, symbol: '₹', raw: '' };
+        }
+        const raw = String(input).trim();
+        const numericPart = raw.replace(/[^0-9.,]/g, '');
+        let amount = parseFloat(numericPart.replace(/,/g, ''));
+        if (Number.isNaN(amount)) amount = 0;
+        const symbolMatch = raw.match(/[^0-9.,\s]/);
+        const symbol = symbolMatch ? symbolMatch[0] : '₹';
+        return { amount, symbol, raw };
+      };
+
+      const formatAmount = (amount, symbol, rawFallback = '') => {
+        if ((!amount || Number.isNaN(amount)) && rawFallback) {
+          return rawFallback;
+        }
+        const safeAmount = Number.isNaN(amount) ? 0 : amount;
+        const formatted = Number.isInteger(safeAmount) ? safeAmount.toFixed(0) : safeAmount.toFixed(2);
+        return `${symbol}${formatted.replace(/\.00$/, '')}`;
+      };
+
+      const resetDiscountFeedback = () => {
+        if (discountFeedbackEl) {
+          discountFeedbackEl.style.display = 'none';
+          discountFeedbackEl.textContent = '';
+          discountFeedbackEl.style.color = '';
+        }
+      };
+
+      const updatePriceSummary = () => {
+        if (!priceSummaryEl) return;
+        if ((!pricingState.rawPrice || pricingState.rawPrice === '') && pricingState.baseAmount === 0) {
+          priceSummaryEl.style.display = 'none';
+          priceSummaryEl.innerHTML = '';
+          return;
+        }
+        const baseDisplay = formatAmount(pricingState.baseAmount, pricingState.currencySymbol, pricingState.rawPrice);
+        let content = `<strong>Price:</strong> ${baseDisplay}`;
+        if (pricingState.appliedDiscount && pricingState.finalAmount < pricingState.baseAmount) {
+          const finalDisplay = formatAmount(pricingState.finalAmount, pricingState.currencySymbol, pricingState.rawPrice);
+          content = `<strong>Price:</strong> ${baseDisplay} → ${finalDisplay} (after discount)`;
+        }
+        priceSummaryEl.innerHTML = content;
+        priceSummaryEl.style.display = 'block';
+      };
+
+      const renderDiscountSection = () => {
+        if (!discountSection) return;
+        resetDiscountFeedback();
+        if (pricingState.discountActive) {
+          discountSection.style.display = 'block';
+          if (discountMessageEl) {
+            const fallbackMessage = pricingState.discountCode
+              ? `Use code ${pricingState.discountCode} to get ${pricingState.discountPercent}% off.`
+              : `Enjoy ${pricingState.discountPercent}% off!`;
+            discountMessageEl.textContent = pricingState.discountMessage || fallbackMessage;
+          }
+          if (discountCodeInput) discountCodeInput.value = '';
+          if (discountApplyBtn) {
+            discountApplyBtn.disabled = false;
+            discountApplyBtn.textContent = 'Apply';
+          }
+        } else {
+          discountSection.style.display = 'none';
+          if (discountCodeInput) discountCodeInput.value = '';
+        }
+      };
+
+      const initialisePricingForItem = (item = {}) => {
+        const priceInfo = extractPriceInfo(item.courseCost);
+        pricingState.baseAmount = priceInfo.amount > 0 ? priceInfo.amount : 0;
+        pricingState.currencySymbol = priceInfo.symbol || '₹';
+        pricingState.rawPrice = priceInfo.raw || '';
+
+        const validityDetails = deriveValidityForItem(item);
+        if (validityDetails.courseValidity) item.courseValidity = validityDetails.courseValidity;
+        if (validityDetails.validityValue) item.validityValue = validityDetails.validityValue;
+        if (validityDetails.validityUnit) item.validityUnit = validityDetails.validityUnit;
+
+        pricingState.discountActive = !!item.hasDiscount && !!item.discountPercent && !!item.discountCode;
+        pricingState.discountPercent = item.discountPercent || 0;
+        pricingState.discountCode = item.discountCode ? String(item.discountCode).trim().toUpperCase() : '';
+        pricingState.discountMessage = item.discountMessage || '';
+        pricingState.appliedDiscount = false;
+        pricingState.appliedCode = '';
+        pricingState.finalAmount = pricingState.baseAmount;
+        updatePriceSummary();
+        renderDiscountSection();
+      };
+
+      const applyDiscountCode = () => {
+        if (!pricingState.discountActive) return;
+        if (!discountCodeInput) return;
+
+        const inputCode = discountCodeInput.value ? discountCodeInput.value.trim().toUpperCase() : '';
+        if (!inputCode) {
+          if (discountFeedbackEl) {
+            discountFeedbackEl.textContent = 'Please enter a discount code.';
+            discountFeedbackEl.style.display = 'block';
+            discountFeedbackEl.style.color = '#dc2626';
+          }
+          return;
+        }
+
+        if (inputCode !== pricingState.discountCode) {
+          pricingState.appliedDiscount = false;
+          pricingState.appliedCode = '';
+          pricingState.finalAmount = pricingState.baseAmount;
+          updatePriceSummary();
+          if (discountFeedbackEl) {
+            discountFeedbackEl.textContent = 'Invalid discount code. Please try again.';
+            discountFeedbackEl.style.display = 'block';
+            discountFeedbackEl.style.color = '#dc2626';
+          }
+          if (discountApplyBtn) {
+            discountApplyBtn.disabled = false;
+            discountApplyBtn.textContent = 'Apply';
+          }
+          return;
+        }
+
+        const savings = pricingState.baseAmount * (pricingState.discountPercent / 100);
+        const discounted = pricingState.baseAmount - savings;
+        pricingState.appliedDiscount = true;
+        pricingState.appliedCode = pricingState.discountCode;
+        pricingState.finalAmount = Math.max(0, parseFloat(discounted.toFixed(2)));
+        updatePriceSummary();
+        if (discountFeedbackEl) {
+          const savingsDisplay = formatAmount(savings, pricingState.currencySymbol);
+          discountFeedbackEl.textContent = `Discount applied! You save ${savingsDisplay}.`;
+          discountFeedbackEl.style.display = 'block';
+          discountFeedbackEl.style.color = '#16a34a';
+        }
+        if (discountApplyBtn) {
+          discountApplyBtn.disabled = true;
+          discountApplyBtn.textContent = 'Applied';
+        }
+      };
+
+      if (discountApplyBtn) {
+        discountApplyBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          applyDiscountCode();
+        });
+      }
+
+      if (discountCodeInput) {
+        discountCodeInput.addEventListener('input', () => {
+          resetDiscountFeedback();
+          if (discountApplyBtn) {
+            discountApplyBtn.disabled = false;
+            discountApplyBtn.textContent = 'Apply';
+          }
+        });
+        discountCodeInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            applyDiscountCode();
+          }
+        });
+      }
       const loginBtn = document.getElementById('login-btn');
       const storedUser = localStorage.getItem('user');
       if (storedUser && loginBtn) {
@@ -75,6 +330,18 @@
       const getEntityId = (entity) => {
         if (!entity) return null;
         return entity.id || entity._id || null;
+      };
+
+      const uniqueById = (items = []) => {
+        const map = new Map();
+        items.forEach(item => {
+          const key = getEntityId(item);
+          if (!item || !key) return;
+          if (!map.has(key)) {
+            map.set(key, item);
+          }
+        });
+        return Array.from(map.values());
       };
 
       const showError = (message) => {
@@ -145,12 +412,37 @@
       let categoriesCache = null;
       const fetchCategories = async () => {
         if (categoriesCache) return categoriesCache;
+
+        let categories = [];
+        let serverCategories = [];
+
+        try {
+          const res = await fetch('assets/data/categories.json');
+          if (res && res.ok) {
+            const fileData = await res.json();
+            if (Array.isArray(fileData)) {
+              categories = fileData;
+            }
+          }
+        } catch (err) {
+          console.warn('Unable to load categories from file:', err);
+        }
+
         const data = await fetchJson('/api/admin/categories');
         if (data && data.success && Array.isArray(data.categories)) {
-          categoriesCache = data.categories;
-          return categoriesCache;
+          serverCategories = data.categories;
         }
-        categoriesCache = [];
+
+        try {
+          const storedAdmin = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+          const storedMain = JSON.parse(localStorage.getItem('mainCategories') || '[]');
+        categories = [...categories, ...storedAdmin, ...storedMain];
+        } catch (err) {
+          console.warn('Unable to read categories from localStorage:', err);
+        }
+
+        const combined = [...serverCategories, ...categories];
+        categoriesCache = uniqueById(combined);
         return categoriesCache;
       };
 
@@ -231,6 +523,9 @@
 
       const renderDetail = ({ item, metaItems, detailLines, description, relatedCourses, categoryName, derivedCategoryId, currentCourseId }) => {
         showCard();
+        if (item) {
+          initialisePricingForItem(item);
+        }
 
         titleEl.textContent = item.name || 'Course Details';
 
@@ -272,13 +567,27 @@
           const storedUser = localStorage.getItem('user');
           if (!storedUser) {
             try {
+              const priceDisplay = formatAmount(pricingState.finalAmount > 0 ? pricingState.finalAmount : pricingState.baseAmount, pricingState.currencySymbol, pricingState.rawPrice);
+              const validityDetails = deriveValidityForItem(item);
+              const provisionalExpiry = validityDetails.validityValue && validityDetails.validityUnit
+                ? computeExpiryDate(validityDetails.validityValue, validityDetails.validityUnit, new Date())
+                : null;
               const payload = {
                 type,
                 id: getEntityId(item),
                 categoryId: derivedCategoryId || null,
                 name: item.name || '',
-                price: item.courseCost || null,
-                validity: item.courseValidity || null,
+                price: priceDisplay,
+                basePrice: pricingState.baseAmount,
+                finalPrice: pricingState.finalAmount,
+                currencySymbol: pricingState.currencySymbol,
+                discountApplied: pricingState.appliedDiscount,
+                discountCode: pricingState.appliedDiscount ? pricingState.appliedCode : '',
+                discountPercent: pricingState.appliedDiscount ? pricingState.discountPercent : 0,
+                courseValidity: validityDetails.courseValidity || null,
+                validityValue: validityDetails.validityValue,
+                validityUnit: validityDetails.validityUnit,
+                provisionalExpiresAt: provisionalExpiry ? provisionalExpiry.toISOString() : null,
                 timestamp: Date.now()
               };
               localStorage.setItem('selectedProduct', JSON.stringify(payload));
@@ -307,12 +616,9 @@
           }
 
           // Get price from item
-          const priceStr = item.courseCost || '0';
-          // Extract numeric value from price string (e.g., "₹500" -> 500)
-          const priceMatch = priceStr.match(/[\d.]+/);
-          const amount = priceMatch ? parseFloat(priceMatch[0]) : 0;
+          const payableAmount = pricingState.finalAmount > 0 ? pricingState.finalAmount : pricingState.baseAmount;
 
-          if (amount <= 0) {
+          if (payableAmount <= 0) {
             alert('Invalid price. Please contact support.');
             return;
           }
@@ -327,13 +633,15 @@
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                amount: amount,
+                amount: payableAmount,
                 currency: 'INR',
                 userId: user.id || user._id || user.email,
                 purchaseType: type,
                 purchaseId: getEntityId(item),
                 purchaseName: item.name || '',
-                categoryId: derivedCategoryId || null
+                categoryId: derivedCategoryId || null,
+                discountCode: pricingState.appliedDiscount ? pricingState.appliedCode : '',
+                discountPercent: pricingState.appliedDiscount ? pricingState.discountPercent : 0
               })
             });
 
@@ -386,6 +694,12 @@
                   if (verifyData.success) {
                     // Save purchase to localStorage for dashboard
                     try {
+                      const validityDetails = deriveValidityForItem(item);
+                      const purchaseTimestamp = new Date();
+                      const expiresAtLocal = validityDetails.validityValue && validityDetails.validityUnit
+                        ? computeExpiryDate(validityDetails.validityValue, validityDetails.validityUnit, purchaseTimestamp)
+                        : null;
+
                       const purchaseData = {
                         type: type, // Preserve the actual purchase type (course, test, category, exam)
                         purchaseType: type, // Also store as purchaseType for consistency
@@ -394,9 +708,18 @@
                         name: item.name || '',
                         description: item.description || '',
                         examName: item.examName || '',
-                        courseValidity: item.courseValidity || null,
+                        courseValidity: validityDetails.courseValidity || null,
+                        validityValue: validityDetails.validityValue,
+                        validityUnit: validityDetails.validityUnit,
                         userId: user.id || user._id || user.email,
-                        purchasedAt: new Date().toISOString()
+                        purchasedAt: purchaseTimestamp.toISOString(),
+                        expiresAt: expiresAtLocal ? expiresAtLocal.toISOString() : null,
+                        pricePaid: payableAmount,
+                        priceDisplay: formatAmount(payableAmount, pricingState.currencySymbol, pricingState.rawPrice),
+                        basePrice: pricingState.baseAmount,
+                        discountApplied: pricingState.appliedDiscount,
+                        discountCode: pricingState.appliedDiscount ? pricingState.appliedCode : '',
+                        discountPercent: pricingState.appliedDiscount ? pricingState.discountPercent : 0
                       };
 
                       let userPurchases = null;
@@ -411,14 +734,52 @@
                         userPurchases[userId] = { courses: [], tests: [] };
                       }
 
-                      // Handle different purchase types
-                      if (type === 'course') {
-                        userPurchases[userId].courses.push(purchaseData);
+                      // Handle renewals: check if purchase already exists and update it instead of creating duplicate
+                      const purchaseId = getEntityId(item);
+                      let existingPurchaseIndex = -1;
+                      let targetArray = null;
+
+                      // Determine which array to check based on purchase type
+                      if (type === 'course' || type === 'category' || type === 'exam') {
+                        targetArray = userPurchases[userId].courses;
                       } else if (type === 'test') {
-                        userPurchases[userId].tests.push(purchaseData);
-                      } else if (type === 'category' || type === 'exam') {
-                        // Categories and exams are stored in courses array but with their type preserved
-                        userPurchases[userId].courses.push(purchaseData);
+                        targetArray = userPurchases[userId].tests;
+                      }
+
+                      // Find existing purchase with same id and type
+                      if (targetArray) {
+                        existingPurchaseIndex = targetArray.findIndex(p => {
+                          const pId = p.id || p.courseId || p.testId || p._id;
+                          const pType = p.purchaseType || p.type;
+                          return pId === purchaseId && pType === type;
+                        });
+                      }
+
+                      // If existing purchase found, update it (renewal)
+                      if (existingPurchaseIndex >= 0 && targetArray) {
+                        // Update existing purchase with new validity dates
+                        targetArray[existingPurchaseIndex] = {
+                          ...targetArray[existingPurchaseIndex],
+                          ...purchaseData, // Update with new purchase data
+                          // Preserve original purchase info but update dates
+                          purchasedAt: purchaseData.purchasedAt,
+                          expiresAt: purchaseData.expiresAt,
+                          courseValidity: purchaseData.courseValidity,
+                          validityValue: purchaseData.validityValue,
+                          validityUnit: purchaseData.validityUnit
+                        };
+                        console.log('Purchase renewed - updated validity dates');
+                      } else {
+                        // New purchase - add to appropriate array
+                        if (type === 'course') {
+                          userPurchases[userId].courses.push(purchaseData);
+                        } else if (type === 'test') {
+                          userPurchases[userId].tests.push(purchaseData);
+                        } else if (type === 'category' || type === 'exam') {
+                          // Categories and exams are stored in courses array but with their type preserved
+                          userPurchases[userId].courses.push(purchaseData);
+                        }
+                        console.log('New purchase added');
                       }
 
                       localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
@@ -517,6 +878,9 @@
           if (item.courseValidity) metaItems.push({ label: 'Validity', value: item.courseValidity });
           if ((type === 'exam' || type === 'course') && categoryName) {
             metaItems.push({ label: 'Category', value: categoryName });
+          }
+          if (item.hasDiscount && item.discountPercent) {
+            metaItems.push({ label: 'Discount', value: `${item.discountPercent}%` });
           }
 
           const description = item.description || '';

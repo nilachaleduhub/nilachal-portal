@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Ad Management - MockTest Master</title>
+        <link rel="stylesheet" href="main.css" >
+        <link rel="stylesheet" href="assets/css/category.css">
+        <link rel="stylesheet" href="assets/css/admin.css">
+        <link rel="stylesheet" href="assets/css/admanagement.css">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <!-- Admin Login/Register Modal -->
+        <style>
+            #admin-auth-modal {
+                display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(30,40,60,0.18); z-index: 1000; align-items: center; justify-content: center;
+            }
+            .admin-auth-card {
+                background: #fff; padding: 36px 28px 28px 28px; border-radius: 16px; max-width: 370px; margin: auto;
+                box-shadow: 0 8px 32px rgba(30,40,60,0.13); position: relative; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                animation: fadeInScale 0.4s cubic-bezier(.4,1.4,.6,1) 1;
+            }
+            @keyframes fadeInScale {
+                0% { opacity: 0; transform: scale(0.95); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+            .admin-auth-card h2 {
+                color: #134e8b; margin-bottom: 18px; font-size: 1.5rem; font-weight: 700;
+                letter-spacing: 0.5px;
+            }
+            .admin-auth-card input[type="text"],
+            .admin-auth-card input[type="password"] {
+                width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+                margin-bottom: 14px; font-size: 1rem; background: #f8fafc; transition: border 0.2s;
+            }
+            .admin-auth-card input:focus {
+                border-color: #3366ff; outline: none;
+            }
+            .admin-auth-card button.btn {
+                width: 100%; background: linear-gradient(90deg,#3366ff,#6c5ce7); color: #fff;
+                border: none; padding: 12px 0; border-radius: 8px; font-weight: 600; font-size: 1.08rem;
+                margin-top: 2px; cursor: pointer; transition: background 0.2s;
+            }
+            .admin-auth-card button.btn:hover {
+                background: linear-gradient(90deg,#6c5ce7,#3366ff);
+            }
+            .admin-auth-card .auth-toggle {
+                margin-top: 16px; text-align: center; font-size: 0.98rem;
+            }
+            .admin-auth-card .auth-toggle a {
+                color: #3366ff; text-decoration: underline; cursor: pointer;
+            }
+            #admin-auth-error {
+                color: #c00; margin-top: 12px; min-height: 20px; text-align: center; font-size: 0.98rem;
+            }
+        </style>
+
+        <div id="admin-auth-modal">
+            <div class="admin-auth-card">
+                <h2 id="auth-title">Admin Login</h2>
+                <form id="admin-login-form">
+                    <input type="text" id="admin-username" placeholder="Username" required autocomplete="username">
+                    <input type="password" id="admin-password" placeholder="Password" required autocomplete="current-password">
+                    <button type="submit" class="btn">Login</button>
+                </form>
+                <div id="admin-auth-error"></div>
+            </div>
+        </div>
+
+        <!-- Header / Navbar -->
+        <header class="navbar">
+            <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+            
+            <nav class="nav-links nav-buttons">
+                <a href="index.html" class="nav-btn">Home</a>
+                <a href="test-series.html" class="nav-btn">Test Series</a>
+            </nav>
+
+            <div class="search-login">
+                <input type="text" class="search-box" placeholder="Search">
+            </div>
+        </header>
+
+        <div class="containernew">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <h1>Ad Management</h1>
+                <div style="display: flex; gap: 10px;">
+                    <a href="hubnilu.html" class="nav-btn" style="background:#64748b; color:#fff; border-radius:8px; padding:8px 14px; text-decoration: none;">← Back to Admin Panel</a>
+                    <button id="admin-logout-btn" class="nav-btn" style="background:#e53e3e; color:#fff; border-radius:8px; padding:8px 14px;">Logout</button>
+                </div>
+            </div>
+
+            <!-- Ad Form -->
+            <div class="admin-section" id="ad-form-section">
+                <h3>Add/Edit Ad</h3>
+                <form id="ad-form" enctype="multipart/form-data">
+                    <input type="hidden" id="ad-id">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #334155;">Position Number</label>
+                        <input type="number" id="ad-position" placeholder="Enter position number (1, 2, 3...)" required min="1" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                        <small style="color: #64748b; display: block; margin-top: 5px;">Position determines the order of ads on homepage</small>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #334155;">Poster Image</label>
+                        <input type="file" id="ad-poster" accept="image/*" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                        <small style="color: #64748b; display: block; margin-top: 5px;">Upload poster image (JPG, PNG, etc.)</small>
+                        <div id="ad-poster-preview" style="margin-top: 10px; display: none;">
+                            <img id="ad-poster-preview-img" src="" alt="Poster Preview" style="max-width: 300px; max-height: 200px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155;">
+                            <input type="checkbox" id="ad-is-active" checked>
+                            <span>Active (Show on homepage)</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;">Save Ad</button>
+                </form>
+            </div>
+
+            <!-- Ads List -->
+            <div class="admin-section" id="ads-list-section" style="margin-top: 30px;">
+                <h3>Existing Ads</h3>
+                <div id="ads-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <div style="text-align: center; padding: 20px; color: #64748b;">Loading ads...</div>
+                </div>
+            </div>
+        </div>
+
+        <script src="assets/js/admanagement.js"></script>
+    </body>
+</html>
+
+
+
+
+

@@ -94,9 +94,56 @@
     }
     
     @media (max-width: 900px) { 
-      .test-container { flex-direction: column; } 
-      .sidebar { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; flex-direction: row; overflow-x: auto; order: 2; } 
-      .main { padding: 24px 8px; order: 1; }
+      .test-container { 
+        flex-direction: column; 
+        margin: 16px auto;
+        min-height: auto;
+      } 
+      .sidebar { 
+        width: 100%; 
+        border-left: none; 
+        border-top: 1px solid #e2e8f0; 
+        flex-direction: row; 
+        overflow-x: auto; 
+        order: 2;
+        padding: 16px 8px;
+        max-height: 200px;
+      } 
+      .main { 
+        padding: 20px 12px; 
+        order: 1; 
+      }
+      .test-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .test-title {
+        font-size: 1.1rem;
+      }
+      .timer {
+        font-size: 1rem;
+        width: 100%;
+        text-align: center;
+      }
+      .question-text {
+        font-size: 1rem;
+      }
+      .actions-row {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .btn, .btn-outline, .mark-btn, .submit-btn {
+        flex: 1 1 auto;
+        min-width: calc(50% - 4px);
+        font-size: 0.9rem;
+        padding: 10px 16px;
+      }
+      .submit-btn {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 8px;
+      }
       .color-legend {
         display: flex;
         flex-wrap: wrap;
@@ -106,10 +153,57 @@
       .color-legend h3 {
         width: 100%;
         margin: 0 0 5px 0 !important;
+        font-size: 0.85rem;
       }
       .legend-item {
         margin: 0;
         white-space: nowrap;
+        font-size: 0.8rem;
+      }
+      .question-nav {
+        gap: 6px;
+      }
+      .q-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .test-container {
+        margin: 8px auto;
+        border-radius: 8px;
+      }
+      .main {
+        padding: 16px 8px;
+      }
+      .test-title {
+        font-size: 1rem;
+      }
+      .timer {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+      }
+      .question-text {
+        font-size: 0.95rem;
+      }
+      .option-label {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+      .actions-row {
+        gap: 6px;
+      }
+      .btn, .btn-outline, .mark-btn {
+        min-width: calc(50% - 3px);
+        font-size: 0.85rem;
+        padding: 8px 12px;
+      }
+      .q-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
       }
     }
   </style>
