@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>User Dashboard | MockTest Master</title>
+  <title>User Dashboard | Nilachal Eduhub</title>
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="main.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -584,12 +584,15 @@
   </style>
 </head>
 <body>
-  <!-- Mobile Menu Toggle Button -->
-  <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
-
   <!-- Header / Navbar (exactly like homepage) -->
   <header class="navbar">
-    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    <div class="site-name">
+
+      <img src="assets/images/mylogo.png" alt="Nilachal Eduhub logo" class="site-logo">
+
+      <div class="site-name-text">Nilachal <span>Eduhub</span></div>
+
+    </div>
     
     <nav class="nav-links nav-buttons">
       <!-- Navigation buttons removed - moved to vertical nav -->
@@ -732,31 +735,9 @@
     </div>
   </div>
 
+  <script src="assets/js/search.js"></script>
   <script src="assets/js/dashboard.js"></script>
   <script>
-    // Mobile menu toggle functionality (for consistency with homepage)
-    document.addEventListener('DOMContentLoaded', function() {
-      const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-      const verticalNav = document.querySelector('.vertical-nav');
-      
-      if (mobileMenuToggle && verticalNav) {
-        mobileMenuToggle.addEventListener('click', function() {
-          verticalNav.classList.toggle('mobile-open');
-        });
-        
-        // Close menu when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-          if (window.innerWidth <= 768) {
-            const isClickInsideNav = verticalNav.contains(event.target);
-            const isClickOnToggle = mobileMenuToggle.contains(event.target);
-            
-            if (!isClickInsideNav && !isClickOnToggle && verticalNav.classList.contains('mobile-open')) {
-              verticalNav.classList.remove('mobile-open');
-            }
-          }
-        });
-      }
-    });
   </script>
 </body>
 </html>

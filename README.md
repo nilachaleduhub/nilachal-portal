@@ -25,7 +25,7 @@ This project serves a static `public/` folder and provides API endpoints for use
     ```
 
     The server will start on `http://localhost:3000`.
-
+ 
 ## Usage
 
 1.  **User Registration and Login:**

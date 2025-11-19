@@ -39,14 +39,37 @@
     padding-top: 80px;
   }
   
-  .site-name {
-    font-size: 1.8rem;
-    font-weight: bold;
-  }
-  
-  .site-name span {
-    color: #00bfff;
-  }
+.site-name {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.site-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: block;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ffffff, #c5cbd3);
+  box-shadow: 0 10px 24px rgba(0, 191, 255, 0.35);
+}
+
+.site-name-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.site-name-text span {
+  color: #00bfff;
+  display: inline-block;
+}
   
   .nav-links a {
     color: white;
@@ -147,32 +170,93 @@
 /* Mobile Responsive Styles */
 @media screen and (max-width: 768px) {
   .navbar {
-    padding: 1rem;
-    flex-wrap: wrap;
-    gap: 1rem;
+    padding: 0.75rem 1rem;
+    flex-wrap: nowrap;
+    gap: 0;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .site-name {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
+    gap: 0.65rem;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .site-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0, 191, 255, 0.25);
   }
 
   .nav-links {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    display: none;
   }
 
-  .nav-links a {
-    margin-left: 0;
-    font-size: 0.9rem;
-    padding: 0.4rem 0.8rem;
+  .search-login {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .search-box {
-    width: 100%;
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: calc(100vw - 2rem);
+    max-width: 300px;
     margin-top: 0.5rem;
+    z-index: 1001;
+    left: auto;
+  }
+
+  .search-box.mobile-visible {
+    display: block;
+  }
+
+  /* Show magnifying glass icon instead of search box on mobile */
+  .search-login {
+    position: relative;
+    overflow: visible;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  /* Ensure search results stay within viewport on mobile */
+  .search-results-container {
+    position: fixed !important;
+    top: 60px !important; /* Below navbar */
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    max-height: calc(100vh - 60px) !important;
+    z-index: 1001 !important;
+  }
+
+  .search-login::before {
+    content: '\f002';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 1.2rem;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    pointer-events: none; /* Let clicks pass through to overlay */
+    z-index: 5;
   }
 
   .container {
@@ -205,6 +289,13 @@
 
   .site-name {
     font-size: 1.2rem;
+    gap: 0.5rem;
+  }
+
+  .site-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
   }
 
   .nav-links a {

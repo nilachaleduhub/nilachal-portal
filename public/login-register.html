@@ -6,6 +6,7 @@
   <title>Login / Register | Nilachal Eduhub</title>
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/category.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     .auth-container {
       max-width: 400px;
@@ -80,30 +81,100 @@
 
     /* Mobile Responsive */
     @media screen and (max-width: 768px) {
+      body {
+        padding-top: 70px; /* Add padding to prevent navbar from hiding content */
+      }
+
       .navbar {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 1rem;
-        gap: 1rem;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+      }
+
+      .site-name {
+        font-size: 1.3rem;
+        gap: 0.65rem;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .site-logo {
+        width: 36px;
+        height: 36px;
       }
 
       .nav-buttons {
-        width: 100%;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .nav-btn {
-        width: 100%;
-        text-align: center;
+        display: none;
       }
 
       .search-login {
-        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
       }
 
       .search-box {
-        width: 100%;
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        width: calc(100vw - 2rem);
+        max-width: 300px;
+        margin-top: 0.5rem;
+        z-index: 1001;
+        left: auto;
+      }
+
+      .search-box.mobile-visible {
+        display: block;
+      }
+
+      /* Show magnifying glass icon instead of search box on mobile */
+      .search-login {
+        position: relative;
+        overflow: visible;
+        min-width: 40px;
+        min-height: 40px;
+      }
+      
+      /* Ensure search results stay within viewport on mobile */
+      .search-results-container {
+        position: fixed !important;
+        top: 70px !important; /* Below navbar */
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        max-height: calc(100vh - 70px) !important;
+        z-index: 1001 !important;
+      }
+
+      .search-login::before {
+        content: '\f002';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        font-size: 1.2rem;
+        color: #ffffff;
+        cursor: pointer;
+        padding: 0.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        pointer-events: none; /* Let clicks pass through to overlay */
+        z-index: 5;
       }
 
       .auth-container {
@@ -133,7 +204,13 @@
 <body>
   <!-- Header / Navbar -->
   <header class="navbar">
-    <div class="site-name">📘 Nilachal <span>Eduhub</span></div>
+    <div class="site-name">
+
+      <img src="assets/images/mylogo.png" alt="Nilachal Eduhub logo" class="site-logo">
+
+      <div class="site-name-text">Nilachal <span>Eduhub</span></div>
+
+    </div>
     
     <nav class="nav-links nav-buttons">
       <a href="index.html" class="nav-btn">Home</a>

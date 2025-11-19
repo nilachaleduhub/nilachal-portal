@@ -1,0 +1,18 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nilachal Eduhub">
+  <defs>
+    <linearGradient id="brandGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#27b1ff"/>
+      <stop offset="100%" stop-color="#0060df"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="40" height="40" rx="12" fill="url(#brandGradient)" />
+  <path d="M14 30V18L24 12L34 18V30L24 36L14 30Z" fill="#fff" opacity="0.95"/>
+  <path d="M24 16V32" stroke="#0a1931" stroke-width="2" stroke-linecap="round"/>
+  <path d="M18 28L24 32L30 28" stroke="#0a1931" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+
+
+
+
+

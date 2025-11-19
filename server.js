@@ -88,6 +88,9 @@ const QuestionSchema = new mongoose.Schema({
   explanation: String,
   imageData: String,
   explanationImage: String, // Image for answer explanation
+  tableData: String,
+  imageWidth: Number,
+  imageHeight: Number,
   sectionIndex: Number
 }, { _id: false });
 
@@ -269,6 +272,9 @@ const QuestionDocSchema = new mongoose.Schema({
   explanation: String,
   imageData: String,
   explanationImage: String, // Image for answer explanation
+  tableData: String,
+  imageWidth: Number,
+  imageHeight: Number,
   sectionIndex: Number,
   createdAt: { type: Date, default: Date.now }
 });
@@ -341,6 +347,16 @@ const PurchaseSchema = new mongoose.Schema({
   expiresAt: { type: Date } // Calculated expiry date
 });
 const Purchase = mongoose.model('Purchase', PurchaseSchema);
+
+// --- Visitor tracking schema ---
+const VisitorLogSchema = new mongoose.Schema({
+  path: { type: String, default: '/' },
+  ipAddress: { type: String },
+  userAgent: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+VisitorLogSchema.index({ createdAt: -1 });
+const VisitorLog = mongoose.model('VisitorLog', VisitorLogSchema);
 
 // Utility function to calculate expiry date from validity string
 function calculateExpiryDate(courseValidity, purchasedAt) {
@@ -460,6 +476,26 @@ app.get('/api/result/:resultId', async (req, res) => {
   }
 });
 
+// --- Visitor tracking endpoint ---
+app.post('/api/track-visitor', async (req, res) => {
+  try {
+    const { path: visitedPath } = req.body || {};
+    const ip = (req.headers['x-forwarded-for'] || '')
+      .toString()
+      .split(',')[0]
+      .trim() || req.socket?.remoteAddress || '';
+    await VisitorLog.create({
+      path: visitedPath || '/',
+      ipAddress: ip,
+      userAgent: req.headers['user-agent'] || ''
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error tracking visitor:', err);
+    res.status(500).json({ success: false, message: 'Failed to track visitor' });
+  }
+});
+
 // --- Admin Register API ---
 app.post('/api/admin/register', async (req, res) => {
   const { username, password } = req.body || {};
@@ -535,6 +571,87 @@ async function verifyAdminToken(req, res, next) {
 // Apply admin auth middleware to all /api/admin/* routes (except login/register)
 app.use('/api/admin', verifyAdminToken);
 
+// --- Admin Dashboard Data Endpoints ---
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await User.find()
+      .sort({ createdAt: -1 })
+      .select('name email phone createdAt')
+      .lean();
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Error fetching users for admin dashboard:', err);
+    res.status(500).json({ success: false, message: 'Failed to load users' });
+  }
+});
+
+app.get('/api/admin/purchases', async (req, res) => {
+  try {
+    const purchases = await Purchase.find().sort({ purchasedAt: -1 }).lean();
+    const objectIdUserIds = Array.from(new Set(
+      purchases
+        .map(p => (p.userId && p.userId.toString ? p.userId.toString() : String(p.userId || '')))
+        .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+    ));
+
+    let userMap = {};
+    if (objectIdUserIds.length) {
+      const users = await User.find({ _id: { $in: objectIdUserIds } })
+        .select('name email phone')
+        .lean();
+      userMap = users.reduce((acc, user) => {
+        acc[user._id.toString()] = user;
+        return acc;
+      }, {});
+    }
+
+    const payload = purchases.map(purchase => {
+      const userIdStr = purchase.userId && purchase.userId.toString ? purchase.userId.toString() : String(purchase.userId || '');
+      const userRecord = userMap[userIdStr];
+      const derivedName = userRecord?.name || purchase.userName || userRecord?.email || purchase.userEmail || 'N/A';
+
+      return {
+        id: purchase._id?.toString ? purchase._id.toString() : purchase._id,
+        userId: purchase.userId,
+        userName: derivedName,
+        userEmail: purchase.userEmail || userRecord?.email || '',
+        userPhone: purchase.userPhone || userRecord?.phone || '',
+        purchaseType: purchase.purchaseType,
+        purchaseName: purchase.purchaseName,
+        purchaseId: purchase.purchaseId,
+        categoryId: purchase.categoryId,
+        amount: purchase.amount,
+        currency: purchase.currency,
+        status: purchase.status,
+        purchasedAt: purchase.purchasedAt,
+        courseValidity: purchase.courseValidity,
+        expiresAt: purchase.expiresAt
+      };
+    });
+
+    res.json({ success: true, purchases: payload });
+  } catch (err) {
+    console.error('Error fetching purchases for admin dashboard:', err);
+    res.status(500).json({ success: false, message: 'Failed to load purchases' });
+  }
+});
+
+app.get('/api/admin/visitors', async (req, res) => {
+  try {
+    const [totalVisitors, last30Days] = await Promise.all([
+      VisitorLog.countDocuments(),
+      VisitorLog.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      })
+    ]);
+
+    res.json({ success: true, count: totalVisitors, last30Days });
+  } catch (err) {
+    console.error('Error fetching visitor stats for admin dashboard:', err);
+    res.status(500).json({ success: false, message: 'Failed to load visitor count' });
+  }
+});
+
 // --- NEW: API endpoint to get all exams ---
 app.get('/api/exams', async (req, res) => {
   try {
@@ -543,6 +660,17 @@ app.get('/api/exams', async (req, res) => {
     res.json({ success: true, exams });
   } catch (err) {
     console.error('Error fetching exams:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// --- NEW: Public API endpoint to get all categories (no authentication required) ---
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await Category.find().sort({ createdAt: 1 }).lean();
+    res.json({ success: true, categories });
+  } catch (err) {
+    console.error('Error fetching categories:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -639,6 +767,9 @@ app.get('/api/tests/:testId', async (req, res) => {
           explanation: qDoc.explanation || '',
           imageData: qDoc.imageData || '',
           explanationImage: qDoc.explanationImage || '', // Include explanation image
+          tableData: qDoc.tableData || '',
+          imageWidth: typeof qDoc.imageWidth === 'number' ? qDoc.imageWidth : null,
+          imageHeight: typeof qDoc.imageHeight === 'number' ? qDoc.imageHeight : null,
           sectionIndex: qDoc.sectionIndex !== undefined ? qDoc.sectionIndex : null
         }));
         console.log(`Loaded ${questions.length} questions from QuestionDoc for test: ${test.name || testId}`);
@@ -1050,6 +1181,9 @@ app.post('/api/admin/tests/:id/questions', async (req, res) => {
         explanation: q.explanation || '',
         imageData: q.imageData || '',
         explanationImage: q.explanationImage || '', // Store explanation image
+        tableData: q.tableData || '',
+        imageWidth: typeof q.imageWidth === 'number' ? q.imageWidth : null,
+        imageHeight: typeof q.imageHeight === 'number' ? q.imageHeight : null,
         sectionIndex: typeof q.sectionIndex !== 'undefined' ? q.sectionIndex : null
       };
       // Log if imageData is present for debugging

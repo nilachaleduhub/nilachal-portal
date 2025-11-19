@@ -776,6 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Question Management ---
     let questionCounter = 0;
+    let currentTestHasExistingQuestions = false;
     
     function addQuestionBlock(questionNumber = null, sectionIndex = null) {
         questionCounter++;
@@ -1332,6 +1333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear current UI
         questionsContainer.innerHTML = '';
         questionCounter = 0;
+        currentTestHasExistingQuestions = false;
 
         if (!categoryId || !examId || !testId) {
             updateQuestionCount();
@@ -1355,6 +1357,8 @@ document.addEventListener('DOMContentLoaded', () => {
             updateQuestionCount();
             return;
         }
+
+        currentTestHasExistingQuestions = Array.isArray(test.questions) && test.questions.length > 0;
 
         // If test already has saved questions, render them
         if (test.questions && test.questions.length > 0) {
@@ -2359,6 +2363,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const wasUpdatingExistingQuestions = currentTestHasExistingQuestions;
         let serverSuccess = false;
         try {
             const res = await adminFetch(`/api/admin/tests/${testId}/questions`, {
@@ -2414,7 +2419,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-                alert(`Successfully saved ${questions.length} questions to the test (MongoDB) and synced to localStorage!`);
+                const successMessage = wasUpdatingExistingQuestions
+                    ? 'Questions updated successfully!'
+                    : `Successfully saved ${questions.length} questions to the test (MongoDB) and synced to localStorage!`;
+                alert(successMessage);
             } else {
                 console.warn('Server returned success:false', data);
                 throw new Error(data.message || 'Server returned an error');
@@ -2440,13 +2448,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 tests[separateTestIndex].questions = questions;
                 saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
             }
-            alert(`Successfully saved ${questions.length} questions locally (localStorage). Server unavailable.`);
+            const localMessage = wasUpdatingExistingQuestions
+                ? 'Questions updated successfully (saved locally while offline).'
+                : `Successfully saved ${questions.length} questions locally (localStorage). Server unavailable.`;
+            alert(localMessage);
         }
 
         questionsContainer.innerHTML = '';
         questionCounter = 0;
         updateQuestionCount();
         questionForm.reset();
+        currentTestHasExistingQuestions = true;
     });
 
 

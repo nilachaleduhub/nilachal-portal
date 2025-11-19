@@ -13,6 +13,87 @@ let allSearchData = {
 document.addEventListener('DOMContentLoaded', async () => {
   const searchBoxes = document.querySelectorAll('.search-box');
   
+  // Mobile search icon click handler - toggle search box visibility
+  function setupMobileSearch() {
+    if (window.innerWidth <= 768) {
+      const searchLoginContainers = document.querySelectorAll('.search-login');
+      searchLoginContainers.forEach(container => {
+        const searchBox = container.querySelector('.search-box');
+        if (searchBox && !container.dataset.mobileSearchSetup) {
+          container.dataset.mobileSearchSetup = 'true';
+          
+          // Make container clickable to toggle search box
+          container.style.cursor = 'pointer';
+          container.style.position = 'relative';
+          
+          // Create a clickable overlay for the search icon area
+          const iconOverlay = document.createElement('div');
+          iconOverlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            z-index: 10;
+            cursor: pointer;
+          `;
+          container.appendChild(iconOverlay);
+          
+          // Handle click on icon overlay or container
+          function handleSearchIconClick(e) {
+            // Don't toggle if clicking on the search box itself
+            if (e.target === searchBox || searchBox.contains(e.target)) {
+              return;
+            }
+            // Toggle search box visibility
+            searchBox.classList.toggle('mobile-visible');
+            if (searchBox.classList.contains('mobile-visible')) {
+              // Focus the search box when it becomes visible
+              setTimeout(() => {
+                searchBox.focus();
+              }, 100);
+            }
+            e.stopPropagation();
+          }
+          
+          iconOverlay.addEventListener('click', handleSearchIconClick);
+          container.addEventListener('click', function(e) {
+            // Only handle if clicking on container itself (not children)
+            if (e.target === container || e.target === iconOverlay) {
+              handleSearchIconClick(e);
+            }
+          });
+
+          // Close search box when clicking outside
+          const closeHandler = function(e) {
+            if (window.innerWidth <= 768) {
+              const isClickInside = container.contains(e.target) || 
+                                   searchBox.contains(e.target) ||
+                                   (document.querySelector('.search-results-container') && 
+                                    document.querySelector('.search-results-container').contains(e.target));
+              if (!isClickInside && searchBox.classList.contains('mobile-visible')) {
+                searchBox.classList.remove('mobile-visible');
+              }
+            }
+          };
+          document.addEventListener('click', closeHandler);
+        }
+      });
+    }
+  }
+
+  // Setup mobile search on load
+  setupMobileSearch();
+
+  // Re-setup on window resize
+  window.addEventListener('resize', function() {
+    // Reset setup flag to allow re-setup
+    document.querySelectorAll('.search-login').forEach(container => {
+      delete container.dataset.mobileSearchSetup;
+    });
+    setupMobileSearch();
+  });
+
   if (searchBoxes.length === 0) return;
 
   // Load all searchable data
@@ -47,6 +128,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('click', (e) => {
       if (!searchBox.contains(e.target) && !searchContainer.contains(e.target)) {
         hideSearchResults(searchContainer);
+        // On mobile, also hide the search box if it's visible
+        if (window.innerWidth <= 768 && searchBox.classList.contains('mobile-visible')) {
+          searchBox.classList.remove('mobile-visible');
+        }
       }
     });
   });
@@ -131,24 +216,106 @@ async function loadAllSearchData() {
 function createSearchResultsContainer(searchBox) {
   const container = document.createElement('div');
   container.className = 'search-results-container';
-  container.style.cssText = `
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    max-height: 400px;
-    overflow-y: auto;
-    z-index: 1001;
-    margin-top: 4px;
-    display: none;
-  `;
+  
+  // Check if mobile
+  const isMobile = window.innerWidth <= 768;
+  
+  // Get navbar element to calculate proper positioning
+  const navbar = document.querySelector('.navbar');
+  const navbarHeight = navbar ? navbar.offsetHeight : 70;
+  
+  if (isMobile) {
+    // Mobile: position fixed to viewport, full width
+    container.style.cssText = `
+      position: fixed;
+      top: ${navbarHeight}px;
+      left: 0;
+      right: 0;
+      width: 100vw;
+      max-width: 100vw;
+      background: white;
+      border-radius: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      max-height: calc(100vh - ${navbarHeight}px);
+      overflow-y: auto;
+      z-index: 1001;
+      margin: 0;
+      padding: 0;
+      display: none;
+    `;
+  } else {
+    // Desktop: position relative to search box
+    container.style.cssText = `
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      max-height: 400px;
+      overflow-y: auto;
+      z-index: 1001;
+      margin-top: 4px;
+      display: none;
+    `;
+  }
 
   const searchParent = searchBox.closest('.search-login') || searchBox.parentElement;
-  searchParent.style.position = 'relative';
-  searchParent.appendChild(container);
+  searchParent.style.position = isMobile ? 'static' : 'relative';
+  
+  // On mobile, append to body for fixed positioning
+  if (isMobile) {
+    document.body.appendChild(container);
+  } else {
+    searchParent.appendChild(container);
+  }
+
+  // Update container position on window resize
+  let resizeTimeout;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(function() {
+      const isMobileNow = window.innerWidth <= 768;
+      const navbarNow = document.querySelector('.navbar');
+      const navbarHeightNow = navbarNow ? navbarNow.offsetHeight : 70;
+      
+      if (isMobileNow) {
+        // Switch to mobile positioning
+        if (container.parentElement !== document.body) {
+          container.parentElement.removeChild(container);
+          document.body.appendChild(container);
+        }
+        container.style.position = 'fixed';
+        container.style.top = `${navbarHeightNow}px`;
+        container.style.left = '0';
+        container.style.right = '0';
+        container.style.width = '100vw';
+        container.style.maxWidth = '100vw';
+        container.style.maxHeight = `calc(100vh - ${navbarHeightNow}px)`;
+        container.style.margin = '0';
+        container.style.padding = '0';
+        container.style.borderRadius = '0';
+      } else {
+        // Switch to desktop positioning
+        if (container.parentElement === document.body) {
+          document.body.removeChild(container);
+          const searchParentNow = searchBox.closest('.search-login') || searchBox.parentElement;
+          searchParentNow.style.position = 'relative';
+          searchParentNow.appendChild(container);
+        }
+        container.style.position = 'absolute';
+        container.style.top = '100%';
+        container.style.left = '0';
+        container.style.right = '0';
+        container.style.width = 'auto';
+        container.style.maxWidth = 'none';
+        container.style.maxHeight = '400px';
+        container.style.marginTop = '4px';
+        container.style.borderRadius = '8px';
+      }
+    }, 100);
+  });
 
   return container;
 }
