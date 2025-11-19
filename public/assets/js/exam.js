@@ -19,139 +19,113 @@ categoryTitle.textContent = categoryNames[categoryId] || "Exams";
 
 // Load exam list
 async function loadExams() {
-  try {
-    // Load from file first
-    const res = await fetch(`assets/data/exams-${categoryId}.json`);
-    const fileExams = await res.json();
-    
-    // Load admin-created exams from localStorage
-    const adminExamData = localStorage.getItem(`examData_${categoryId}`);
-    let adminExams = [];
-    if (adminExamData) {
-      adminExams = JSON.parse(adminExamData);
-    }
-    
-    // Also load from API
-    try {
-      const apiRes = await fetch('/api/exams');
-      if (apiRes.ok) {
-        const apiData = await apiRes.json();
-        if (apiData.success && Array.isArray(apiData.exams)) {
-          const categoryExams = apiData.exams.filter(e => e.categoryId === categoryId);
-          adminExams = [...adminExams, ...categoryExams];
-        }
-      }
-    } catch (err) {
-      console.warn('Error loading exams from API:', err);
-    }
-    
-    // Combine file exams and admin exams
-    const allExams = [...fileExams, ...adminExams];
-    
-    // Remove duplicates based on exam ID
-    const uniqueExams = allExams.filter((exam, index, self) => 
-      index === self.findIndex(e => e.id === exam.id)
-    );
+  const collectedExams = [];
 
-    // Check if we're in the mock tests page flow (from test-series.html)
-    const isFromMockTests = document.referrer.includes('test-series.html') || 
-                            sessionStorage.getItem('fromMockTests') === 'true';
+  // 1. Attempt to load legacy static file (old workflow)
+  try {
+    const res = await fetch(`assets/data/exams-${categoryId}.json`);
+    if (res.ok) {
+      const fileExams = await res.json();
+      if (Array.isArray(fileExams)) {
+        collectedExams.push(...fileExams);
+      }
+    }
+  } catch (err) {
+    console.warn('Unable to load legacy exams file:', err);
+  }
+
+  // 2. Load admin-created exams from localStorage (backward compatibility)
+  try {
+    const adminExamData = localStorage.getItem(`examData_${categoryId}`);
+    if (adminExamData) {
+      const parsed = JSON.parse(adminExamData);
+      if (Array.isArray(parsed)) {
+        collectedExams.push(...parsed);
+      }
+    }
+  } catch (storageErr) {
+    console.warn('Unable to read exams from localStorage:', storageErr);
+  }
+
+  // 3. Always call the API so new categories/exams load reliably
+  try {
+    const apiRes = await fetch('/api/exams');
+    if (apiRes.ok) {
+      const apiData = await apiRes.json();
+      if (apiData.success && Array.isArray(apiData.exams)) {
+        apiData.exams
+          .filter(exam => exam && exam.categoryId === categoryId)
+          .forEach(exam => {
+            collectedExams.push({
+              id: exam.id || exam._id,
+              name: exam.name,
+              description: exam.description || '',
+              categoryId: exam.categoryId
+            });
+          });
+      }
+    } else {
+      console.warn('Failed to load exams from API:', apiRes.status);
+    }
+  } catch (err) {
+    console.warn('Error loading exams from API:', err);
+  }
+
+  // Remove duplicates based on exam ID
+  const uniqueExams = collectedExams.filter((exam, index, self) =>
+    exam && exam.id && index === self.findIndex(e => e && e.id === exam.id)
+  );
+
+  if (uniqueExams.length === 0) {
+    examContainer.innerHTML = `<p style="color:red;">Exams not found for category "${categoryId}".</p>`;
+    return;
+  }
+
+  // Check if we're in the mock tests page flow (from test-series.html)
+  const isFromMockTests = document.referrer.includes('test-series.html') || 
+                          sessionStorage.getItem('fromMockTests') === 'true';
+  
+  uniqueExams.forEach(exam => {
+    const card = document.createElement("div");
+    card.className = "card";
     
-    uniqueExams.forEach(exam => {
-      const card = document.createElement("div");
-      card.className = "card";
+    // On mock tests page flow, always show "View Tests" for exams
+    if (isFromMockTests) {
+      card.innerHTML = `
+  <h3>${exam.name}</h3>
+  <p>${exam.description || ''}</p>
+  <a href="exam.html?cat=${categoryId}&exam=${exam.id}">View Tests</a>
+`;
+    } else {
+      // Check if user has ever purchased (but allow viewing even if expired)
+      const accessCheck = typeof checkPurchaseAccess !== 'undefined' ? checkPurchaseAccess(exam.id, 'exam', categoryId) : { hasAccess: false, isExpired: false };
+      const hasAccess = accessCheck.hasAccess;
       
-      // On mock tests page flow, always show "View Tests" for exams
-      if (isFromMockTests) {
+      // Always allow viewing categories/exams (even if expired) so users can see what's inside
+      // Only show Buy Now if user never purchased
+      if (hasAccess) {
+        // User has purchased (even if expired), allow viewing
         card.innerHTML = `
   <h3>${exam.name}</h3>
   <p>${exam.description || ''}</p>
   <a href="exam.html?cat=${categoryId}&exam=${exam.id}">View Tests</a>
 `;
       } else {
-        // Check if user has ever purchased (but allow viewing even if expired)
-        const accessCheck = typeof checkPurchaseAccess !== 'undefined' ? checkPurchaseAccess(exam.id, 'exam', categoryId) : { hasAccess: false, isExpired: false };
-        const hasAccess = accessCheck.hasAccess;
-        
-        // Always allow viewing categories/exams (even if expired) so users can see what's inside
-        // Only show Buy Now if user never purchased
-        if (hasAccess) {
-          // User has purchased (even if expired), allow viewing
-          card.innerHTML = `
-  <h3>${exam.name}</h3>
-  <p>${exam.description || ''}</p>
-  <a href="exam.html?cat=${categoryId}&exam=${exam.id}">View Tests</a>
-`;
-        } else {
-          // User never purchased, show Buy Now
-          card.innerHTML = `
+        // User never purchased, show Buy Now
+        card.innerHTML = `
   <h3>${exam.name}</h3>
   <p>${exam.description || ''}</p>
   <button class="buy-btn" style="background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; width: 100%;">Buy Now</button>
 `;
-          const buyBtn = card.querySelector('button');
-          buyBtn.addEventListener('click', () => {
-            window.location.href = `buy-course-details.html?type=exam&id=${exam.id}&categoryId=${categoryId}`;
-          });
-        }
+        const buyBtn = card.querySelector('button');
+        buyBtn.addEventListener('click', () => {
+          window.location.href = `buy-course-details.html?type=exam&id=${exam.id}&categoryId=${categoryId}`;
+        });
       }
-      
-      examContainer.appendChild(card);
-    });
-  } catch (err) {
-    // If file doesn't exist, try to load only admin exams
-    const adminExamData = localStorage.getItem(`examData_${categoryId}`);
-    if (adminExamData) {
-      const adminExams = JSON.parse(adminExamData);
-      adminExams.forEach(exam => {
-        const card = document.createElement("div");
-        card.className = "card";
-        
-        // Check if we're in the mock tests page flow
-        const isFromMockTests = document.referrer.includes('test-series.html') || 
-                                sessionStorage.getItem('fromMockTests') === 'true';
-        
-        // On mock tests page flow, always show "View Tests" for exams
-        if (isFromMockTests) {
-          card.innerHTML = `
-  <h3>${exam.name}</h3>
-  <p>${exam.description || ''}</p>
-  <a href="exam.html?cat=${categoryId}&exam=${exam.id}">View Tests</a>
-`;
-        } else {
-          // Check if user has ever purchased (but allow viewing even if expired)
-          const accessCheck = typeof checkPurchaseAccess !== 'undefined' ? checkPurchaseAccess(exam.id, 'exam', categoryId) : { hasAccess: false, isExpired: false };
-          const hasAccess = accessCheck.hasAccess;
-          
-          // Always allow viewing categories/exams (even if expired) so users can see what's inside
-          // Only show Buy Now if user never purchased
-          if (hasAccess) {
-            // User has purchased (even if expired), allow viewing
-            card.innerHTML = `
-  <h3>${exam.name}</h3>
-  <p>${exam.description || ''}</p>
-  <a href="exam.html?cat=${categoryId}&exam=${exam.id}">View Tests</a>
-`;
-          } else {
-            // User never purchased, show Buy Now
-            card.innerHTML = `
-  <h3>${exam.name}</h3>
-  <p>${exam.description || ''}</p>
-  <button class="buy-btn" style="background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; width: 100%;">Buy Now</button>
-`;
-            const buyBtn = card.querySelector('button');
-            buyBtn.addEventListener('click', () => {
-              window.location.href = `buy-course-details.html?type=exam&id=${exam.id}&categoryId=${categoryId}`;
-            });
-          }
-        }
-        
-        examContainer.appendChild(card);
-      });
-    } else {
-      examContainer.innerHTML = `<p style="color:red;">Exams not found for category "${categoryId}".</p>`;
     }
-  }
+    
+    examContainer.appendChild(card);
+  });
 }
 
 // Load expiry utils first, then load exams
