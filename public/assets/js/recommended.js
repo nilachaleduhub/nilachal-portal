@@ -185,22 +185,19 @@ async function loadRecommendedCourses() {
       
       for (const category of categories) {
         try {
-          // Try public API first, then admin API
           let courseRes;
           let courseData;
           
           try {
-            courseRes = await fetch(`/api/courses/${encodeURIComponent(category.id)}`);
-            courseData = await courseRes.json();
-          } catch (err) {
-            // Fallback to admin API
-            try {
-              courseRes = await fetch(`/api/admin/courses/${encodeURIComponent(category.id)}`);
-              courseData = await courseRes.json();
-            } catch (adminErr) {
-              console.warn(`Error loading courses for category ${category.id}:`, adminErr);
+            courseRes = await fetch(`/api/admin/courses/${encodeURIComponent(category.id)}`);
+            if (!courseRes.ok) {
+              console.warn(`Admin courses API returned ${courseRes.status} for category ${category.id}`);
               continue;
             }
+            courseData = await courseRes.json();
+          } catch (adminErr) {
+            console.warn(`Error loading courses for category ${category.id}:`, adminErr);
+            continue;
           }
           
           if (courseData.success && Array.isArray(courseData.courses)) {

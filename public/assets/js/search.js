@@ -185,9 +185,19 @@ async function loadAllSearchData() {
       const categoriesData = await categoriesRes.json();
       if (categoriesData.success && Array.isArray(categoriesData.categories)) {
         const categoryIds = categoriesData.categories.map(cat => cat.id || cat._id).filter(Boolean);
-        const coursePromises = categoryIds.map(catId => 
-          fetch(`/api/courses/${catId}`).then(res => res.json()).catch(() => ({ success: false, courses: [] }))
-        );
+        const coursePromises = categoryIds.map(async (catId) => {
+          try {
+            const res = await fetch(`/api/admin/courses/${encodeURIComponent(catId)}`);
+            if (!res.ok) {
+              console.warn(`Failed to load courses for category ${catId}:`, res.status);
+              return { success: false, courses: [] };
+            }
+            return await res.json();
+          } catch (err) {
+            console.warn(`Error loading courses for category ${catId}:`, err);
+            return { success: false, courses: [] };
+          }
+        });
         const courseResults = await Promise.all(coursePromises);
         allSearchData.courses = courseResults
           .filter(result => result.success && Array.isArray(result.courses))
