@@ -419,35 +419,52 @@
       const fetchCategories = async () => {
         if (categoriesCache) return categoriesCache;
 
-        let categories = [];
-        let serverCategories = [];
+        let publicCategories = [];
+        let adminCategories = [];
+        let legacyCategories = [];
 
+        // Public API (available to all users)
+        try {
+          const publicData = await fetchJson('/api/categories');
+          if (publicData && publicData.success && Array.isArray(publicData.categories)) {
+            publicCategories = publicData.categories;
+          }
+        } catch (err) {
+          console.warn('Unable to load categories from public API:', err);
+        }
+
+        // Admin API (fallback if public API unavailable)
+        try {
+          const adminData = await fetchJson('/api/admin/categories');
+          if (adminData && adminData.success && Array.isArray(adminData.categories)) {
+            adminCategories = adminData.categories;
+          }
+        } catch (err) {
+          console.warn('Unable to load categories from admin API:', err);
+        }
+
+        // Legacy sources: static file + localStorage
         try {
           const res = await fetch('assets/data/categories.json');
           if (res && res.ok) {
             const fileData = await res.json();
             if (Array.isArray(fileData)) {
-              categories = fileData;
+              legacyCategories = fileData;
             }
           }
         } catch (err) {
           console.warn('Unable to load categories from file:', err);
         }
 
-        const data = await fetchJson('/api/admin/categories');
-        if (data && data.success && Array.isArray(data.categories)) {
-          serverCategories = data.categories;
-        }
-
         try {
           const storedAdmin = JSON.parse(localStorage.getItem('adminCategories') || '[]');
           const storedMain = JSON.parse(localStorage.getItem('mainCategories') || '[]');
-        categories = [...categories, ...storedAdmin, ...storedMain];
+          legacyCategories = [...legacyCategories, ...storedAdmin, ...storedMain];
         } catch (err) {
           console.warn('Unable to read categories from localStorage:', err);
         }
 
-        const combined = [...serverCategories, ...categories];
+        const combined = [...publicCategories, ...adminCategories, ...legacyCategories];
         categoriesCache = uniqueById(combined);
         return categoriesCache;
       };
