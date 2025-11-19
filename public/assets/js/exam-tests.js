@@ -209,188 +209,240 @@
       const examId     = getQueryParam('exam');
       const titleEl    = document.getElementById('exam-title');
       const container  = document.getElementById('test-container');
-  
+
       if (!categoryId || !examId) {
         titleEl.innerText = 'Invalid Exam Selection';
         container.innerText = 'Category or exam missing in URL.';
         return;
       }
-  
-      // Load exams from file and admin data
-      Promise.all([
-        fetch(`assets/data/exams-${categoryId}.json`)
-          .then(res => res.ok ? res.json() : [])
-          .catch(() => []),
-        Promise.resolve().then(() => {
-          const adminExamData = localStorage.getItem(`examData_${categoryId}`);
-          return adminExamData ? JSON.parse(adminExamData) : [];
-        })
-      ])
-        .then(async ([fileExams, adminExams]) => {
-          // Combine and remove duplicates
-          const allExams = [...fileExams, ...adminExams];
-          const uniqueExams = allExams.filter((exam, index, self) => 
-            index === self.findIndex(e => e.id === exam.id)
-          );
-          
-          const exam = uniqueExams.find(e => e.id === examId);
-          if (!exam) throw new Error(`Exam "${examId}" not found in ${categoryId}`);
 
-          titleEl.innerText = exam.name + ' – Available Tests';
+      try {
+        const collectedExams = [];
 
-          // Get tests from exam structure
-          let tests = Array.isArray(exam.tests) ? exam.tests : [];
-          console.log('Tests from exam structure:', tests);
-          
-          // Also get tests from separate test storage
-          const separateTests = JSON.parse(localStorage.getItem(`testData_${categoryId}`) || '[]');
-          console.log('All separate tests:', separateTests);
-          const examTests = separateTests.filter(test => test.examId === examId);
-          console.log('Tests for this exam from separate storage:', examTests);
-          
-          // Combine and remove duplicates
-          const allTests = [...tests, ...examTests];
-          const uniqueTests = allTests.filter((test, index, self) => 
-            index === self.findIndex(t => t.id === test.id)
-          );
-          
-          tests = uniqueTests;
-          console.log('Final combined tests:', tests);
-
-          if (tests.length === 0) {
-            container.innerText = 'No tests available for this exam.';
-            return;
+        // 1. Legacy static file (if present)
+        try {
+          const res = await fetch(`assets/data/exams-${categoryId}.json`);
+          if (res.ok) {
+            const fileExams = await res.json();
+            if (Array.isArray(fileExams)) collectedExams.push(...fileExams);
           }
+        } catch (err) {
+          console.warn('Unable to load legacy exams file:', err);
+        }
 
-          // Check if user is logged in
-          const userStr = localStorage.getItem('user');
-          const isLoggedIn = !!userStr;
+        // 2. LocalStorage admin data
+        try {
+          const adminExamData = localStorage.getItem(`examData_${categoryId}`);
+          if (adminExamData) {
+            const parsed = JSON.parse(adminExamData);
+            if (Array.isArray(parsed)) collectedExams.push(...parsed);
+          }
+        } catch (err) {
+          console.warn('Unable to parse admin exams from localStorage:', err);
+        }
 
-          // Render each test card
-          for (const test of tests) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            
-            // Check if user has purchased access
-            const hasAccess = isLoggedIn ? await hasPurchasedAccess(test.id, examId, categoryId) : false;
-            
-            // Check if purchase is expired
-            let isExpired = false;
-            if (hasAccess) {
-              // Check expiry from localStorage
-              try {
-                const userStr = localStorage.getItem('user');
-                if (userStr) {
-                  const user = JSON.parse(userStr);
-                  const userId = user.id || user._id || user.email;
-                  const userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
-                  const userPurchaseData = userPurchases[userId];
+        // 3. Live API
+        try {
+          const apiRes = await fetch('/api/exams');
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            if (apiData.success && Array.isArray(apiData.exams)) {
+              apiData.exams
+                .filter(exam => exam && exam.categoryId === categoryId)
+                .forEach(exam => {
+                  collectedExams.push({
+                    ...exam,
+                    id: exam.id || exam._id,
+                    name: exam.name,
+                    description: exam.description || '',
+                    categoryId: exam.categoryId
+                  });
+                });
+            }
+          } else {
+            console.warn('Failed to fetch exams from API:', apiRes.status);
+          }
+        } catch (err) {
+          console.warn('Error fetching exams from API:', err);
+        }
+
+        const uniqueExams = collectedExams.filter((exam, index, self) =>
+          exam && exam.id && index === self.findIndex(e => e && e.id === exam.id)
+        );
+
+        const exam = uniqueExams.find(e => e.id === examId);
+        if (!exam) throw new Error(`Exam "${examId}" not found in ${categoryId}`);
+
+        titleEl.innerText = `${exam.name} – Available Tests`;
+
+        // Collect tests from multiple sources
+        const collectedTests = [];
+
+        // a) Tests embedded inside the exam object
+        if (Array.isArray(exam.tests)) {
+          collectedTests.push(...exam.tests);
+        }
+
+        // b) Tests stored in localStorage (backward compatibility)
+        try {
+          const separateTests = JSON.parse(localStorage.getItem(`testData_${categoryId}`) || '[]');
+          if (Array.isArray(separateTests)) {
+            separateTests
+              .filter(test => test && test.examId === examId)
+              .forEach(test => collectedTests.push(test));
+          }
+        } catch (err) {
+          console.warn('Unable to load tests from localStorage:', err);
+        }
+
+        // c) Live API for tests
+        try {
+          const testRes = await fetch(`/api/exams/${encodeURIComponent(examId)}/tests`);
+          if (testRes.ok) {
+            const testData = await testRes.json();
+            if (testData.success && Array.isArray(testData.tests)) {
+              testData.tests.forEach(test => {
+                collectedTests.push({
+                  ...test,
+                  id: test.id || test._id,
+                  examId: test.examId || examId,
+                  categoryId: test.categoryId || categoryId
+                });
+              });
+            }
+          } else {
+            console.warn('Failed to fetch tests from API:', testRes.status);
+          }
+        } catch (err) {
+          console.warn('Error fetching tests from API:', err);
+        }
+
+        const uniqueTests = collectedTests.filter((test, index, self) =>
+          test && test.id && index === self.findIndex(t => t && t.id === test.id)
+        );
+
+        if (uniqueTests.length === 0) {
+          container.innerText = 'No tests available for this exam.';
+          return;
+        }
+
+        const tests = uniqueTests;
+        // Check if user is logged in
+        const userStr = localStorage.getItem('user');
+        const isLoggedIn = !!userStr;
+
+        // Render each test card
+        for (const test of tests) {
+          const card = document.createElement('div');
+          card.className = 'card';
+          
+          // Check if user has purchased access
+          let hasAccess = isLoggedIn ? await hasPurchasedAccess(test.id, examId, categoryId) : false;
+          
+          // Check if purchase is expired
+          let isExpired = false;
+          if (hasAccess) {
+            try {
+              const userStrLocal = localStorage.getItem('user');
+              if (userStrLocal) {
+                const user = JSON.parse(userStrLocal);
+                const userId = user.id || user._id || user.email;
+                const userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                const userPurchaseData = userPurchases[userId];
+                
+                if (userPurchaseData) {
+                  const allPurchases = [...(userPurchaseData.courses || []), ...(userPurchaseData.tests || [])];
+                  const purchase = allPurchases.find(p => {
+                    const purchaseId = p.id || p.courseId || p.testId || p._id;
+                    return purchaseId === test.id || purchaseId === examId || purchaseId === categoryId;
+                  });
                   
-                  if (userPurchaseData) {
-                    const allPurchases = [...(userPurchaseData.courses || []), ...(userPurchaseData.tests || [])];
-                    const purchase = allPurchases.find(p => {
-                      const purchaseId = p.id || p.courseId || p.testId || p._id;
-                      return purchaseId === testId || purchaseId === examId || purchaseId === categoryId;
-                    });
-                    
-                    if (purchase && isPurchaseExpired(purchase.courseValidity, purchase.purchasedAt)) {
-                      isExpired = true;
-                      hasAccess = false;
-                    }
+                  if (purchase && isPurchaseExpired(purchase.courseValidity, purchase.purchasedAt)) {
+                    isExpired = true;
+                    hasAccess = false;
                   }
+                }
+              }
+            } catch (err) {
+              console.warn('Error checking expiry:', err);
+            }
+          }
+          
+          if (hasAccess && !isExpired) {
+            const params = new URLSearchParams();
+            params.set('testId', test.id);
+            if (typeof categoryId !== 'undefined' && categoryId) params.set('cat', categoryId);
+            if (typeof examId !== 'undefined' && examId) params.set('exam', examId);
+            const testUrl = 'instructions.html?' + params.toString();
+            
+            card.innerHTML = `
+              <h3>${test.name}</h3>
+              <a href="${testUrl}" style="text-decoration: none; background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; transition: background 0.3s; display: inline-block;">Start Test</a>
+            `;
+            
+            const startLink = card.querySelector('a');
+            startLink.addEventListener('mouseenter', () => {
+              startLink.style.backgroundColor = '#0095cc';
+            });
+            startLink.addEventListener('mouseleave', () => {
+              startLink.style.backgroundColor = '#00bfff';
+            });
+            
+            startLink.addEventListener('click', (e) => {
+              e.preventDefault();
+              console.log('Test clicked:', test);
+
+              try {
+                localStorage.setItem('testData', JSON.stringify(test));
+                localStorage.setItem('testId', test.id);
+                localStorage.setItem('testType', test.examId ? 'admin' : 'file');
+                if (typeof categoryId !== 'undefined' && categoryId) {
+                  localStorage.setItem('testCategory', categoryId);
                 }
               } catch (err) {
-                console.warn('Error checking expiry:', err);
+                console.warn('Could not persist test to localStorage', err);
               }
-            }
+
+              window.location.href = testUrl;
+            });
+          } else {
+            const buyButtonText = isLoggedIn ? 'Buy Now' : 'Login to Buy';
+            card.innerHTML = `
+              <h3>${test.name}</h3>
+              ${isExpired ? '<p style="color: #dc2626; font-size: 0.9rem; margin-bottom: 0.5rem;">⚠️ Your access has expired</p>' : ''}
+              <button class="btn card-btn" style="background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; transition: background 0.3s;">${buyButtonText}</button>
+            `;
             
-            if (hasAccess && !isExpired) {
-              // User has purchased and not expired, show "Start Test" button
+            const buyBtn = card.querySelector('button');
+            buyBtn.addEventListener('mouseenter', () => {
+              buyBtn.style.backgroundColor = '#0095cc';
+            });
+            buyBtn.addEventListener('mouseleave', () => {
+              buyBtn.style.backgroundColor = '#00bfff';
+            });
+            
+            buyBtn.addEventListener('click', () => {
+              if (!isLoggedIn) {
+                alert('Please login to purchase this test.');
+                window.location.href = 'login-register.html';
+                return;
+              }
+
               const params = new URLSearchParams();
-              params.set('testId', test.id);
-              if (typeof categoryId !== 'undefined' && categoryId) params.set('cat', categoryId);
-              if (typeof examId !== 'undefined' && examId) params.set('exam', examId);
-              const testUrl = 'instructions.html?' + params.toString();
+              params.set('type', 'exam');
+              params.set('id', examId);
+              if (categoryId) params.set('categoryId', categoryId);
               
-              card.innerHTML = `
-                <h3>${test.name}</h3>
-                <a href="${testUrl}" style="text-decoration: none; background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; transition: background 0.3s; display: inline-block;">Start Test</a>
-              `;
-              
-              const startLink = card.querySelector('a');
-              startLink.addEventListener('mouseenter', () => {
-                startLink.style.backgroundColor = '#0095cc';
-              });
-              startLink.addEventListener('mouseleave', () => {
-                startLink.style.backgroundColor = '#00bfff';
-              });
-              
-              startLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('Test clicked:', test);
-
-                // Save the full test object so instructions page can read it
-                try {
-                  localStorage.setItem('testData', JSON.stringify(test));
-                  localStorage.setItem('testId', test.id);
-                  // mark type for consumers
-                  localStorage.setItem('testType', test.examId ? 'admin' : 'file');
-                  // also persist current page category for robust lookup
-                  if (typeof categoryId !== 'undefined' && categoryId) {
-                    localStorage.setItem('testCategory', categoryId);
-                  }
-                } catch (err) {
-                  console.warn('Could not persist test to localStorage', err);
-                }
-
-                // Navigate to the instructions page
-                window.location.href = testUrl;
-              });
-            } else {
-              // User hasn't purchased or it's expired, show "Buy Now" button
-              const buyButtonText = isLoggedIn ? 'Buy Now' : 'Login to Buy';
-              card.innerHTML = `
-                <h3>${test.name}</h3>
-                ${isExpired ? '<p style="color: #dc2626; font-size: 0.9rem; margin-bottom: 0.5rem;">⚠️ Your access has expired</p>' : ''}
-                <button class="btn card-btn" style="background-color: #00bfff; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; transition: background 0.3s;">${buyButtonText}</button>
-              `;
-              
-              const buyBtn = card.querySelector('button');
-              buyBtn.addEventListener('mouseenter', () => {
-                buyBtn.style.backgroundColor = '#0095cc';
-              });
-              buyBtn.addEventListener('mouseleave', () => {
-                buyBtn.style.backgroundColor = '#00bfff';
-              });
-              
-              buyBtn.addEventListener('click', () => {
-                if (!isLoggedIn) {
-                  alert('Please login to purchase this test.');
-                  window.location.href = 'login-register.html';
-                  return;
-                }
-
-                // Redirect to buy course details page
-                // First try to buy the test, if not available, buy the exam or category
-                const params = new URLSearchParams();
-                
-                // Try to find test in admin data to check if it can be purchased individually
-                // For now, redirect to exam purchase page
-                params.set('type', 'exam');
-                params.set('id', examId);
-                if (categoryId) params.set('categoryId', categoryId);
-                
-                window.location.href = `buy-course-details.html?${params.toString()}`;
-              });
-            }
-            
-            container.appendChild(card);
+              window.location.href = `buy-course-details.html?${params.toString()}`;
+            });
           }
-        })
-        .catch(err => {
-          console.error('exam-tests.js error:', err);
-          container.innerText = err.message;
-        });
+          
+          container.appendChild(card);
+        }
+      } catch (err) {
+        console.error('exam-tests.js error:', err);
+        container.innerText = err.message || 'Failed to load tests.';
+      }
     });
   })();
   
