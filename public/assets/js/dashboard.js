@@ -101,260 +101,93 @@ document.addEventListener('DOMContentLoaded', async () => {
     noResultsDiv.style.display = 'block';
     return;
   }
-  // My Library: Read purchases from server and localStorage
+  const PURCHASE_CACHE_KEY = 'dashboardPurchaseCache';
+
+  function normalizePurchases(purchases = []) {
+    const result = { courses: [], categories: [], exams: [], tests: [] };
+    const seen = new Set();
+
+    purchases
+      .filter(p => p && p.status === 'completed')
+      .forEach(purchase => {
+        const type = purchase.purchaseType;
+        const purchaseId = purchase.purchaseId;
+        if (!type || !purchaseId) return;
+
+        const key = `${type}:${purchaseId}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const normalized = {
+          id: purchaseId,
+          name: purchase.purchaseName || '',
+          categoryId: purchase.categoryId || null,
+          userId: purchase.userId,
+          userEmail: purchase.userEmail,
+          userPhone: purchase.userPhone,
+          purchaseType: type,
+          courseValidity: purchase.courseValidity || null,
+          validityValue: purchase.validityValue,
+          validityUnit: purchase.validityUnit,
+          purchasedAt: purchase.purchasedAt ? (typeof purchase.purchasedAt === 'string' ? purchase.purchasedAt : new Date(purchase.purchasedAt).toISOString()) : null,
+          expiresAt: purchase.expiresAt ? (typeof purchase.expiresAt === 'string' ? purchase.expiresAt : new Date(purchase.expiresAt).toISOString()) : null
+        };
+
+        if (type === 'course') result.courses.push(normalized);
+        else if (type === 'category') result.categories.push(normalized);
+        else if (type === 'exam') result.exams.push(normalized);
+        else if (type === 'test') result.tests.push(normalized);
+      });
+
+    return result;
+  }
+
+  function readCachedPurchases(userId) {
+    if (!userId) return null;
+    try {
+      const cache = JSON.parse(localStorage.getItem(PURCHASE_CACHE_KEY) || '{}');
+      return cache[userId] || null;
+    } catch (err) {
+      console.warn('Unable to read cached purchases', err);
+      return null;
+    }
+  }
+
+  function cachePurchases(userId, data) {
+    if (!userId || !data) return;
+    try {
+      const cache = JSON.parse(localStorage.getItem(PURCHASE_CACHE_KEY) || '{}');
+      cache[userId] = { ...data, cachedAt: Date.now() };
+      localStorage.setItem(PURCHASE_CACHE_KEY, JSON.stringify(cache));
+    } catch (err) {
+      console.warn('Unable to cache purchases', err);
+    }
+  }
+
+  async function fetchServerPurchases(userId) {
+    const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true`, {
+      headers: { 'Cache-Control': 'no-store' }
+    });
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.purchases)) {
+      throw new Error(data.message || 'Unable to load purchases');
+    }
+    return data.purchases;
+  }
+
   async function getPurchases() {
     const userId = user && (user.id || user._id || user.userId || user.email);
     if (!userId) return { courses: [], categories: [], exams: [], tests: [] };
 
-    let serverPurchases = [];
     try {
-      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.purchases)) {
-        serverPurchases = data.purchases;
-      }
+      const serverPurchases = await fetchServerPurchases(userId);
+      const normalized = normalizePurchases(serverPurchases);
+      cachePurchases(userId, normalized);
+      return normalized;
     } catch (err) {
-      console.warn('Error fetching purchases from server:', err);
+      console.error('Falling back to cached purchases:', err);
+      return readCachedPurchases(userId) || { courses: [], categories: [], exams: [], tests: [] };
     }
-
-    let store = null;
-    try {
-      store = JSON.parse(localStorage.getItem('userPurchases'));
-    } catch (err) {
-      console.warn('Unable to parse userPurchases from localStorage', err);
-    }
-
-    // Convert server purchases to dashboard format
-    // Separate courses, categories, and exams
-    const serverCourses = serverPurchases
-      .filter(p => p.purchaseType === 'course' && p.status === 'completed')
-      .map(p => ({
-        id: p.purchaseId,
-        name: p.purchaseName || '',
-        categoryId: p.categoryId || null,
-        userId: p.userId,
-        userEmail: p.userEmail,
-        userPhone: p.userPhone,
-        purchaseType: p.purchaseType,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
-      }));
-
-    // Categories and exams go to "My Test" section
-    const serverCategories = serverPurchases
-      .filter(p => p.purchaseType === 'category' && p.status === 'completed')
-      .map(p => ({
-        id: p.purchaseId,
-        name: p.purchaseName || '',
-        categoryId: p.categoryId || null,
-        userId: p.userId,
-        userEmail: p.userEmail,
-        userPhone: p.userPhone,
-        purchaseType: p.purchaseType,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
-      }));
-
-    const serverExams = serverPurchases
-      .filter(p => p.purchaseType === 'exam' && p.status === 'completed')
-      .map(p => ({
-        id: p.purchaseId,
-        name: p.purchaseName || '',
-        categoryId: p.categoryId || null,
-        userId: p.userId,
-        userEmail: p.userEmail,
-        userPhone: p.userPhone,
-        purchaseType: p.purchaseType,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
-      }));
-
-    const serverTests = serverPurchases
-      .filter(p => p.purchaseType === 'test' && p.status === 'completed')
-      .map(p => ({
-        id: p.purchaseId,
-        name: p.purchaseName || '',
-        categoryId: p.categoryId || null,
-        userId: p.userId,
-        userEmail: p.userEmail,
-        userPhone: p.userPhone,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
-      }));
-
-    if (!store && serverPurchases.length === 0) {
-      return { courses: [], categories: [], exams: [], tests: [] };
-    }
-
-    const ensureArray = (value) => Array.isArray(value) ? value.filter(Boolean) : [];
-    const uniqueById = (items) => {
-      const map = new Map();
-      ensureArray(items).forEach(item => {
-        if (!item || typeof item !== 'object') return;
-        const key = item.id || item.courseId || item.testId || item._id;
-        const mapKey = key ? String(key) : `${item.type || 'item'}_${map.size}`;
-        if (!map.has(mapKey)) {
-          map.set(mapKey, item);
-        }
-      });
-      return Array.from(map.values());
-    };
-
-    const filterByUser = (items) => ensureArray(items).filter(item => {
-      if (!item || typeof item !== 'object') return false;
-      const ownerId = item.userId || item.ownerId || item.userID || item.user_id || item.user;
-      if (ownerId) return String(ownerId) === String(userId);
-
-      const ownerEmail = item.userEmail || item.email;
-      if (ownerEmail && user.email) {
-        return String(ownerEmail).toLowerCase() === String(user.email).toLowerCase();
-      }
-
-      const ownerPhone = item.userPhone || item.phone;
-      if (ownerPhone && user.phone) {
-        return String(ownerPhone) === String(user.phone);
-      }
-
-      const userIds = Array.isArray(item.userIds) ? item.userIds
-        : Array.isArray(item.allowedUsers) ? item.allowedUsers
-        : Array.isArray(item.users) ? item.users
-        : null;
-      if (userIds) {
-        return userIds.map(String).includes(String(userId));
-      }
-      return false;
-    });
-
-    if (Array.isArray(store)) {
-      const courses = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'course'));
-      const categories = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'category'));
-      const exams = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'exam'));
-      const tests = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'test'));
-      return { 
-        courses: uniqueById(courses), 
-        categories: uniqueById(categories),
-        exams: uniqueById(exams),
-        tests: uniqueById(tests)
-      };
-    }
-
-    if (typeof store === 'object' && store !== null) {
-      const candidateKeys = [String(userId)];
-      if (user.email) candidateKeys.push(String(user.email).toLowerCase());
-      if (user.phone) candidateKeys.push(String(user.phone));
-
-      let bucket = null;
-      for (const key of candidateKeys) {
-        if (Object.prototype.hasOwnProperty.call(store, key)) {
-          bucket = store[key];
-          break;
-        }
-        const matchedKey = Object.keys(store).find(storeKey => String(storeKey).toLowerCase() === String(key).toLowerCase());
-        if (matchedKey) {
-          bucket = store[matchedKey];
-          break;
-        }
-      }
-
-      if (bucket && typeof bucket === 'object') {
-        const courses = ensureArray(bucket.courses || bucket.course);
-        const tests = ensureArray(bucket.tests || bucket.test);
-        // Separate categories and exams from courses
-        const categories = courses.filter(c => c.purchaseType === 'category' || c.type === 'category');
-        const exams = courses.filter(c => c.purchaseType === 'exam' || c.type === 'exam');
-        const actualCourses = courses.filter(c => {
-          const purchaseType = c.purchaseType || c.type;
-          return !purchaseType || purchaseType === 'course';
-        });
-        return { 
-          courses: uniqueById(actualCourses), 
-          categories: uniqueById(categories),
-          exams: uniqueById(exams),
-          tests: uniqueById(tests)
-        };
-      }
-
-      const items = ensureArray(store.items);
-      const userScopedItems = items.length > 0 ? filterByUser(items) : [];
-      const userCoursesFromItems = userScopedItems.filter(item => String(item.type || '').toLowerCase() === 'course');
-      const userCategoriesFromItems = userScopedItems.filter(item => String(item.type || '').toLowerCase() === 'category');
-      const userExamsFromItems = userScopedItems.filter(item => String(item.type || '').toLowerCase() === 'exam');
-      const userTestsFromItems = userScopedItems.filter(item => String(item.type || '').toLowerCase() === 'test');
-
-      let courses = filterByUser(store.courses || store.coursePurchases);
-      let tests = filterByUser(store.tests || store.testPurchases);
-
-      // Separate categories and exams from courses
-      const categories = courses.filter(c => c.purchaseType === 'category' || c.type === 'category');
-      const exams = courses.filter(c => c.purchaseType === 'exam' || c.type === 'exam');
-      courses = courses.filter(c => {
-        const purchaseType = c.purchaseType || c.type;
-        return !purchaseType || purchaseType === 'course';
-      });
-
-      // Also check userExamsFromItems and userCategoriesFromItems
-      const allLocalCategories = uniqueById([...categories, ...userCategoriesFromItems]);
-      const allLocalExams = uniqueById([...exams, ...userExamsFromItems]);
-
-      if (courses.length === 0 && userCoursesFromItems.length > 0) courses = userCoursesFromItems;
-      else if (userCoursesFromItems.length > 0) courses = uniqueById([...courses, ...userCoursesFromItems]);
-
-      if (tests.length === 0 && userTestsFromItems.length > 0) tests = userTestsFromItems;
-      else if (userTestsFromItems.length > 0) tests = uniqueById([...tests, ...userTestsFromItems]);
-
-      // Merge with server purchases and enrich with courseValidity from localStorage if available
-      // For renewals, localStorage will have the updated validity dates, so prefer localStorage data
-      const enrichWithLocalData = (serverItems, localItems) => {
-        return serverItems.map(serverItem => {
-          const localItem = localItems.find(l => {
-            const lId = l.id || l.courseId || l.testId || l._id;
-            const sId = serverItem.id || serverItem.courseId || serverItem.testId || serverItem._id;
-            return lId === sId;
-          });
-          if (localItem) {
-            // If localStorage has this item (especially for renewals), prefer its data
-            // This ensures renewed purchases show updated validity dates
-            if (localItem.courseValidity) {
-              serverItem.courseValidity = localItem.courseValidity;
-            }
-            if (localItem.purchasedAt) {
-              serverItem.purchasedAt = localItem.purchasedAt;
-            }
-            if (localItem.expiresAt) {
-              serverItem.expiresAt = localItem.expiresAt;
-            }
-            if (localItem.validityValue !== undefined) {
-              serverItem.validityValue = localItem.validityValue;
-            }
-            if (localItem.validityUnit) {
-              serverItem.validityUnit = localItem.validityUnit;
-            }
-          }
-          return serverItem;
-        });
-      };
-
-      const enrichedServerCourses = enrichWithLocalData(serverCourses, courses);
-      const enrichedServerCategories = enrichWithLocalData(serverCategories, allLocalCategories);
-      const enrichedServerExams = enrichWithLocalData(serverExams, allLocalExams);
-      const enrichedServerTests = enrichWithLocalData(serverTests, tests);
-
-      const allCourses = uniqueById([...courses, ...enrichedServerCourses]);
-      const allCategories = uniqueById([...allLocalCategories, ...enrichedServerCategories]);
-      const allExams = uniqueById([...allLocalExams, ...enrichedServerExams]);
-      const allTests = uniqueById([...tests, ...enrichedServerTests]);
-
-      return { 
-        courses: allCourses, 
-        categories: allCategories,
-        exams: allExams,
-        tests: allTests
-      };
-    }
-
-    // If no localStorage data, return server purchases
-    return { 
-      courses: uniqueById(serverCourses), 
-      categories: uniqueById(serverCategories),
-      exams: uniqueById(serverExams),
-      tests: uniqueById(serverTests)
-    };
   }
 
   // Calculate expiry date from validity string and purchase date
@@ -460,48 +293,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         }
         if (renewNoBtn) {
-          renewNoBtn.addEventListener('click', async () => {
-            const itemId = renewNoBtn.dataset.itemId;
-            const itemType = renewNoBtn.dataset.itemType;
-            
-            // Remove purchase from localStorage
-            try {
-              const userId = user && (user.id || user._id || user.userId || user.email);
-              if (!userId) return;
-              
-              let userPurchases = null;
-              try {
-                userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
-              } catch (e) {
-                userPurchases = {};
-              }
-              
-              if (userPurchases[userId]) {
-                // Remove from courses array (for courses, categories, exams)
-                if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
-                  userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                // Remove from tests array
-                else if (itemType === 'test') {
-                  userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                
-                localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
-                
-                // Refresh the dashboard display
-                await showMyCourses();
-              }
-            } catch (e) {
-              console.error('Error removing purchase:', e);
-            }
+          renewNoBtn.addEventListener('click', () => {
+            card.remove();
           });
         }
       }
@@ -606,48 +399,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         }
         if (renewNoBtn) {
-          renewNoBtn.addEventListener('click', async () => {
-            const itemId = renewNoBtn.dataset.itemId;
-            const itemType = renewNoBtn.dataset.itemType;
-            
-            // Remove purchase from localStorage
-            try {
-              const userId = user && (user.id || user._id || user.userId || user.email);
-              if (!userId) return;
-              
-              let userPurchases = null;
-              try {
-                userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
-              } catch (e) {
-                userPurchases = {};
-              }
-              
-              if (userPurchases[userId]) {
-                // Remove from courses array (for courses, categories, exams)
-                if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
-                  userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                // Remove from tests array
-                else if (itemType === 'test') {
-                  userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                
-                localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
-                
-                // Refresh the dashboard display
-                await showMyTests();
-              }
-            } catch (e) {
-              console.error('Error removing purchase:', e);
-            }
+          renewNoBtn.addEventListener('click', () => {
+            card.remove();
           });
         }
       }

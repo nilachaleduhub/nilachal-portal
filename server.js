@@ -183,6 +183,11 @@ const ExamDetailSchema = new mongoose.Schema({
   examSyllabusText: String,
   examSyllabusImagePath: String,
   cutoffImagePath: String,
+  cutoffs: [{
+    caption: String,
+    imagePath: String,
+    table: String
+  }],
   links: [{
     caption: String,
     url: String
@@ -1960,36 +1965,98 @@ app.delete('/api/admin/ads/:id', async (req, res) => {
 
 // --- Exam Details API Endpoints (Admin) ---
 
+const normalizeMediaPath = (value) => {
+  if (!value || typeof value !== 'string') return value || '';
+  let pathValue = value.replace(/\\/g, '/');
+  if (pathValue.startsWith('http://') || pathValue.startsWith('https://') || pathValue.startsWith('data:') || pathValue.startsWith('blob:')) {
+    return pathValue;
+  }
+  if (!pathValue.startsWith('/')) {
+    pathValue = '/' + pathValue.replace(/^\/+/, '');
+  }
+  return pathValue;
+};
+
+const normalizeCutoffEntries = (entries) => {
+  if (!Array.isArray(entries)) return [];
+  return entries.map(entry => ({
+    caption: (entry?.caption || '').trim(),
+    imagePath: entry?.imagePath ? normalizeMediaPath(entry.imagePath) : '',
+    table: entry?.table || ''
+  }));
+};
+
+const formatExamDetailResponse = (detail) => {
+  if (!detail) return null;
+  const plain = typeof detail.toObject === 'function' ? detail.toObject() : { ...detail };
+  const { examName, examNamedetails, ...rest } = plain;
+  
+  return {
+    ...rest,
+    aboutExamImagePath: normalizeMediaPath(rest.aboutExamImagePath || ''),
+    examSyllabusImagePath: normalizeMediaPath(rest.examSyllabusImagePath || ''),
+    cutoffImagePath: normalizeMediaPath(rest.cutoffImagePath || ''),
+    cutoffs: normalizeCutoffEntries(rest.cutoffs),
+    patterns: Array.isArray(rest.patterns)
+      ? rest.patterns.map(pattern => ({
+          ...pattern,
+          imagePath: normalizeMediaPath(pattern?.imagePath || '')
+        }))
+      : [],
+    examNamedetails: examNamedetails || examName || ''
+  };
+};
+
+const buildExamDetailIdQuery = (identifier) => {
+  if (!identifier) return null;
+  const idString = String(identifier);
+  if (mongoose.Types.ObjectId.isValid(idString) && idString.length === 24) {
+    return { $or: [{ id: idString }, { _id: new mongoose.Types.ObjectId(idString) }] };
+  }
+  return { id: idString };
+};
+
 // Get all exam details
 app.get('/api/admin/exam-details', async (req, res) => {
   try {
-      const rawDetails = await ExamDetail.find().sort({ examName: 1 }).lean();
-      
-      // Explicitly map data to guarantee 'examName' is included
-      const examDetails = rawDetails.map(detail => ({
-          id: detail.id, // Mongoose virtual ID
-          examName: detail.examName, // Guarantee correct property access
-          // Include all other required fields for the list view
-          updatedAt: detail.updatedAt,
-          createdAt: detail.createdAt,
-          // You may need to add more fields here if they are displayed in the list
-      }));
-      
-      res.json({ success: true, examDetails }); // Sends mapped list
+    const rawDetails = await ExamDetail.find().sort({ examName: 1 }).lean();
+    const examDetails = rawDetails.map(formatExamDetailResponse);
+    
+    res.json({ success: true, examDetails });
   } catch (err) { console.error(err); res.json({ success: false, message: 'Server error' }); }
+});
+
+// Get single exam detail (admin)
+app.get('/api/admin/exam-details/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const query = buildExamDetailIdQuery(id);
+    if (!query) {
+      return res.json({ success: false, message: 'Invalid exam detail identifier' });
+    }
+    const detail = await ExamDetail.findOne(query).lean();
+    if (!detail) {
+      return res.json({ success: false, message: 'Exam detail not found' });
+    }
+    res.json({ success: true, examDetail: formatExamDetailResponse(detail) });
+  } catch (err) {
+    console.error('Error fetching admin exam detail:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Create or update exam details
 app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
   try {
-    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable } = req.body || {};
+    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable, cutoffs } = req.body || {};
     
     // Extract and validate exam name with new approach
-    let examNameValue = null;
-    if (req.body && req.body.examName) {
-      examNameValue = req.body.examName.toString().replace(/^\s+|\s+$/g, '');
+    let examNamedetailsValue = null;
+    const rawExamNamedetails = (req.body && (req.body.examNamedetails ?? req.body.examName)) || null;
+    if (rawExamNamedetails) {
+      examNamedetailsValue = rawExamNamedetails.toString().replace(/^\s+|\s+$/g, '');
     }
-    if (!examNameValue || examNameValue.length < 1) {
+    if (!examNamedetailsValue || examNamedetailsValue.length < 1) {
       if (req.files) {
         Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
       }
@@ -1999,10 +2066,12 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
     let aboutExamImagePath = null;
     let examSyllabusImagePath = null;
     let cutoffImagePath = null;
+    let cutoffTableValue = cutoffTable || '';
 
     // Parse links and patterns from JSON strings
     let linksArray = [];
     let patternsArray = [];
+    let cutoffsArray = [];
     try {
       if (links) linksArray = typeof links === 'string' ? JSON.parse(links) : links;
       if (patterns) {
@@ -2012,10 +2081,19 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       } else {
         console.log('No patterns received in request body');
       }
+      if (cutoffs) {
+        cutoffsArray = typeof cutoffs === 'string' ? JSON.parse(cutoffs) : cutoffs;
+        console.log('Parsed cutoffs array:', JSON.stringify(cutoffsArray, null, 2));
+        console.log('Cutoffs array length:', cutoffsArray.length);
+      } else {
+        console.log('No cutoffs received in request body');
+      }
+      cutoffsArray = normalizeCutoffEntries(cutoffsArray);
     } catch (e) {
       console.error('Error parsing links or patterns:', e);
       console.error('Links value:', links);
       console.error('Patterns value:', patterns);
+      console.error('Cutoffs value:', cutoffs);
     }
 
     // Handle pattern images - find files with patternImage_ prefix
@@ -2030,29 +2108,40 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       });
     }
 
+    if (cutoffsArray && Array.isArray(cutoffsArray) && req.files) {
+      cutoffsArray.forEach((cutoff, index) => {
+        const cutoffFile = req.files.find(f => f.fieldname === `cutoffImage_${index}`);
+        if (cutoffFile) {
+          cutoff.imagePath = normalizeMediaPath(`/uploads/exam-details/${cutoffFile.filename}`);
+        }
+      });
+    }
+    cutoffsArray = normalizeCutoffEntries(cutoffsArray);
+
     // Extract main images from files array
     if (req.files) {
       const aboutExamFile = req.files.find(f => f.fieldname === 'aboutExamImage');
       const examSyllabusFile = req.files.find(f => f.fieldname === 'examSyllabusImage');
       const cutoffFile = req.files.find(f => f.fieldname === 'cutoffImage');
       
-      if (aboutExamFile) aboutExamImagePath = `/uploads/exam-details/${aboutExamFile.filename}`;
-      if (examSyllabusFile) examSyllabusImagePath = `/uploads/exam-details/${examSyllabusFile.filename}`;
-      if (cutoffFile) cutoffImagePath = `/uploads/exam-details/${cutoffFile.filename}`;
+      if (aboutExamFile) aboutExamImagePath = normalizeMediaPath(`/uploads/exam-details/${aboutExamFile.filename}`);
+      if (examSyllabusFile) examSyllabusImagePath = normalizeMediaPath(`/uploads/exam-details/${examSyllabusFile.filename}`);
+      if (cutoffFile) cutoffImagePath = normalizeMediaPath(`/uploads/exam-details/${cutoffFile.filename}`);
+    }
+
+    if (Array.isArray(cutoffsArray) && cutoffsArray.length > 0) {
+      if (!cutoffTableValue && cutoffsArray[0].table) {
+        cutoffTableValue = cutoffsArray[0].table;
+      }
+      if (!cutoffImagePath && cutoffsArray[0].imagePath) {
+        cutoffImagePath = cutoffsArray[0].imagePath;
+      }
     }
 
     if (id) {
-      // Build query to find by id field or _id (handle both string id and ObjectId _id)
-      let query;
-      // Check if id looks like a MongoDB ObjectId (24 hex characters)
-      if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
-        query = { $or: [{ id }, { _id: new mongoose.Types.ObjectId(id) }] };
-      } else {
-        query = { $or: [{ id }, { _id: id }] };
-      }
-      
+      const matchQuery = buildExamDetailIdQuery(id);
       // Update existing exam detail - try to find by id field first, then by _id
-      const existing = await ExamDetail.findOne(query);
+      const existing = matchQuery ? await ExamDetail.findOne(matchQuery) : null;
       if (!existing) {
         // Clean up uploaded files
         if (req.files) {
@@ -2062,8 +2151,8 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       }
       
       // Check if examName is being changed and if the new name already exists
-      if (existing.examName !== examNameValue) {
-        const duplicate = await ExamDetail.findOne({ examName: examNameValue });
+      if (existing.examName !== examNamedetailsValue) {
+        const duplicate = await ExamDetail.findOne({ examName: examNamedetailsValue });
         if (duplicate && String(duplicate._id) !== String(existing._id)) {
           // Clean up uploaded files
           if (req.files) {
@@ -2111,14 +2200,28 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
         });
       }
 
+      if (Array.isArray(existing.cutoffs)) {
+        existing.cutoffs.forEach((oldCutoff, index) => {
+          const newCutoff = Array.isArray(cutoffsArray) ? cutoffsArray[index] : null;
+          const newPath = newCutoff?.imagePath || '';
+          if (oldCutoff && oldCutoff.imagePath && oldCutoff.imagePath !== newPath) {
+            const oldPath = path.join(__dirname, oldCutoff.imagePath.replace(/^\//, ''));
+            if (fs.existsSync(oldPath)) {
+              try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old cutoff image:', e); }
+            }
+          }
+        });
+      }
+
       const updateData = {
-        examName: examNameValue,
+        examName: examNamedetailsValue,
         aboutExamText: aboutExamText || '',
         examSyllabusText: examSyllabusText || '',
         links: linksArray,
         patterns: patternsArray || [],
         syllabusTable: syllabusTable || '',
-        cutoffTable: cutoffTable || '',
+        cutoffTable: cutoffTableValue || '',
+        cutoffs: cutoffsArray || [],
         updatedAt: new Date()
       };
       
@@ -2128,21 +2231,14 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
       if (cutoffImagePath) updateData.cutoffImagePath = cutoffImagePath;
 
-      // Build update query - handle both string id and ObjectId _id
-      let updateQuery;
-      if (mongoose.Types.ObjectId.isValid(updateId) && String(updateId).length === 24) {
-        updateQuery = { $or: [{ id: updateId }, { _id: new mongoose.Types.ObjectId(updateId) }] };
-      } else {
-        updateQuery = { $or: [{ id: updateId }, { _id: updateId }] };
-      }
-
-      const updated = await ExamDetail.findOneAndUpdate(updateQuery, updateData, { new: true });
+      const updateQuery = buildExamDetailIdQuery(updateId);
+      const updated = await ExamDetail.findOneAndUpdate(updateQuery || { _id: existing._id }, updateData, { new: true });
       console.log('POST - Saved exam detail patterns:', JSON.stringify(updated?.patterns, null, 2));
       console.log('POST - Saved patterns count:', updated?.patterns?.length || 0);
-      res.json({ success: true, examDetail: updated });
+      res.json({ success: true, examDetail: formatExamDetailResponse(updated) });
     } else {
       // Check if exam name already exists before creating new entry
-      const existingExam = await ExamDetail.findOne({ examName: examNameValue });
+      const existingExam = await ExamDetail.findOne({ examName: examNamedetailsValue });
       if (existingExam) {
         // Clean up uploaded files
         if (req.files) {
@@ -2154,7 +2250,7 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       // Create new exam detail
       const newExamDetail = new ExamDetail({
         id: generateId('examdetail'),
-        examName: examNameValue,
+        examName: examNamedetailsValue,
         aboutExamText: aboutExamText || '',
         aboutExamImagePath,
         examSyllabusText: examSyllabusText || '',
@@ -2163,14 +2259,15 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
         links: linksArray,
         patterns: patternsArray || [],
         syllabusTable: syllabusTable || '',
-        cutoffTable: cutoffTable || ''
+        cutoffTable: cutoffTableValue || '',
+        cutoffs: cutoffsArray || []
       });
       
       console.log('POST - New exam detail patterns before save:', JSON.stringify(newExamDetail.patterns, null, 2));
       await newExamDetail.save();
       console.log('POST - Saved exam detail patterns:', JSON.stringify(newExamDetail.patterns, null, 2));
       console.log('POST - Saved patterns count:', newExamDetail.patterns?.length || 0);
-      res.json({ success: true, examDetail: newExamDetail });
+      res.json({ success: true, examDetail: formatExamDetailResponse(newExamDetail) });
     }
   } catch (err) {
     console.error('Error saving exam details:', err);
@@ -2194,11 +2291,12 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
     const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable } = req.body || {};
     
     // Extract and validate exam name with new approach
-    let examNameValue = null;
-    if (req.body && req.body.examName) {
-      examNameValue = req.body.examName.toString().replace(/^\s+|\s+$/g, '');
+    let examNamedetailsValue = null;
+    const rawExamNamedetails = (req.body && (req.body.examNamedetails ?? req.body.examName)) || null;
+    if (rawExamNamedetails) {
+      examNamedetailsValue = rawExamNamedetails.toString().replace(/^\s+|\s+$/g, '');
     }
-    if (!examNameValue || examNameValue.length < 1) {
+    if (!examNamedetailsValue || examNamedetailsValue.length < 1) {
       if (req.files) {
         Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
       }
@@ -2256,17 +2354,8 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
       return res.json({ success: false, message: 'ID required for update' });
     }
 
-    // Build query to find by id field or _id (handle both string id and ObjectId _id)
-    let query;
-    // Check if id looks like a MongoDB ObjectId (24 hex characters)
-    if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
-      query = { $or: [{ id }, { _id: new mongoose.Types.ObjectId(id) }] };
-    } else {
-      query = { $or: [{ id }, { _id: id }] };
-    }
-    
-    // Try to find by id field first, then by _id
-    const existing = await ExamDetail.findOne(query);
+    const matchQuery = buildExamDetailIdQuery(id);
+    const existing = matchQuery ? await ExamDetail.findOne(matchQuery) : null;
     if (!existing) {
       if (req.files) {
         Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
@@ -2275,8 +2364,8 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
     }
     
     // Check if examName is being changed and if the new name already exists
-    if (existing.examName !== examNameValue) {
-      const duplicate = await ExamDetail.findOne({ examName: examNameValue });
+    if (existing.examName !== examNamedetailsValue) {
+      const duplicate = await ExamDetail.findOne({ examName: examNamedetailsValue });
       if (duplicate && String(duplicate._id) !== String(existing._id)) {
         // Clean up uploaded files
         if (req.files) {
@@ -2323,7 +2412,7 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
     }
 
     const updateData = {
-      examName: examNameValue,
+      examName: examNamedetailsValue,
       aboutExamText: aboutExamText || '',
       examSyllabusText: examSyllabusText || '',
       links: linksArray,
@@ -2339,18 +2428,11 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
     if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
     if (cutoffImagePath) updateData.cutoffImagePath = cutoffImagePath;
 
-    // Build update query - handle both string id and ObjectId _id
-    let updateQuery;
-    if (mongoose.Types.ObjectId.isValid(updateId) && String(updateId).length === 24) {
-      updateQuery = { $or: [{ id: updateId }, { _id: new mongoose.Types.ObjectId(updateId) }] };
-    } else {
-      updateQuery = { $or: [{ id: updateId }, { _id: updateId }] };
-    }
-
-    const updated = await ExamDetail.findOneAndUpdate(updateQuery, updateData, { new: true });
+    const updateQuery = buildExamDetailIdQuery(updateId);
+    const updated = await ExamDetail.findOneAndUpdate(updateQuery || { _id: existing._id }, updateData, { new: true });
     console.log('PUT - Saved exam detail patterns:', JSON.stringify(updated?.patterns, null, 2));
     console.log('PUT - Saved patterns count:', updated?.patterns?.length || 0);
-    res.json({ success: true, examDetail: updated });
+    res.json({ success: true, examDetail: formatExamDetailResponse(updated) });
   } catch (err) {
     console.error('Error updating exam details:', err);
     if (req.files) {
@@ -2404,6 +2486,12 @@ app.delete('/api/admin/exam-details/:id', async (req, res) => {
       });
     }
 
+    if (Array.isArray(foundDoc.cutoffs)) {
+      foundDoc.cutoffs.forEach(cutoff => {
+        if (cutoff && cutoff.imagePath) filesToDelete.push(cutoff.imagePath);
+      });
+    }
+
     // Remove image files
     filesToDelete.forEach(filePath => {
       try {
@@ -2432,7 +2520,7 @@ app.delete('/api/admin/exam-details/:id', async (req, res) => {
 app.get('/api/exam-details', async (req, res) => {
   try {
     const examDetails = await ExamDetail.find().sort({ examName: 1 }).lean();
-    res.json({ success: true, examDetails });
+    res.json({ success: true, examDetails: examDetails.map(formatExamDetailResponse) });
   } catch (err) {
     console.error('Error fetching exam details:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -2447,7 +2535,7 @@ app.get('/api/exam-details/:id', async (req, res) => {
     if (!examDetail) {
       return res.json({ success: false, message: 'Exam detail not found' });
     }
-    res.json({ success: true, examDetail });
+    res.json({ success: true, examDetail: formatExamDetailResponse(examDetail) });
   } catch (err) {
     console.error('Error fetching exam detail:', err);
     res.status(500).json({ success: false, message: 'Server error' });

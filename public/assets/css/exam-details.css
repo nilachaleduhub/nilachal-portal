@@ -588,7 +588,8 @@
     accent-color: #8b5cf6;
 }
 
-.remove-pattern-btn {
+.remove-pattern-btn,
+.remove-cutoff-btn {
     margin-top: 15px;
     padding: 10px 20px;
     background: #e53e3e;
@@ -602,9 +603,67 @@
     width: 100%;
 }
 
-.remove-pattern-btn:hover {
+.remove-pattern-btn:hover,
+.remove-cutoff-btn:hover {
     background: #c53030;
     transform: translateY(-2px);
+}
+
+/* Cutoff Items */
+#cutoff-items-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.cutoff-item {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cutoff-item:hover {
+    border-color: #8b5cf6;
+    box-shadow: 0 2px 12px rgba(139, 92, 246, 0.15);
+}
+
+.cutoff-caption {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 12px;
+    transition: border-color 0.3s ease;
+}
+
+.cutoff-caption:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.cutoff-image {
+    width: 100%;
+    padding: 10px;
+    border: 2px dashed #cbd5e0;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.cutoff-image:hover {
+    border-color: #8b5cf6;
+}
+
+.cutoff-helper-text {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 0.85rem;
 }
 
 /* Responsive Design */

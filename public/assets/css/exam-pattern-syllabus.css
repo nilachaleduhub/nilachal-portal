@@ -343,6 +343,20 @@ body {
   border-bottom: none;
 }
 
+.cutoff-entry {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cutoff-entry h4 {
+  margin: 0 0 1rem 0;
+  color: #0a1931;
+  font-size: 1.25rem;
+}
+
 .section-content a {
   color: #8b5cf6;
   text-decoration: none;
