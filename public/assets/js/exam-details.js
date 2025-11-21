@@ -503,15 +503,16 @@ function addCutoffItem(data = {}) {
 
     const item = document.createElement('div');
     item.className = 'cutoff-item';
-    const storedPath = sanitizeMediaPath(data.imagePath || '');
-    item.dataset.imagePath = storedPath;
     item.innerHTML = `
         <input type="text" class="cutoff-caption" placeholder="Cut Off Caption">
-        <input type="file" class="cutoff-image" accept="image/*">
-        <small class="cutoff-helper-text">Upload cut off as an image</small>
-        <div class="cutoff-entry-image-preview image-preview" style="display: none;">
-            <img class="cutoff-entry-image-preview-img" src="" alt="Preview">
-            <button type="button" class="remove-image-btn" onclick="removeCutoffImagePreview(this)">Remove</button>
+        <small class="cutoff-helper-text">Add a short description for this cut off entry</small>
+        <div class="cutoff-image-field">
+            <label class="cutoff-image-label">Attach Cut Off Image (optional)</label>
+            <input type="file" class="cutoff-image" accept="image/*">
+            <div class="image-preview cutoff-entry-image-preview" style="display: none;">
+                <img class="cutoff-entry-image-preview-img" src="" alt="Preview">
+                <button type="button" class="remove-image-btn" onclick="removeCutoffImagePreview(this)">Remove</button>
+            </div>
         </div>
         <button type="button" class="remove-cutoff-btn" onclick="removeCutoffItem(this)" style="display: none;">Remove</button>
     `;
@@ -525,17 +526,21 @@ function addCutoffItem(data = {}) {
 
     const imageInput = item.querySelector('.cutoff-image');
     if (imageInput) {
-        imageInput.addEventListener('change', (e) => handleCutoffImageChange(item, e.target.files[0]));
+        imageInput.addEventListener('change', (e) => {
+            handleCutoffImageChange(item, e.target.files[0]);
+        });
     }
 
     const preview = item.querySelector('.cutoff-entry-image-preview');
-    const img = item.querySelector('.cutoff-entry-image-preview-img');
-    if (preview && img) {
+    const previewImg = item.querySelector('.cutoff-entry-image-preview-img');
+    const sanitizedPath = data.imagePath ? sanitizeMediaPath(data.imagePath) : '';
+    item.dataset.imagePath = sanitizedPath || '';
+    if (sanitizedPath && preview && previewImg) {
         applyExistingImagePreview({
             previewEl: preview,
-            imgEl: img,
+            imgEl: previewImg,
             datasetOwner: item,
-            rawPath: storedPath
+            rawPath: sanitizedPath
         });
     }
 
@@ -562,6 +567,7 @@ function removeCutoffImagePreview(btn) {
     const preview = btn.closest('.cutoff-entry-image-preview');
     const item = btn.closest('.cutoff-item');
     const imageInput = item?.querySelector('.cutoff-image');
+    const previewImg = preview?.querySelector('.cutoff-entry-image-preview-img');
 
     if (imageInput) {
         imageInput.value = '';
@@ -571,6 +577,9 @@ function removeCutoffImagePreview(btn) {
     }
     if (preview) {
         preview.style.display = 'none';
+    }
+    if (previewImg) {
+        previewImg.src = '';
     }
 }
 
@@ -604,7 +613,7 @@ function loadCutoffItemsFromExam(exam) {
         : (exam.cutoffImagePath ? [{ caption: '', imagePath: exam.cutoffImagePath }] : []);
     resetCutoffItemsUI(items.map(item => ({
         caption: item?.caption || '',
-        imagePath: sanitizeMediaPath(item?.imagePath || '')
+        imagePath: item?.imagePath || ''
     })));
 }
 
@@ -615,13 +624,22 @@ function getCutoffItemsData() {
         const caption = item.querySelector('.cutoff-caption')?.value.trim() || '';
         const imageInput = item.querySelector('.cutoff-image');
         const imageFile = imageInput?.files[0] || null;
-        const imagePath = sanitizeMediaPath(item.dataset.imagePath || '');
+
+        let imagePath = '';
+        if (item.dataset.imagePath) {
+            imagePath = sanitizeMediaPath(item.dataset.imagePath);
+        } else {
+            const previewImg = item.querySelector('.cutoff-entry-image-preview-img');
+            if (previewImg && previewImg.src && !previewImg.src.startsWith('data:') && !previewImg.src.startsWith('blob:')) {
+                imagePath = sanitizeMediaPath(previewImg.src);
+            }
+        }
 
         if (caption || imageFile || imagePath) {
             items.push({
                 caption,
-                imageFile,
-                imagePath
+                imageFile: imageFile || null,
+                imagePath: imageFile ? '' : (imagePath || '')
             });
         }
     });

@@ -243,8 +243,13 @@ const storage = multer.diskStorage({
       cb(null, thumbnailsDir);
     } else if (file.fieldname === 'poster') {
       cb(null, postersDir);
-    } else if (file.fieldname === 'aboutExamImage' || file.fieldname === 'examSyllabusImage' || 
-               file.fieldname === 'cutoffImage' || file.fieldname.startsWith('patternImage_')) {
+    } else if (
+      file.fieldname === 'aboutExamImage' ||
+      file.fieldname === 'examSyllabusImage' || 
+      file.fieldname === 'cutoffImage' ||
+      file.fieldname.startsWith('patternImage_') ||
+      file.fieldname.startsWith('cutoffImage_')
+    ) {
       cb(null, examDetailsDir);
     } else {
       cb(null, uploadsDir);
