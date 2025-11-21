@@ -5,87 +5,6 @@ const expiryScript = document.createElement('script');
 expiryScript.src = 'assets/js/expiry-utils.js';
 document.head.appendChild(expiryScript);
 
-const PURCHASE_CACHE_KEY = 'dashboardPurchaseCache';
-
-function mapPurchasesForCache(purchases = []) {
-  const normalized = { courses: [], tests: [] };
-  purchases.filter(Boolean).forEach(purchase => {
-    const base = {
-      id: purchase.purchaseId,
-      name: purchase.purchaseName || '',
-      purchaseType: purchase.purchaseType,
-      categoryId: purchase.categoryId || null,
-      courseValidity: purchase.courseValidity || null,
-      purchasedAt: purchase.purchasedAt ? (typeof purchase.purchasedAt === 'string' ? purchase.purchasedAt : new Date(purchase.purchasedAt).toISOString()) : null,
-      expiresAt: purchase.expiresAt ? (typeof purchase.expiresAt === 'string' ? purchase.expiresAt : new Date(purchase.expiresAt).toISOString()) : null,
-      status: purchase.status || 'completed'
-    };
-    if (purchase.purchaseType === 'test') {
-      normalized.tests.push(base);
-    } else {
-      normalized.courses.push(base);
-    }
-  });
-  return normalized;
-}
-
-async function ensurePurchaseCacheLoaded() {
-  const userStr = localStorage.getItem('user');
-  if (!userStr) return;
-  let user = null;
-  try {
-    user = JSON.parse(userStr);
-  } catch (err) {
-    console.warn('Unable to parse user object for recommendations', err);
-    return;
-  }
-  const userId = user && (user.id || user._id || user.userId || user.email);
-  if (!userId) return;
-
-  window.__purchaseCachePromises = window.__purchaseCachePromises || {};
-  window.__purchaseCache = window.__purchaseCache || {};
-
-  if (window.__purchaseCache[userId]) return;
-  if (window.__purchaseCachePromises[userId]) {
-    await window.__purchaseCachePromises[userId];
-    return;
-  }
-
-  window.__purchaseCachePromises[userId] = (async () => {
-    try {
-      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true`, {
-        headers: { 'Cache-Control': 'no-store' }
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.purchases)) {
-        const normalized = mapPurchasesForCache(data.purchases);
-        if (typeof window.__setCachedPurchasesForUser === 'function') {
-          window.__setCachedPurchasesForUser(userId, normalized);
-        } else {
-          window.__purchaseCache[userId] = normalized;
-          try {
-            const cache = JSON.parse(localStorage.getItem(PURCHASE_CACHE_KEY) || '{}');
-            cache[userId] = normalized;
-            localStorage.setItem(PURCHASE_CACHE_KEY, JSON.stringify(cache));
-          } catch (err) {
-            console.warn('Unable to persist purchase cache fallback', err);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to preload purchases for recommendations', err);
-    } finally {
-      delete window.__purchaseCachePromises[userId];
-    }
-  })();
-
-  try {
-    await window.__purchaseCachePromises[userId];
-  } catch (err) {
-    console.warn('Purchase cache preload promise rejected', err);
-  }
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
   // Tab switching functionality
   const tabButtons = document.querySelectorAll('.tab-btn');
@@ -111,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  await ensurePurchaseCacheLoaded();
+  // Load recommended tests on page load
   loadRecommendedTests();
 });
 
@@ -120,7 +39,6 @@ async function loadRecommendedTests() {
   if (!container) return;
 
   try {
-    await ensurePurchaseCacheLoaded();
     const allRecommendations = [];
     
     // 1. Fetch categories (which contain test series) - use public API
@@ -242,7 +160,6 @@ async function loadRecommendedCourses() {
   if (!container) return;
 
   try {
-    await ensurePurchaseCacheLoaded();
     // Try to fetch course categories - use public API if available, fallback to admin
     let catRes;
     let catData;

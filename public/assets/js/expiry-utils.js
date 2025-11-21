@@ -1,40 +1,8 @@
 // expiry-utils.js - Shared utility functions for checking purchase expiry
 
-const PURCHASE_CACHE_KEY = 'dashboardPurchaseCache';
-window.__purchaseCache = window.__purchaseCache || {};
-
-function getCachedPurchasesForUser(userId) {
-  if (!userId) return null;
-  if (window.__purchaseCache[userId]) {
-    return window.__purchaseCache[userId];
-  }
-  try {
-    const cache = JSON.parse(localStorage.getItem(PURCHASE_CACHE_KEY) || '{}');
-    if (cache && cache[userId]) {
-      window.__purchaseCache[userId] = cache[userId];
-      return cache[userId];
-    }
-  } catch (err) {
-    console.warn('Failed to read dashboard purchase cache', err);
-  }
-  return null;
-}
-
-function setCachedPurchasesForUser(userId, data) {
-  if (!userId || !data) return;
-  window.__purchaseCache[userId] = data;
-  try {
-    const cache = JSON.parse(localStorage.getItem(PURCHASE_CACHE_KEY) || '{}');
-    cache[userId] = data;
-    localStorage.setItem(PURCHASE_CACHE_KEY, JSON.stringify(cache));
-  } catch (err) {
-    console.warn('Failed to persist dashboard purchase cache', err);
-  }
-}
-
-window.__setCachedPurchasesForUser = setCachedPurchasesForUser;
-window.__getCachedPurchasesForUser = getCachedPurchasesForUser;
-
+/**
+ * Calculate expiry date from validity string and purchase date
+ */
 function calculateExpiryDate(validityStr, purchaseDateStr) {
   if (!validityStr || !purchaseDateStr) return null;
   
@@ -78,6 +46,10 @@ function isPurchaseExpired(courseValidity, purchasedAt) {
   return expiryDate < new Date();
 }
 
+/**
+ * Check if user has purchased and not expired for a specific item
+ * Returns { hasAccess: boolean, isExpired: boolean, purchase: object|null }
+ */
 function checkPurchaseAccess(itemId, itemType, categoryId = null) {
   try {
     const userStr = localStorage.getItem('user');
@@ -87,12 +59,10 @@ function checkPurchaseAccess(itemId, itemType, categoryId = null) {
     const userId = user.id || user._id || user.email;
     if (!userId) return { hasAccess: false, isExpired: false, purchase: null };
     
-    let userPurchaseData = getCachedPurchasesForUser(userId);
-    if (!userPurchaseData) {
-      const legacyPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
-      userPurchaseData = legacyPurchases[userId];
-    }
-
+    // Check localStorage purchases
+    const userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+    const userPurchaseData = userPurchases[userId];
+    
     if (userPurchaseData) {
       const allPurchases = [
         ...(userPurchaseData.courses || []),

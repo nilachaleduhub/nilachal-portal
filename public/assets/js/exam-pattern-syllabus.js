@@ -3,39 +3,6 @@
 let allExamDetails = [];
 let currentExamDetails = null;
 
-function normalizeMediaPath(path) {
-  return path ? path.replace(/\\/g, '/') : '';
-}
-
-function sanitizeMediaPath(path) {
-  if (!path) return '';
-  path = normalizeMediaPath(path);
-  if (path.startsWith('blob:') || path.startsWith('data:')) {
-    return path;
-  }
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    try {
-      const url = new URL(path);
-      if (url.origin === window.location.origin) {
-        return url.pathname || '';
-      }
-      return path;
-    } catch (err) {
-      return path;
-    }
-  }
-  return path.startsWith('/') ? path : '/' + path;
-}
-
-function buildMediaUrl(path) {
-  const sanitized = sanitizeMediaPath(path);
-  if (!sanitized) return '';
-  if (sanitized.startsWith('http://') || sanitized.startsWith('https://') || sanitized.startsWith('data:') || sanitized.startsWith('blob:')) {
-    return sanitized;
-  }
-  return sanitized.startsWith('/') ? sanitized : '/' + sanitized;
-}
-
 // Initialize page
 document.addEventListener('DOMContentLoaded', async () => {
   // Check if exam ID is in URL
@@ -96,7 +63,7 @@ function displayExamList(exams) {
       <div class="exam-card-icon">
         <i class="fas fa-clipboard-list"></i>
       </div>
-      <h3>${escapeHtml(exam.examNamedetails || 'Unnamed Exam')}</h3>
+      <h3>${escapeHtml(exam.examName || 'Unnamed Exam')}</h3>
       <a href="exam-pattern-syllabus.html?examId=${encodeURIComponent(exam._id || exam.id)}" class="view-details-btn">
         <i class="fas fa-eye"></i> View Details
       </a>
@@ -128,7 +95,7 @@ function displayExamDetails(exam) {
   // 1. Exam Name
   const examNameTitle = document.getElementById('exam-name-title');
   if (examNameTitle) {
-    examNameTitle.innerHTML = `<i class="fas fa-certificate"></i> ${escapeHtml(exam.examNamedetails || 'Exam')}`;
+    examNameTitle.innerHTML = `<i class="fas fa-certificate"></i> ${escapeHtml(exam.examName || 'Exam')}`;
   }
 
   // 2. About Exam
@@ -139,8 +106,7 @@ function displayExamDetails(exam) {
       html += `<div class="text-content">${formatText(exam.aboutExamText)}</div>`;
     }
     if (exam.aboutExamImagePath) {
-      const imagePath = buildMediaUrl(exam.aboutExamImagePath);
-      html += `<img src="${escapeHtml(imagePath)}" alt="About Exam" />`;
+      html += `<img src="${exam.aboutExamImagePath}" alt="About Exam" />`;
     }
     aboutExamContent.innerHTML = html || '<div class="no-content">No information available</div>';
   }
@@ -178,7 +144,7 @@ function displayExamDetails(exam) {
           html += `<div class="text-content">${formatText(pattern.text)}</div>`;
         } else if (pattern.type === 'picture' && pattern.imagePath) {
           // Ensure image path is correct and add proper styling
-          const imagePath = buildMediaUrl(pattern.imagePath);
+          const imagePath = pattern.imagePath.startsWith('/') ? pattern.imagePath : '/' + pattern.imagePath;
           html += `<div style="margin-top: 1rem;">
             <img src="${escapeHtml(imagePath)}" alt="${escapeHtml(pattern.caption || 'Pattern Image')}" 
                  style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);" 
@@ -207,8 +173,7 @@ function displayExamDetails(exam) {
       html += `<div class="text-content">${formatText(exam.examSyllabusText)}</div>`;
     }
     if (exam.examSyllabusImagePath) {
-      const imagePath = buildMediaUrl(exam.examSyllabusImagePath);
-      html += `<img src="${escapeHtml(imagePath)}" alt="Exam Syllabus" />`;
+      html += `<img src="${exam.examSyllabusImagePath}" alt="Exam Syllabus" />`;
     }
     if (exam.syllabusTable) {
       html += `<div class="table-wrapper">${exam.syllabusTable}</div>`;
@@ -220,20 +185,8 @@ function displayExamDetails(exam) {
   const cutoffContent = document.getElementById('cutoff-content');
   if (cutoffContent) {
     let html = '';
-    if (exam.cutoffs && Array.isArray(exam.cutoffs) && exam.cutoffs.length > 0) {
-      exam.cutoffs.forEach(cutoff => {
-        const caption = cutoff.caption ? `<h4>${escapeHtml(cutoff.caption)}</h4>` : '';
-        let imageMarkup = '';
-        if (cutoff.imagePath) {
-          const imagePath = buildMediaUrl(cutoff.imagePath);
-          imageMarkup = `<img src="${escapeHtml(imagePath)}" alt="${escapeHtml(cutoff.caption || 'Previous Year Cut Off')}" />`;
-        }
-        const tableMarkup = cutoff.table ? `<div class="table-wrapper">${cutoff.table}</div>` : '';
-        html += `<div class="cutoff-entry">${caption}${imageMarkup}${tableMarkup}</div>`;
-      });
-    } else if (exam.cutoffImagePath) {
-      const fallbackPath = buildMediaUrl(exam.cutoffImagePath);
-      html += `<img src="${fallbackPath}" alt="Previous Year Cut Off" />`;
+    if (exam.cutoffImagePath) {
+      html += `<img src="${exam.cutoffImagePath}" alt="Previous Year Cut Off" />`;
     }
     if (exam.cutoffTable) {
       html += `<div class="table-wrapper">${exam.cutoffTable}</div>`;

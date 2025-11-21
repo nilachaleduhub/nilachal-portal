@@ -6,55 +6,6 @@ let syllabusTableHTML = '';
 let cutoffTableHTML = '';
 let examPatterns = []; // Array to store pattern HTML for each pattern item
 
-// Media path helpers
-function normalizeMediaPath(path) {
-    return path ? path.replace(/\\/g, '/') : '';
-}
-
-function sanitizeMediaPath(path) {
-    if (!path) return '';
-    const normalized = normalizeMediaPath(path);
-    if (normalized.startsWith('blob:') || normalized.startsWith('data:')) {
-        return '';
-    }
-    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-        try {
-            const url = new URL(normalized);
-            if (url.origin === window.location.origin) {
-                return url.pathname || '';
-            }
-            return normalized;
-        } catch (err) {
-            return normalized;
-        }
-    }
-    return normalized.startsWith('/') ? normalized : '/' + normalized;
-}
-
-function buildMediaUrl(path) {
-    const sanitized = sanitizeMediaPath(path);
-    if (!sanitized) return '';
-    if (sanitized.startsWith('http://') || sanitized.startsWith('https://') || sanitized.startsWith('data:') || sanitized.startsWith('blob:')) {
-        return sanitized;
-    }
-    return sanitized.startsWith('/') ? sanitized : '/' + sanitized;
-}
-
-function applyExistingImagePreview({ previewEl, imgEl, datasetOwner, rawPath }) {
-    if (!previewEl || !imgEl || !datasetOwner) return;
-    const sanitizedPath = sanitizeMediaPath(rawPath || '');
-    const displayUrl = buildMediaUrl(sanitizedPath);
-    if (sanitizedPath && displayUrl) {
-        imgEl.src = displayUrl;
-        previewEl.style.display = 'block';
-        datasetOwner.dataset.imagePath = sanitizedPath;
-    } else {
-        imgEl.src = '';
-        previewEl.style.display = 'none';
-        datasetOwner.dataset.imagePath = '';
-    }
-}
-
 // Helper function to get admin token
 function getAdminToken() {
     return localStorage.getItem('adminToken');
@@ -145,15 +96,13 @@ function initializeExamDetails() {
     // Image preview handlers
     setupImagePreview('about-exam-image', 'about-exam-image-preview', 'about-exam-image-preview-img');
     setupImagePreview('exam-syllabus-image', 'exam-syllabus-image-preview', 'exam-syllabus-image-preview-img');
+    setupImagePreview('cutoff-image', 'cutoff-image-preview', 'cutoff-image-preview-img');
 
     // Link input handlers
     setupLinkInputs();
     
     // Pattern input handlers
     setupPatternInputs();
-
-    // Cutoff items setup
-    resetCutoffItemsUI();
 }
 
 // Setup image preview
@@ -484,168 +433,6 @@ function cancelPatternTable(btn) {
     }
 }
 
-// Cutoff items helpers
-function resetCutoffItemsUI(items = []) {
-    const container = document.getElementById('cutoff-items-container');
-    if (!container) return;
-    container.innerHTML = '';
-    if (Array.isArray(items) && items.length > 0) {
-        items.forEach(item => addCutoffItem(item));
-    } else {
-        addCutoffItem();
-    }
-    ensureCutoffRemoveButtons();
-}
-
-function addCutoffItem(data = {}) {
-    const container = document.getElementById('cutoff-items-container');
-    if (!container) return;
-
-    const item = document.createElement('div');
-    item.className = 'cutoff-item';
-    item.innerHTML = `
-        <input type="text" class="cutoff-caption" placeholder="Cut Off Caption">
-        <small class="cutoff-helper-text">Add a short description for this cut off entry</small>
-        <div class="cutoff-image-field">
-            <label class="cutoff-image-label">Attach Cut Off Image (optional)</label>
-            <input type="file" class="cutoff-image" accept="image/*">
-            <div class="image-preview cutoff-entry-image-preview" style="display: none;">
-                <img class="cutoff-entry-image-preview-img" src="" alt="Preview">
-                <button type="button" class="remove-image-btn" onclick="removeCutoffImagePreview(this)">Remove</button>
-            </div>
-        </div>
-        <button type="button" class="remove-cutoff-btn" onclick="removeCutoffItem(this)" style="display: none;">Remove</button>
-    `;
-
-    container.appendChild(item);
-
-    const captionInput = item.querySelector('.cutoff-caption');
-    if (captionInput && data.caption) {
-        captionInput.value = data.caption;
-    }
-
-    const imageInput = item.querySelector('.cutoff-image');
-    if (imageInput) {
-        imageInput.addEventListener('change', (e) => {
-            handleCutoffImageChange(item, e.target.files[0]);
-        });
-    }
-
-    const preview = item.querySelector('.cutoff-entry-image-preview');
-    const previewImg = item.querySelector('.cutoff-entry-image-preview-img');
-    const sanitizedPath = data.imagePath ? sanitizeMediaPath(data.imagePath) : '';
-    item.dataset.imagePath = sanitizedPath || '';
-    if (sanitizedPath && preview && previewImg) {
-        applyExistingImagePreview({
-            previewEl: preview,
-            imgEl: previewImg,
-            datasetOwner: item,
-            rawPath: sanitizedPath
-        });
-    }
-
-    ensureCutoffRemoveButtons();
-}
-
-function handleCutoffImageChange(item, file) {
-    if (!item || !file) return;
-    const preview = item.querySelector('.cutoff-entry-image-preview');
-    const img = item.querySelector('.cutoff-entry-image-preview-img');
-
-    if (preview && img) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            img.src = event.target.result;
-            preview.style.display = 'block';
-            item.dataset.imagePath = '';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function removeCutoffImagePreview(btn) {
-    const preview = btn.closest('.cutoff-entry-image-preview');
-    const item = btn.closest('.cutoff-item');
-    const imageInput = item?.querySelector('.cutoff-image');
-    const previewImg = preview?.querySelector('.cutoff-entry-image-preview-img');
-
-    if (imageInput) {
-        imageInput.value = '';
-    }
-    if (item) {
-        item.dataset.imagePath = '';
-    }
-    if (preview) {
-        preview.style.display = 'none';
-    }
-    if (previewImg) {
-        previewImg.src = '';
-    }
-}
-
-function removeCutoffItem(btn) {
-    const item = btn.closest('.cutoff-item');
-    const container = item?.parentElement;
-    if (!item || !container) return;
-
-    item.remove();
-    if (container.children.length === 0) {
-        addCutoffItem();
-    }
-    ensureCutoffRemoveButtons();
-}
-
-function ensureCutoffRemoveButtons() {
-    const container = document.getElementById('cutoff-items-container');
-    if (!container) return;
-    const items = container.querySelectorAll('.cutoff-item');
-    items.forEach(item => {
-        const removeBtn = item.querySelector('.remove-cutoff-btn');
-        if (removeBtn) {
-            removeBtn.style.display = items.length > 1 ? 'block' : 'none';
-        }
-    });
-}
-
-function loadCutoffItemsFromExam(exam) {
-    const items = Array.isArray(exam.cutoffs) && exam.cutoffs.length > 0
-        ? exam.cutoffs
-        : (exam.cutoffImagePath ? [{ caption: '', imagePath: exam.cutoffImagePath }] : []);
-    resetCutoffItemsUI(items.map(item => ({
-        caption: item?.caption || '',
-        imagePath: item?.imagePath || ''
-    })));
-}
-
-function getCutoffItemsData() {
-    const items = [];
-    const cutoffItems = document.querySelectorAll('.cutoff-item');
-    cutoffItems.forEach(item => {
-        const caption = item.querySelector('.cutoff-caption')?.value.trim() || '';
-        const imageInput = item.querySelector('.cutoff-image');
-        const imageFile = imageInput?.files[0] || null;
-
-        let imagePath = '';
-        if (item.dataset.imagePath) {
-            imagePath = sanitizeMediaPath(item.dataset.imagePath);
-        } else {
-            const previewImg = item.querySelector('.cutoff-entry-image-preview-img');
-            if (previewImg && previewImg.src && !previewImg.src.startsWith('data:') && !previewImg.src.startsWith('blob:')) {
-                imagePath = sanitizeMediaPath(previewImg.src);
-            }
-        }
-
-        if (caption || imageFile || imagePath) {
-            items.push({
-                caption,
-                imageFile: imageFile || null,
-                imagePath: imageFile ? '' : (imagePath || '')
-            });
-        }
-    });
-    return items;
-}
-
 // Get patterns data
 function getPatternsData() {
     const patterns = [];
@@ -676,13 +463,13 @@ function getPatternsData() {
             // Always check for existing image path (when editing or when no new file uploaded)
             // First check if there's a stored image path in dataset
             if (item.dataset.imagePath) {
-                pattern.imagePath = sanitizeMediaPath(item.dataset.imagePath);
+                pattern.imagePath = item.dataset.imagePath;
                 console.log('Pattern picture path from dataset:', pattern.imagePath);
             } else {
                 // Fallback to checking preview image src
                 const previewImg = item.querySelector('.pattern-image-preview-img');
                 if (previewImg && previewImg.src && !previewImg.src.startsWith('data:') && !previewImg.src.startsWith('blob:')) {
-                    pattern.imagePath = sanitizeMediaPath(previewImg.src);
+                    pattern.imagePath = previewImg.src;
                     console.log('Pattern picture path from preview:', pattern.imagePath);
                 }
             }
@@ -845,45 +632,45 @@ async function handleExamDetailsSubmit(e) {
     const form = e.target;
     
     // Get form values - try multiple methods to ensure we get the value
-    const examNamedetailsInput = document.getElementById('exam-name-details');
-    let examNamedetails = '';
+    const examNameInput = document.getElementById('exam-name');
+    let examName = '';
     
-    if (examNamedetailsInput) {
-        examNamedetails = examNamedetailsInput.value ? examNamedetailsInput.value.trim() : '';
-        console.log('Exam name from input element (raw):', examNamedetailsInput.value);
-        console.log('Exam name from input element (trimmed):', examNamedetails);
+    if (examNameInput) {
+        examName = examNameInput.value ? examNameInput.value.trim() : '';
+        console.log('Exam name from input element (raw):', examNameInput.value);
+        console.log('Exam name from input element (trimmed):', examName);
     }
     
     // Fallback: try to get from form data if input element method didn't work
-    if (!examNamedetails || examNamedetails.length === 0) {
+    if (!examName || examName.length === 0) {
         const formDataCheck = new FormData(form);
-        const examNamedetailsFromForm = formDataCheck.get('exam-name-details');
-        if (examNamedetailsFromForm) {
-            examNamedetails = examNamedetailsFromForm.trim();
-            console.log('Exam name from FormData:', examNamedetails);
+        const examNameFromForm = formDataCheck.get('exam-name');
+        if (examNameFromForm) {
+            examName = examNameFromForm.trim();
+            console.log('Exam name from FormData:', examName);
         }
     }
     
     // Final validation
-    if (!examNamedetails || examNamedetails.length === 0) {
+    if (!examName || examName.length === 0) {
         alert('Please enter an exam name');
-        if (examNamedetailsInput) {
-            examNamedetailsInput.focus();
+        if (examNameInput) {
+            examNameInput.focus();
         }
         return;
     }
     
-    console.log('Final exam name being used:', examNamedetails);
+    console.log('Final exam name being used:', examName);
     
     const examDetails = {
-        examNamedetails: examNamedetails,
+        examName: examName,
         aboutExamText: document.getElementById('about-exam-text')?.value.trim() || '',
         aboutExamImage: document.getElementById('about-exam-image')?.files[0] || null,
         examSyllabusText: document.getElementById('exam-syllabus-text')?.value.trim() || '',
         examSyllabusImage: document.getElementById('exam-syllabus-image')?.files[0] || null,
+        cutoffImage: document.getElementById('cutoff-image')?.files[0] || null,
         links: getLinksData(),
         patterns: getPatternsData(),
-        cutoffItems: getCutoffItemsData(),
         syllabusTable: syllabusTableHTML,
         cutoffTable: cutoffTableHTML
     };
@@ -942,7 +729,7 @@ async function handleExamDetailsSubmit(e) {
 
     // Build FormData for file uploads
     const submitData = new FormData();
-    submitData.append('examNamedetails', examDetails.examNamedetails);
+    submitData.append('examName', examDetails.examName);
     submitData.append('aboutExamText', examDetails.aboutExamText || '');
     submitData.append('examSyllabusText', examDetails.examSyllabusText || '');
     submitData.append('links', JSON.stringify(examDetails.links));
@@ -982,33 +769,20 @@ async function handleExamDetailsSubmit(e) {
         }
     });
     
-    const cutoffItemsForJson = examDetails.cutoffItems.map((item, index) => {
-        const payload = {
-            caption: item.caption || '',
-            imagePath: item.imagePath || ''
-        };
-        console.log(`Cutoff item ${index} data:`, payload);
-        return payload;
-    });
-    submitData.append('cutoffs', JSON.stringify(cutoffItemsForJson));
-
-    examDetails.cutoffItems.forEach((item, index) => {
-        if (item.imageFile) {
-            submitData.append(`cutoffImage_${index}`, item.imageFile);
-        }
-    });
-
     submitData.append('syllabusTable', examDetails.syllabusTable);
     submitData.append('cutoffTable', examDetails.cutoffTable);
     
-    // Debug: Log examNamedetails being sent
-    console.log('Sending examNamedetails:', examDetails.examNamedetails);
+    // Debug: Log examName being sent
+    console.log('Sending examName:', examDetails.examName);
     
     if (examDetails.aboutExamImage) {
         submitData.append('aboutExamImage', examDetails.aboutExamImage);
     }
     if (examDetails.examSyllabusImage) {
         submitData.append('examSyllabusImage', examDetails.examSyllabusImage);
+    }
+    if (examDetails.cutoffImage) {
+        submitData.append('cutoffImage', examDetails.cutoffImage);
     }
     
     if (currentEditingId) {
@@ -1017,15 +791,14 @@ async function handleExamDetailsSubmit(e) {
 
     try {
         const response = await adminFetch('/api/admin/exam-details', {
-            method: 'POST',
+            method: currentEditingId ? 'PUT' : 'POST',
             body: submitData
         });
 
         const result = await response.json();
         
         if (result.success) {
-            const successMessage = currentEditingId ? 'Exam details updated successfully!' : 'Exam details saved successfully!';
-            alert(successMessage);
+            alert('Exam details saved successfully!');
             resetExamDetailsForm();
             loadExamDetails();
         } else {
@@ -1092,10 +865,9 @@ function displayExamDetailsList(exams) {
     exams.forEach(exam => {
         // Use id field if available, otherwise use _id
         const examId = exam.id || exam._id;
-        const examNamedetailsDisplay = exam.examNamedetails || 'Unnamed Exam';
         html += `
             <div class="exam-details-card">
-                <h4>${escapeHtml(examNamedetailsDisplay)}</h4>
+                <h4>${escapeHtml(exam.examName || 'Unnamed Exam')}</h4>
                 <div class="exam-details-actions">
                     <button class="btn-edit" onclick="editExamDetails('${examId}')">Edit</button>
                     <button class="btn-delete" onclick="deleteExamDetails('${examId}')">Delete</button>
@@ -1125,8 +897,7 @@ async function editExamDetails(id) {
     for (let i = 0; i < examDetailsData.length; i++) {
         const e = examDetailsData[i];
         const examId = e.id ? String(e.id) : (e._id ? String(e._id) : null);
-        const logName = e.examNamedetails;
-        console.log(`Exam ${i}: id=${e.id}, _id=${e._id}, examId=${examId}, examNamedetails=${logName}, match=${examId === idStr}`);
+        console.log(`Exam ${i}: id=${e.id}, _id=${e._id}, examId=${examId}, examName=${e.examName}, match=${examId === idStr}`);
         if (examId === idStr) {
             exam = e;
             console.log('FOUND MATCHING EXAM:', JSON.stringify(exam, null, 2));
@@ -1136,22 +907,9 @@ async function editExamDetails(id) {
     
     if (!exam) {
         console.error('Exam not found for id:', id);
-        console.error('Available exams:', examDetailsData.map(e => ({ id: e.id, _id: e._id, examNamedetails: e.examNamedetails })));
+        console.error('Available exams:', examDetailsData.map(e => ({ id: e.id, _id: e._id, examName: e.examName })));
         alert('Exam not found. Please refresh the page and try again.');
         return;
-    }
-
-    // Fetch full exam details from server to ensure media data is present
-    try {
-        const detailResponse = await adminFetch(`/api/admin/exam-details/${idStr}`);
-        const detailResult = await detailResponse.json();
-        if (detailResult.success && detailResult.examDetail) {
-            exam = detailResult.examDetail;
-        } else {
-            console.warn('Could not fetch detailed exam record for id:', idStr, detailResult.message);
-        }
-    } catch (detailErr) {
-        console.warn('Error fetching detailed exam record:', detailErr);
     }
 
     // Use the id field (not _id) for server lookup - prioritize id field
@@ -1160,12 +918,12 @@ async function editExamDetails(id) {
     currentEditingId = String(exam.id || exam._id);
     
     console.log('Current editing ID:', currentEditingId);
-    console.log('Exam object examNamedetails field:', exam.examNamedetails);
+    console.log('Exam object examName field:', exam.examName);
     console.log('Exam object keys:', Object.keys(exam));
     console.log('Full exam object:', JSON.stringify(exam, null, 2));
     
     // If exam name is missing, try to fetch from server
-    if (!exam.examNamedetails) {
+    if (!exam.examName) {
         console.log('WARNING: Exam name missing in local data, fetching from server...');
         try {
             const fetchResponse = await adminFetch(`/api/admin/exam-details`);
@@ -1177,11 +935,11 @@ async function editExamDetails(id) {
                 });
                 if (serverExam) {
                     console.log('Server exam found:', JSON.stringify(serverExam, null, 2));
-                    if (serverExam.examNamedetails) {
-                        exam.examNamedetails = serverExam.examNamedetails;
-                        console.log('Fetched exam name from server:', exam.examNamedetails);
+                    if (serverExam.examName) {
+                        exam.examName = serverExam.examName;
+                        console.log('Fetched exam name from server:', exam.examName);
                     } else {
-                        console.error('Server exam also missing examNamedetails!');
+                        console.error('Server exam also missing examName!');
                     }
                 } else {
                     console.error('Server exam not found for id:', idStr);
@@ -1191,23 +949,23 @@ async function editExamDetails(id) {
             console.warn('Could not fetch exam from server:', fetchErr);
         }
     } else {
-        console.log('Exam name found in local data:', exam.examNamedetails);
+        console.log('Exam name found in local data:', exam.examName);
     }
 
     // START SIMPLIFIED EXAM NAME SETTING
-    const examNamedetailsInput = document.getElementById('exam-name-details');
-    const examNameToSet = exam.examNamedetails || exam.exam_name || exam.name || '';
+    const examNameInput = document.getElementById('exam-name');
+    const examNameToSet = exam.examName || exam.exam_name || exam.name || '';
 
-    if (examNamedetailsInput) {
+    if (examNameInput) {
         // Set the value directly
-        examNamedetailsInput.value = examNameToSet;
-        examNamedetailsInput.defaultValue = examNameToSet;
+        examNameInput.value = examNameToSet;
+        examNameInput.defaultValue = examNameToSet;
 
         // Trigger events to ensure form recognizes the change
-        examNamedetailsInput.dispatchEvent(new Event('input', { bubbles: true }));
-        examNamedetailsInput.dispatchEvent(new Event('change', { bubbles: true }));
+        examNameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        examNameInput.dispatchEvent(new Event('change', { bubbles: true }));
         
-        console.log('SIMPLIFIED: Exam name set to:', examNamedetailsInput.value);
+        console.log('SIMPLIFIED: Exam name set to:', examNameInput.value);
     } else {
         console.error('SIMPLIFIED: Exam Name Input element not found!');
     }
@@ -1240,7 +998,14 @@ async function editExamDetails(id) {
             preview.style.display = 'block';
         }
     }
-    loadCutoffItemsFromExam(exam);
+    if (exam.cutoffImagePath) {
+        const img = document.getElementById('cutoff-image-preview-img');
+        const preview = document.getElementById('cutoff-image-preview');
+        if (img && preview) {
+            img.src = exam.cutoffImagePath;
+            preview.style.display = 'block';
+        }
+    }
 
     // Load links
     if (exam.links && Array.isArray(exam.links) && exam.links.length > 0) {
@@ -1308,12 +1073,15 @@ async function editExamDetails(id) {
                             const previewImg = lastItem.querySelector('.pattern-image-preview-img');
                             const preview = lastItem.querySelector('.pattern-image-preview');
                             if (previewImg && preview) {
-                                const storedPath = sanitizeMediaPath(pattern.imagePath);
-                                const displayPath = buildMediaUrl(storedPath);
-                                previewImg.src = displayPath;
+                                // Ensure image path is correct
+                                let imagePath = pattern.imagePath;
+                                if (!imagePath.startsWith('http') && !imagePath.startsWith('/')) {
+                                    imagePath = '/' + imagePath;
+                                }
+                                previewImg.src = imagePath;
                                 preview.style.display = 'block';
                                 // Store the image path in the pattern item for later retrieval
-                                lastItem.dataset.imagePath = storedPath;
+                                lastItem.dataset.imagePath = imagePath;
                             }
                         } else if (pattern.type === 'table' && pattern.table) {
                             const preview = lastItem.querySelector('.pattern-table-preview');
@@ -1484,11 +1252,9 @@ function resetExamDetailsForm() {
     cutoffTableHTML = '';
 
     // Reset image previews
-    ['about-exam-image', 'exam-syllabus-image'].forEach(id => {
+    ['about-exam-image', 'exam-syllabus-image', 'cutoff-image'].forEach(id => {
         removeImagePreview(id);
     });
-
-    resetCutoffItemsUI();
 
     // Reset links
     const linksContainer = document.getElementById('links-container');
@@ -1536,9 +1302,6 @@ window.generateCutoffTable = generateCutoffTable;
 window.cancelCutoffTable = cancelCutoffTable;
 window.removeImagePreview = removeImagePreview;
 window.resetExamDetailsForm = resetExamDetailsForm;
-window.addCutoffItem = addCutoffItem;
-window.removeCutoffItem = removeCutoffItem;
-window.removeCutoffImagePreview = removeCutoffImagePreview;
 
 
 

@@ -11,8 +11,8 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label for="exam-name-details">Official Exam Name <span class="required">*</span></label>
-                    <input type="text" id="exam-name-details" name="exam-name-details" placeholder="Enter official exam name" required>
+                    <label for="exam-name">Exam Name <span class="required">*</span></label>
+                    <input type="text" id="exam-name" name="exam-name" placeholder="Enter exam name" required>
                 </div>
                 <div class="form-group">
                     <label for="about-exam-text">About Exam</label>
@@ -156,11 +156,13 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label>Previous Year Cut Off Entries</label>
-                    <div id="cutoff-items-container"></div>
-                    <button type="button" class="add-more-btn" onclick="addCutoffItem()">
-                        <i class="fas fa-plus"></i> Add More Cut Off
-                    </button>
+                    <label for="cutoff-image">Previous Year Cut Off Image</label>
+                    <input type="file" id="cutoff-image" accept="image/*">
+                    <small>Upload cut off as an image</small>
+                    <div id="cutoff-image-preview" class="image-preview" style="display: none;">
+                        <img id="cutoff-image-preview-img" src="" alt="Preview">
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('cutoff-image')">Remove</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Previous Year Cut Off Table</label>
