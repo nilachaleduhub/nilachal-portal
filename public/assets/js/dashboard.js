@@ -101,14 +101,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     noResultsDiv.style.display = 'block';
     return;
   }
-  // My Library: Read purchases from server and localStorage
+  // My Library: Read purchases from server (source of truth) and enrich with localStorage data
   async function getPurchases() {
     const userId = user && (user.id || user._id || user.userId || user.email);
     if (!userId) return { courses: [], categories: [], exams: [], tests: [] };
 
     let serverPurchases = [];
     try {
-      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}`);
+      // Fetch both active and expired purchases to show renew options
+      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true`);
       const data = await res.json();
       if (data.success && Array.isArray(data.purchases)) {
         serverPurchases = data.purchases;
@@ -136,7 +137,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         userEmail: p.userEmail,
         userPhone: p.userPhone,
         purchaseType: p.purchaseType,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
+        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null,
+        courseValidity: p.courseValidity || null,
+        validityValue: p.validityValue || null,
+        validityUnit: p.validityUnit || null,
+        expiresAt: p.expiresAt ? (typeof p.expiresAt === 'string' ? p.expiresAt : (p.expiresAt.toISOString ? p.expiresAt.toISOString() : null)) : null
       }));
 
     // Categories and exams go to "My Test" section
@@ -150,7 +155,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         userEmail: p.userEmail,
         userPhone: p.userPhone,
         purchaseType: p.purchaseType,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
+        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null,
+        courseValidity: p.courseValidity || null,
+        validityValue: p.validityValue || null,
+        validityUnit: p.validityUnit || null,
+        expiresAt: p.expiresAt ? (typeof p.expiresAt === 'string' ? p.expiresAt : (p.expiresAt.toISOString ? p.expiresAt.toISOString() : null)) : null
       }));
 
     const serverExams = serverPurchases
@@ -163,7 +172,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         userEmail: p.userEmail,
         userPhone: p.userPhone,
         purchaseType: p.purchaseType,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
+        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null,
+        courseValidity: p.courseValidity || null,
+        validityValue: p.validityValue || null,
+        validityUnit: p.validityUnit || null,
+        expiresAt: p.expiresAt ? (typeof p.expiresAt === 'string' ? p.expiresAt : (p.expiresAt.toISOString ? p.expiresAt.toISOString() : null)) : null
       }));
 
     const serverTests = serverPurchases
@@ -175,10 +188,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         userId: p.userId,
         userEmail: p.userEmail,
         userPhone: p.userPhone,
-        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null
+        purchasedAt: p.purchasedAt ? (typeof p.purchasedAt === 'string' ? p.purchasedAt : p.purchasedAt.toISOString()) : null,
+        courseValidity: p.courseValidity || null,
+        validityValue: p.validityValue || null,
+        validityUnit: p.validityUnit || null,
+        expiresAt: p.expiresAt ? (typeof p.expiresAt === 'string' ? p.expiresAt : (p.expiresAt.toISOString ? p.expiresAt.toISOString() : null)) : null
       }));
 
-    if (!store && serverPurchases.length === 0) {
+    // Get dismissed purchases (user clicked "Renew No")
+    let dismissedPurchases = [];
+    try {
+      const dismissed = localStorage.getItem('dismissedPurchases');
+      if (dismissed) {
+        dismissedPurchases = JSON.parse(dismissed);
+      }
+    } catch (err) {
+      console.warn('Unable to parse dismissedPurchases from localStorage', err);
+    }
+
+    // Filter out dismissed purchases from server data
+    if (Array.isArray(dismissedPurchases) && dismissedPurchases.length > 0) {
+      serverPurchases = serverPurchases.filter(p => {
+        const purchaseKey = `${p.purchaseType}_${p.purchaseId}`;
+        return !dismissedPurchases.includes(purchaseKey);
+      });
+    }
+
+    // Always prioritize server purchases - localStorage is only used for enrichment
+    if (serverPurchases.length === 0 && !store) {
       return { courses: [], categories: [], exams: [], tests: [] };
     }
 
@@ -221,20 +258,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       return false;
     });
 
-    if (Array.isArray(store)) {
-      const courses = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'course'));
-      const categories = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'category'));
-      const exams = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'exam'));
-      const tests = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'test'));
-      return { 
-        courses: uniqueById(courses), 
-        categories: uniqueById(categories),
-        exams: uniqueById(exams),
-        tests: uniqueById(tests)
-      };
-    }
+    // Extract localStorage purchases (for enrichment only - server is source of truth)
+    let localCourses = [];
+    let localCategories = [];
+    let localExams = [];
+    let localTests = [];
 
-    if (typeof store === 'object' && store !== null) {
+    if (Array.isArray(store)) {
+      // If localStorage is an array, extract purchases from it
+      localCourses = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'course'));
+      localCategories = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'category'));
+      localExams = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'exam'));
+      localTests = filterByUser(store.filter(entry => entry && String(entry.type || '').toLowerCase() === 'test'));
+    } else if (typeof store === 'object' && store !== null) {
+      // Extract localStorage purchases if store is an object (for enrichment only)
       const candidateKeys = [String(userId)];
       if (user.email) candidateKeys.push(String(user.email).toLowerCase());
       if (user.phone) candidateKeys.push(String(user.phone));
@@ -262,12 +299,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           const purchaseType = c.purchaseType || c.type;
           return !purchaseType || purchaseType === 'course';
         });
-        return { 
-          courses: uniqueById(actualCourses), 
-          categories: uniqueById(categories),
-          exams: uniqueById(exams),
-          tests: uniqueById(tests)
-        };
+        localCourses = uniqueById([...localCourses, ...actualCourses]);
+        localCategories = uniqueById([...localCategories, ...categories]);
+        localExams = uniqueById([...localExams, ...exams]);
+        localTests = uniqueById([...localTests, ...tests]);
       }
 
       const items = ensureArray(store.items);
@@ -288,72 +323,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         return !purchaseType || purchaseType === 'course';
       });
 
-      // Also check userExamsFromItems and userCategoriesFromItems
-      const allLocalCategories = uniqueById([...categories, ...userCategoriesFromItems]);
-      const allLocalExams = uniqueById([...exams, ...userExamsFromItems]);
-
-      if (courses.length === 0 && userCoursesFromItems.length > 0) courses = userCoursesFromItems;
-      else if (userCoursesFromItems.length > 0) courses = uniqueById([...courses, ...userCoursesFromItems]);
-
-      if (tests.length === 0 && userTestsFromItems.length > 0) tests = userTestsFromItems;
-      else if (userTestsFromItems.length > 0) tests = uniqueById([...tests, ...userTestsFromItems]);
-
-      // Merge with server purchases and enrich with courseValidity from localStorage if available
-      // For renewals, localStorage will have the updated validity dates, so prefer localStorage data
-      const enrichWithLocalData = (serverItems, localItems) => {
-        return serverItems.map(serverItem => {
-          const localItem = localItems.find(l => {
-            const lId = l.id || l.courseId || l.testId || l._id;
-            const sId = serverItem.id || serverItem.courseId || serverItem.testId || serverItem._id;
-            return lId === sId;
-          });
-          if (localItem) {
-            // If localStorage has this item (especially for renewals), prefer its data
-            // This ensures renewed purchases show updated validity dates
-            if (localItem.courseValidity) {
-              serverItem.courseValidity = localItem.courseValidity;
-            }
-            if (localItem.purchasedAt) {
-              serverItem.purchasedAt = localItem.purchasedAt;
-            }
-            if (localItem.expiresAt) {
-              serverItem.expiresAt = localItem.expiresAt;
-            }
-            if (localItem.validityValue !== undefined) {
-              serverItem.validityValue = localItem.validityValue;
-            }
-            if (localItem.validityUnit) {
-              serverItem.validityUnit = localItem.validityUnit;
-            }
-          }
-          return serverItem;
-        });
-      };
-
-      const enrichedServerCourses = enrichWithLocalData(serverCourses, courses);
-      const enrichedServerCategories = enrichWithLocalData(serverCategories, allLocalCategories);
-      const enrichedServerExams = enrichWithLocalData(serverExams, allLocalExams);
-      const enrichedServerTests = enrichWithLocalData(serverTests, tests);
-
-      const allCourses = uniqueById([...courses, ...enrichedServerCourses]);
-      const allCategories = uniqueById([...allLocalCategories, ...enrichedServerCategories]);
-      const allExams = uniqueById([...allLocalExams, ...enrichedServerExams]);
-      const allTests = uniqueById([...tests, ...enrichedServerTests]);
-
-      return { 
-        courses: allCourses, 
-        categories: allCategories,
-        exams: allExams,
-        tests: allTests
-      };
+      // Merge all localStorage data
+      localCourses = uniqueById([...localCourses, ...courses, ...userCoursesFromItems]);
+      localCategories = uniqueById([...localCategories, ...categories, ...userCategoriesFromItems]);
+      localExams = uniqueById([...localExams, ...exams, ...userExamsFromItems]);
+      localTests = uniqueById([...localTests, ...tests, ...userTestsFromItems]);
     }
 
-    // If no localStorage data, return server purchases
+    // Enrich server purchases with localStorage data (for validity dates, etc.)
+    // Server purchases are the source of truth, localStorage is only for enrichment
+    const enrichWithLocalData = (serverItems, localItems) => {
+      return serverItems.map(serverItem => {
+        const localItem = localItems.find(l => {
+          const lId = l.id || l.courseId || l.testId || l._id;
+          const sId = serverItem.id || serverItem.courseId || serverItem.testId || serverItem._id;
+          return lId === sId;
+        });
+        if (localItem) {
+          // Enrich server data with localStorage validity info (for renewals)
+          if (localItem.courseValidity) {
+            serverItem.courseValidity = localItem.courseValidity;
+          }
+          if (localItem.purchasedAt) {
+            serverItem.purchasedAt = localItem.purchasedAt;
+          }
+          if (localItem.expiresAt) {
+            serverItem.expiresAt = localItem.expiresAt;
+          }
+          if (localItem.validityValue !== undefined) {
+            serverItem.validityValue = localItem.validityValue;
+          }
+          if (localItem.validityUnit) {
+            serverItem.validityUnit = localItem.validityUnit;
+          }
+        }
+        return serverItem;
+      });
+    };
+
+    // Always prioritize server purchases - merge with localStorage for enrichment
+    const enrichedServerCourses = enrichWithLocalData(serverCourses, localCourses);
+    const enrichedServerCategories = enrichWithLocalData(serverCategories, localCategories);
+    const enrichedServerExams = enrichWithLocalData(serverExams, localExams);
+    const enrichedServerTests = enrichWithLocalData(serverTests, localTests);
+
+    // Server purchases are the source of truth - only add localStorage items that aren't already in server
+    const addMissingLocalItems = (serverItems, localItems) => {
+      const serverIds = new Set(serverItems.map(s => String(s.id || s.courseId || s.testId || s._id || '')));
+      const missingLocalItems = localItems.filter(l => {
+        const lId = String(l.id || l.courseId || l.testId || l._id || '');
+        return lId && !serverIds.has(lId);
+      });
+      return [...serverItems, ...missingLocalItems];
+    };
+
+    const allCourses = uniqueById(addMissingLocalItems(enrichedServerCourses, localCourses));
+    const allCategories = uniqueById(addMissingLocalItems(enrichedServerCategories, localCategories));
+    const allExams = uniqueById(addMissingLocalItems(enrichedServerExams, localExams));
+    const allTests = uniqueById(addMissingLocalItems(enrichedServerTests, localTests));
+
+    // Always return server purchases (enriched with localStorage data)
     return { 
-      courses: uniqueById(serverCourses), 
-      categories: uniqueById(serverCategories),
-      exams: uniqueById(serverExams),
-      tests: uniqueById(serverTests)
+      courses: allCourses, 
+      categories: allCategories,
+      exams: allExams,
+      tests: allTests
     };
   }
 
@@ -417,8 +451,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.className = 'card';
       card.style.cssText = 'background-color: white; padding: 1.5rem 1rem; border-radius: 15px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; display: flex; flex-direction: column; justify-content: space-between; word-wrap: break-word; overflow-wrap: break-word; height: 100%;';
       
-      // Calculate expiry date
-      const expiryDate = calculateExpiryDate(c.courseValidity, c.purchasedAt);
+      // Get expiry date - prioritize server-provided expiresAt, fallback to calculation
+      let expiryDate = null;
+      if (c.expiresAt) {
+        // Use server-provided expiresAt directly
+        expiryDate = typeof c.expiresAt === 'string' ? new Date(c.expiresAt) : c.expiresAt;
+        if (isNaN(expiryDate.getTime())) expiryDate = null;
+      }
+      // Fallback to calculation if expiresAt not available
+      if (!expiryDate && c.courseValidity && c.purchasedAt) {
+        expiryDate = calculateExpiryDate(c.courseValidity, c.purchasedAt);
+      }
       const expiryDateStr = expiryDate ? formatExpiryDate(expiryDate) : null;
       const isExpired = expiryDate && expiryDate < new Date();
       
@@ -464,43 +507,61 @@ document.addEventListener('DOMContentLoaded', async () => {
             const itemId = renewNoBtn.dataset.itemId;
             const itemType = renewNoBtn.dataset.itemType;
             
-            // Remove purchase from localStorage
             try {
-              const userId = user && (user.id || user._id || user.userId || user.email);
-              if (!userId) return;
-              
-              let userPurchases = null;
+              // Add to dismissed purchases list (works for both server and localStorage purchases)
+              let dismissedPurchases = [];
               try {
-                userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                const dismissed = localStorage.getItem('dismissedPurchases');
+                if (dismissed) {
+                  dismissedPurchases = JSON.parse(dismissed);
+                }
               } catch (e) {
-                userPurchases = {};
+                dismissedPurchases = [];
               }
               
-              if (userPurchases[userId]) {
-                // Remove from courses array (for courses, categories, exams)
-                if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
-                  userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                // Remove from tests array
-                else if (itemType === 'test') {
-                  userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                
-                localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
-                
-                // Refresh the dashboard display
-                await showMyCourses();
+              // Create a unique key for this purchase
+              const purchaseKey = `${itemType}_${itemId}`;
+              if (!dismissedPurchases.includes(purchaseKey)) {
+                dismissedPurchases.push(purchaseKey);
+                localStorage.setItem('dismissedPurchases', JSON.stringify(dismissedPurchases));
               }
+              
+              // Also remove from localStorage purchases if it exists there
+              const userId = user && (user.id || user._id || user.userId || user.email);
+              if (userId) {
+                let userPurchases = null;
+                try {
+                  userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                } catch (e) {
+                  userPurchases = {};
+                }
+                
+                if (userPurchases[userId]) {
+                  // Remove from courses array (for courses, categories, exams)
+                  if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
+                    userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
+                      const pId = p.id || p.courseId || p.testId || p._id;
+                      const pType = p.purchaseType || p.type;
+                      return !(pId === itemId && pType === itemType);
+                    });
+                  }
+                  // Remove from tests array
+                  else if (itemType === 'test') {
+                    userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
+                      const pId = p.id || p.courseId || p.testId || p._id;
+                      const pType = p.purchaseType || p.type;
+                      return !(pId === itemId && pType === itemType);
+                    });
+                  }
+                  
+                  localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
+                }
+              }
+              
+              // Refresh the dashboard display
+              await showMyCourses();
             } catch (e) {
-              console.error('Error removing purchase:', e);
+              console.error('Error dismissing purchase:', e);
             }
           });
         }
@@ -560,8 +621,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         badgeColor = 'linear-gradient(135deg, #10b981, #059669)';
       }
       
-      // Calculate expiry date
-      const expiryDate = calculateExpiryDate(item.courseValidity, item.purchasedAt);
+      // Get expiry date - prioritize server-provided expiresAt, fallback to calculation
+      let expiryDate = null;
+      if (item.expiresAt) {
+        // Use server-provided expiresAt directly
+        expiryDate = typeof item.expiresAt === 'string' ? new Date(item.expiresAt) : item.expiresAt;
+        if (isNaN(expiryDate.getTime())) expiryDate = null;
+      }
+      // Fallback to calculation if expiresAt not available
+      if (!expiryDate && item.courseValidity && item.purchasedAt) {
+        expiryDate = calculateExpiryDate(item.courseValidity, item.purchasedAt);
+      }
       const expiryDateStr = expiryDate ? formatExpiryDate(expiryDate) : null;
       const isExpired = expiryDate && expiryDate < new Date();
       
@@ -610,43 +680,61 @@ document.addEventListener('DOMContentLoaded', async () => {
             const itemId = renewNoBtn.dataset.itemId;
             const itemType = renewNoBtn.dataset.itemType;
             
-            // Remove purchase from localStorage
             try {
-              const userId = user && (user.id || user._id || user.userId || user.email);
-              if (!userId) return;
-              
-              let userPurchases = null;
+              // Add to dismissed purchases list (works for both server and localStorage purchases)
+              let dismissedPurchases = [];
               try {
-                userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                const dismissed = localStorage.getItem('dismissedPurchases');
+                if (dismissed) {
+                  dismissedPurchases = JSON.parse(dismissed);
+                }
               } catch (e) {
-                userPurchases = {};
+                dismissedPurchases = [];
               }
               
-              if (userPurchases[userId]) {
-                // Remove from courses array (for courses, categories, exams)
-                if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
-                  userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                // Remove from tests array
-                else if (itemType === 'test') {
-                  userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
-                    const pId = p.id || p.courseId || p.testId || p._id;
-                    const pType = p.purchaseType || p.type;
-                    return !(pId === itemId && pType === itemType);
-                  });
-                }
-                
-                localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
-                
-                // Refresh the dashboard display
-                await showMyTests();
+              // Create a unique key for this purchase
+              const purchaseKey = `${itemType}_${itemId}`;
+              if (!dismissedPurchases.includes(purchaseKey)) {
+                dismissedPurchases.push(purchaseKey);
+                localStorage.setItem('dismissedPurchases', JSON.stringify(dismissedPurchases));
               }
+              
+              // Also remove from localStorage purchases if it exists there
+              const userId = user && (user.id || user._id || user.userId || user.email);
+              if (userId) {
+                let userPurchases = null;
+                try {
+                  userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
+                } catch (e) {
+                  userPurchases = {};
+                }
+                
+                if (userPurchases[userId]) {
+                  // Remove from courses array (for courses, categories, exams)
+                  if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
+                    userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
+                      const pId = p.id || p.courseId || p.testId || p._id;
+                      const pType = p.purchaseType || p.type;
+                      return !(pId === itemId && pType === itemType);
+                    });
+                  }
+                  // Remove from tests array
+                  else if (itemType === 'test') {
+                    userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
+                      const pId = p.id || p.courseId || p.testId || p._id;
+                      const pType = p.purchaseType || p.type;
+                      return !(pId === itemId && pType === itemType);
+                    });
+                  }
+                  
+                  localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
+                }
+              }
+              
+              // Refresh the dashboard display
+              await showMyTests();
             } catch (e) {
-              console.error('Error removing purchase:', e);
+              console.error('Error dismissing purchase:', e);
             }
           });
         }

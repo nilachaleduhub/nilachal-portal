@@ -180,11 +180,11 @@ const ExamDetailSchema = new mongoose.Schema({
   examName: { type: String, required: true, unique: true },
   aboutExamText: String,
   aboutExamImagePath: String,
-  examSyllabusText: String,
-  examSyllabusImagePath: String,
-  cutoffImagePath: String,
+  examPatternCaption: String,
+  examSyllabusCaption: String,
   cutoffs: [{
     caption: String,
+    type: { type: String, enum: ['picture', 'table'] },
     imagePath: String,
     table: String
   }],
@@ -199,6 +199,17 @@ const ExamDetailSchema = new mongoose.Schema({
     imagePath: String,
     table: String
   }],
+  syllabuses: [{
+    caption: String,
+    type: { type: String, enum: ['text', 'picture', 'table'] },
+    text: String,
+    imagePath: String,
+    table: String
+  }],
+  // Legacy fields for backward compatibility
+  examSyllabusText: String,
+  examSyllabusImagePath: String,
+  cutoffImagePath: String,
   syllabusTable: String,
   cutoffTable: String,
   createdAt: { type: Date, default: Date.now },
@@ -595,6 +606,46 @@ app.get('/api/admin/users', async (req, res) => {
   }
 });
 
+// Delete user (and all related data)
+app.delete('/api/admin/users/:id', async (req, res) => {
+  console.log('DELETE /api/admin/users/:id called with id:', req.params.id);
+  try {
+    const { id } = req.params;
+    
+    // Try to find user by _id (MongoDB ObjectId) first
+    let user = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      user = await User.findById(id);
+    }
+    
+    // If not found, try to find by email
+    if (!user) {
+      user = await User.findOne({ email: id });
+    }
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const userId = user._id.toString();
+    
+    // Delete all sessions for this user
+    await Session.deleteMany({ userId: userId });
+    
+    // Delete all purchases for this user
+    await Purchase.deleteMany({ userId: userId });
+    
+    // Delete the user
+    await User.findByIdAndDelete(user._id);
+    
+    console.log(`User deleted: ${user.email} (ID: ${userId})`);
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete user' });
+  }
+});
+
 app.get('/api/admin/purchases', async (req, res) => {
   try {
     const purchases = await Purchase.find().sort({ purchasedAt: -1 }).lean();
@@ -643,6 +694,34 @@ app.get('/api/admin/purchases', async (req, res) => {
   } catch (err) {
     console.error('Error fetching purchases for admin dashboard:', err);
     res.status(500).json({ success: false, message: 'Failed to load purchases' });
+  }
+});
+
+// Delete purchase record
+app.delete('/api/admin/purchases/:id', async (req, res) => {
+  console.log('DELETE /api/admin/purchases/:id called with id:', req.params.id);
+  try {
+    const { id } = req.params;
+    
+    // Find purchase by _id (MongoDB ObjectId)
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid purchase ID' });
+    }
+    
+    const purchase = await Purchase.findById(id);
+    
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase record not found' });
+    }
+    
+    // Delete the purchase record
+    await Purchase.findByIdAndDelete(id);
+    
+    console.log(`Purchase deleted: ${purchase.purchaseName} (ID: ${id})`);
+    res.json({ success: true, message: 'Purchase record deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting purchase:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete purchase' });
   }
 });
 
@@ -1986,6 +2065,7 @@ const normalizeCutoffEntries = (entries) => {
   if (!Array.isArray(entries)) return [];
   return entries.map(entry => ({
     caption: (entry?.caption || '').trim(),
+    type: entry?.type || 'picture',
     imagePath: entry?.imagePath ? normalizeMediaPath(entry.imagePath) : '',
     table: entry?.table || ''
   }));
@@ -2006,6 +2086,12 @@ const formatExamDetailResponse = (detail) => {
       ? rest.patterns.map(pattern => ({
           ...pattern,
           imagePath: normalizeMediaPath(pattern?.imagePath || '')
+        }))
+      : [],
+    syllabuses: Array.isArray(rest.syllabuses)
+      ? rest.syllabuses.map(syllabus => ({
+          ...syllabus,
+          imagePath: normalizeMediaPath(syllabus?.imagePath || '')
         }))
       : [],
     examNamedetails: examNamedetails || examName || ''
@@ -2053,14 +2139,21 @@ app.get('/api/admin/exam-details/:id', async (req, res) => {
 // Create or update exam details
 app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
   try {
-    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable, cutoffs } = req.body || {};
+    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable, cutoffs, syllabuses, examPatternCaption, examSyllabusCaption } = req.body || {};
     
     // Extract and validate exam name with new approach
     let examNamedetailsValue = null;
-    const rawExamNamedetails = (req.body && (req.body.examNamedetails ?? req.body.examName)) || null;
+    const rawExamNamedetails = (req.body && (req.body['exam-namedetails'] ?? req.body.examNamedetails ?? req.body.examName)) || null;
+    console.log('POST /api/admin/exam-details - Raw exam name from body:', { 
+      'exam-namedetails': req.body['exam-namedetails'], 
+      examNamedetails: req.body.examNamedetails, 
+      examName: req.body.examName,
+      rawExamNamedetails 
+    });
     if (rawExamNamedetails) {
       examNamedetailsValue = rawExamNamedetails.toString().replace(/^\s+|\s+$/g, '');
     }
+    console.log('POST /api/admin/exam-details - Processed exam name value:', examNamedetailsValue);
     if (!examNamedetailsValue || examNamedetailsValue.length < 1) {
       if (req.files) {
         Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
@@ -2073,9 +2166,10 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
     let cutoffImagePath = null;
     let cutoffTableValue = cutoffTable || '';
 
-    // Parse links and patterns from JSON strings
+    // Parse links, patterns, syllabuses, and cutoffs from JSON strings
     let linksArray = [];
     let patternsArray = [];
+    let syllabusesArray = [];
     let cutoffsArray = [];
     try {
       if (links) linksArray = typeof links === 'string' ? JSON.parse(links) : links;
@@ -2086,6 +2180,13 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       } else {
         console.log('No patterns received in request body');
       }
+      if (syllabuses) {
+        syllabusesArray = typeof syllabuses === 'string' ? JSON.parse(syllabuses) : syllabuses;
+        console.log('Parsed syllabuses array:', JSON.stringify(syllabusesArray, null, 2));
+        console.log('Syllabuses array length:', syllabusesArray.length);
+      } else {
+        console.log('No syllabuses received in request body');
+      }
       if (cutoffs) {
         cutoffsArray = typeof cutoffs === 'string' ? JSON.parse(cutoffs) : cutoffs;
         console.log('Parsed cutoffs array:', JSON.stringify(cutoffsArray, null, 2));
@@ -2095,9 +2196,10 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       }
       cutoffsArray = normalizeCutoffEntries(cutoffsArray);
     } catch (e) {
-      console.error('Error parsing links or patterns:', e);
+      console.error('Error parsing links, patterns, syllabuses, or cutoffs:', e);
       console.error('Links value:', links);
       console.error('Patterns value:', patterns);
+      console.error('Syllabuses value:', syllabuses);
       console.error('Cutoffs value:', cutoffs);
     }
 
@@ -2107,7 +2209,30 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
         if (pattern.type === 'picture') {
           const patternFile = req.files.find(f => f.fieldname === `patternImage_${index}`);
           if (patternFile) {
-            pattern.imagePath = `/uploads/exam-details/${patternFile.filename}`;
+            pattern.imagePath = normalizeMediaPath(`/uploads/exam-details/${patternFile.filename}`);
+          }
+        }
+      });
+    }
+
+    // Handle syllabus images - find files with syllabusImage_ prefix
+    if (syllabusesArray && Array.isArray(syllabusesArray) && req.files) {
+      console.log('POST - Processing syllabus images. Total files:', req.files.length);
+      console.log('POST - File fieldnames:', req.files.map(f => f.fieldname));
+      syllabusesArray.forEach((syllabus, index) => {
+        if (syllabus.type === 'picture') {
+          const syllabusFile = req.files.find(f => f.fieldname === `syllabusImage_${index}`);
+          if (syllabusFile) {
+            syllabus.imagePath = normalizeMediaPath(`/uploads/exam-details/${syllabusFile.filename}`);
+            console.log(`POST - Syllabus ${index} image saved:`, syllabus.imagePath);
+          } else {
+            // Normalize existing imagePath if no new file uploaded
+            if (syllabus.imagePath) {
+              syllabus.imagePath = normalizeMediaPath(syllabus.imagePath);
+              console.log(`POST - No file found for syllabusImage_${index}, using existing imagePath:`, syllabus.imagePath);
+            } else {
+              console.log(`POST - No file and no existing imagePath for syllabusImage_${index}`);
+            }
           }
         }
       });
@@ -2115,13 +2240,19 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
 
     if (cutoffsArray && Array.isArray(cutoffsArray) && req.files) {
       cutoffsArray.forEach((cutoff, index) => {
-        const cutoffFile = req.files.find(f => f.fieldname === `cutoffImage_${index}`);
-        if (cutoffFile) {
-          cutoff.imagePath = normalizeMediaPath(`/uploads/exam-details/${cutoffFile.filename}`);
+        if (cutoff.type === 'picture') {
+          const cutoffFile = req.files.find(f => f.fieldname === `cutoffImage_${index}`);
+          if (cutoffFile) {
+            cutoff.imagePath = normalizeMediaPath(`/uploads/exam-details/${cutoffFile.filename}`);
+            console.log(`POST - Cutoff ${index} image saved:`, cutoff.imagePath);
+          }
+        } else if (cutoff.type === 'table') {
+          console.log(`POST - Cutoff ${index} table HTML length:`, cutoff.table ? cutoff.table.length : 0);
         }
       });
     }
     cutoffsArray = normalizeCutoffEntries(cutoffsArray);
+    console.log('POST - Final cutoffs array:', JSON.stringify(cutoffsArray.map(c => ({ caption: c.caption, type: c.type, hasImage: !!c.imagePath, hasTable: !!c.table })), null, 2));
 
     // Extract main images from files array
     if (req.files) {
@@ -2205,6 +2336,21 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
         });
       }
 
+      // Delete old syllabus images if new ones are uploaded
+      if (syllabusesArray && existing.syllabuses) {
+        syllabusesArray.forEach((newSyllabus, index) => {
+          if (newSyllabus.type === 'picture' && newSyllabus.imagePath) {
+            const oldSyllabus = existing.syllabuses[index];
+            if (oldSyllabus && oldSyllabus.imagePath && oldSyllabus.imagePath !== newSyllabus.imagePath) {
+              const oldPath = path.join(__dirname, oldSyllabus.imagePath.replace(/^\//, ''));
+              if (fs.existsSync(oldPath)) {
+                try { fs.unlinkSync(oldPath); } catch (e) { console.warn('Could not delete old syllabus image:', e); }
+              }
+            }
+          }
+        });
+      }
+
       if (Array.isArray(existing.cutoffs)) {
         existing.cutoffs.forEach((oldCutoff, index) => {
           const newCutoff = Array.isArray(cutoffsArray) ? cutoffsArray[index] : null;
@@ -2221,16 +2367,25 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
       const updateData = {
         examName: examNamedetailsValue,
         aboutExamText: aboutExamText || '',
-        examSyllabusText: examSyllabusText || '',
+        examPatternCaption: examPatternCaption || '',
+        examSyllabusCaption: examSyllabusCaption || '',
         links: linksArray,
         patterns: patternsArray || [],
-        syllabusTable: syllabusTable || '',
-        cutoffTable: cutoffTableValue || '',
+        syllabuses: syllabusesArray || [],
         cutoffs: cutoffsArray || [],
         updatedAt: new Date()
       };
       
+      // Keep legacy fields for backward compatibility
+      if (examSyllabusText) updateData.examSyllabusText = examSyllabusText;
+      if (syllabusTable) updateData.syllabusTable = syllabusTable;
+      if (cutoffTableValue) updateData.cutoffTable = cutoffTableValue;
+      if (cutoffImagePath) updateData.cutoffImagePath = cutoffImagePath;
+      if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
+      
       console.log('Update data patterns:', JSON.stringify(updateData.patterns, null, 2));
+      console.log('Update data syllabuses:', JSON.stringify(updateData.syllabuses, null, 2));
+      console.log('Update data cutoffs:', JSON.stringify(updateData.cutoffs, null, 2));
 
       if (aboutExamImagePath) updateData.aboutExamImagePath = aboutExamImagePath;
       if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
@@ -2258,20 +2413,31 @@ app.post('/api/admin/exam-details', upload.any(), async (req, res) => {
         examName: examNamedetailsValue,
         aboutExamText: aboutExamText || '',
         aboutExamImagePath,
-        examSyllabusText: examSyllabusText || '',
-        examSyllabusImagePath,
-        cutoffImagePath,
+        examPatternCaption: examPatternCaption || '',
+        examSyllabusCaption: examSyllabusCaption || '',
         links: linksArray,
         patterns: patternsArray || [],
-        syllabusTable: syllabusTable || '',
-        cutoffTable: cutoffTableValue || '',
+        syllabuses: syllabusesArray || [],
         cutoffs: cutoffsArray || []
       });
       
+      // Add legacy fields for backward compatibility
+      if (examSyllabusImagePath) newExamDetail.examSyllabusImagePath = examSyllabusImagePath;
+      if (cutoffImagePath) newExamDetail.cutoffImagePath = cutoffImagePath;
+      if (examSyllabusText) newExamDetail.examSyllabusText = examSyllabusText;
+      if (syllabusTable) newExamDetail.syllabusTable = syllabusTable;
+      if (cutoffTableValue) newExamDetail.cutoffTable = cutoffTableValue;
+      
       console.log('POST - New exam detail patterns before save:', JSON.stringify(newExamDetail.patterns, null, 2));
+      console.log('POST - New exam detail syllabuses before save:', JSON.stringify(newExamDetail.syllabuses, null, 2));
+      console.log('POST - New exam detail cutoffs before save:', JSON.stringify(newExamDetail.cutoffs, null, 2));
       await newExamDetail.save();
       console.log('POST - Saved exam detail patterns:', JSON.stringify(newExamDetail.patterns, null, 2));
+      console.log('POST - Saved exam detail syllabuses:', JSON.stringify(newExamDetail.syllabuses, null, 2));
+      console.log('POST - Saved exam detail cutoffs:', JSON.stringify(newExamDetail.cutoffs, null, 2));
       console.log('POST - Saved patterns count:', newExamDetail.patterns?.length || 0);
+      console.log('POST - Saved syllabuses count:', newExamDetail.syllabuses?.length || 0);
+      console.log('POST - Saved cutoffs count:', newExamDetail.cutoffs?.length || 0);
       res.json({ success: true, examDetail: formatExamDetailResponse(newExamDetail) });
     }
   } catch (err) {
@@ -2293,14 +2459,21 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
   // Reuse the POST handler logic by calling it directly
   // The POST handler already handles both create and update based on id field
   try {
-    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable } = req.body || {};
+    const { id, aboutExamText, examSyllabusText, links, patterns, syllabusTable, cutoffTable, cutoffs, syllabuses, examPatternCaption, examSyllabusCaption } = req.body || {};
     
     // Extract and validate exam name with new approach
     let examNamedetailsValue = null;
-    const rawExamNamedetails = (req.body && (req.body.examNamedetails ?? req.body.examName)) || null;
+    const rawExamNamedetails = (req.body && (req.body['exam-namedetails'] ?? req.body.examNamedetails ?? req.body.examName)) || null;
+    console.log('PUT /api/admin/exam-details - Raw exam name from body:', { 
+      'exam-namedetails': req.body['exam-namedetails'], 
+      examNamedetails: req.body.examNamedetails, 
+      examName: req.body.examName,
+      rawExamNamedetails 
+    });
     if (rawExamNamedetails) {
       examNamedetailsValue = rawExamNamedetails.toString().replace(/^\s+|\s+$/g, '');
     }
+    console.log('PUT /api/admin/exam-details - Processed exam name value:', examNamedetailsValue);
     if (!examNamedetailsValue || examNamedetailsValue.length < 1) {
       if (req.files) {
         Object.values(req.files).flat().forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
@@ -2314,6 +2487,8 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
 
     let linksArray = [];
     let patternsArray = [];
+    let syllabusesArray = [];
+    let cutoffsArray = [];
     try {
       if (links) linksArray = typeof links === 'string' ? JSON.parse(links) : links;
       if (patterns) {
@@ -2323,10 +2498,21 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
       } else {
         console.log('PUT - No patterns received in request body');
       }
+      if (syllabuses) {
+        syllabusesArray = typeof syllabuses === 'string' ? JSON.parse(syllabuses) : syllabuses;
+        console.log('PUT - Parsed syllabuses array:', JSON.stringify(syllabusesArray, null, 2));
+      }
+      if (cutoffs) {
+        cutoffsArray = typeof cutoffs === 'string' ? JSON.parse(cutoffs) : cutoffs;
+        console.log('PUT - Parsed cutoffs array:', JSON.stringify(cutoffsArray, null, 2));
+      }
+      cutoffsArray = normalizeCutoffEntries(cutoffsArray);
     } catch (e) {
-      console.error('PUT - Error parsing links or patterns:', e);
+      console.error('PUT - Error parsing links, patterns, syllabuses, or cutoffs:', e);
       console.error('PUT - Links value:', links);
       console.error('PUT - Patterns value:', patterns);
+      console.error('PUT - Syllabuses value:', syllabuses);
+      console.error('PUT - Cutoffs value:', cutoffs);
     }
 
     // Handle pattern images - find files with patternImage_ prefix
@@ -2335,11 +2521,51 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
         if (pattern.type === 'picture') {
           const patternFile = req.files.find(f => f.fieldname === `patternImage_${index}`);
           if (patternFile) {
-            pattern.imagePath = `/uploads/exam-details/${patternFile.filename}`;
+            pattern.imagePath = normalizeMediaPath(`/uploads/exam-details/${patternFile.filename}`);
           }
         }
       });
     }
+
+    // Handle syllabus images - find files with syllabusImage_ prefix
+    if (syllabusesArray && Array.isArray(syllabusesArray) && req.files) {
+      console.log('PUT - Processing syllabus images. Total files:', req.files.length);
+      console.log('PUT - File fieldnames:', req.files.map(f => f.fieldname));
+      syllabusesArray.forEach((syllabus, index) => {
+        if (syllabus.type === 'picture') {
+          const syllabusFile = req.files.find(f => f.fieldname === `syllabusImage_${index}`);
+          if (syllabusFile) {
+            syllabus.imagePath = normalizeMediaPath(`/uploads/exam-details/${syllabusFile.filename}`);
+            console.log(`PUT - Syllabus ${index} image saved:`, syllabus.imagePath);
+          } else {
+            // Normalize existing imagePath if no new file uploaded
+            if (syllabus.imagePath) {
+              syllabus.imagePath = normalizeMediaPath(syllabus.imagePath);
+              console.log(`PUT - No file found for syllabusImage_${index}, using existing imagePath:`, syllabus.imagePath);
+            } else {
+              console.log(`PUT - No file and no existing imagePath for syllabusImage_${index}`);
+            }
+          }
+        }
+      });
+    }
+
+    // Handle cutoff images - find files with cutoffImage_ prefix
+    if (cutoffsArray && Array.isArray(cutoffsArray) && req.files) {
+      cutoffsArray.forEach((cutoff, index) => {
+        if (cutoff.type === 'picture') {
+          const cutoffFile = req.files.find(f => f.fieldname === `cutoffImage_${index}`);
+          if (cutoffFile) {
+            cutoff.imagePath = normalizeMediaPath(`/uploads/exam-details/${cutoffFile.filename}`);
+            console.log(`PUT - Cutoff ${index} image saved:`, cutoff.imagePath);
+          }
+        } else if (cutoff.type === 'table') {
+          console.log(`PUT - Cutoff ${index} table HTML length:`, cutoff.table ? cutoff.table.length : 0);
+        }
+      });
+    }
+    cutoffsArray = normalizeCutoffEntries(cutoffsArray);
+    console.log('PUT - Final cutoffs array:', JSON.stringify(cutoffsArray.map(c => ({ caption: c.caption, type: c.type, hasImage: !!c.imagePath, hasTable: !!c.table })), null, 2));
 
     // Extract main images from files array
     if (req.files) {
@@ -2419,25 +2645,37 @@ app.put('/api/admin/exam-details', upload.any(), async (req, res) => {
     const updateData = {
       examName: examNamedetailsValue,
       aboutExamText: aboutExamText || '',
-      examSyllabusText: examSyllabusText || '',
+      examPatternCaption: examPatternCaption || '',
+      examSyllabusCaption: examSyllabusCaption || '',
       links: linksArray,
       patterns: patternsArray || [],
-      syllabusTable: syllabusTable || '',
-      cutoffTable: cutoffTable || '',
+      syllabuses: syllabusesArray || [],
+      cutoffs: cutoffsArray || [],
       updatedAt: new Date()
     };
     
+    // Keep legacy fields for backward compatibility
+    if (examSyllabusText) updateData.examSyllabusText = examSyllabusText;
+    if (syllabusTable) updateData.syllabusTable = syllabusTable;
+    if (cutoffTable) updateData.cutoffTable = cutoffTable;
+    
     console.log('PUT - Update data patterns:', JSON.stringify(updateData.patterns, null, 2));
+    console.log('PUT - Update data syllabuses:', JSON.stringify(updateData.syllabuses, null, 2));
+    console.log('PUT - Update data cutoffs:', JSON.stringify(updateData.cutoffs, null, 2));
 
     if (aboutExamImagePath) updateData.aboutExamImagePath = aboutExamImagePath;
     if (examSyllabusImagePath) updateData.examSyllabusImagePath = examSyllabusImagePath;
     if (cutoffImagePath) updateData.cutoffImagePath = cutoffImagePath;
 
     const updateQuery = buildExamDetailIdQuery(updateId);
-    const updated = await ExamDetail.findOneAndUpdate(updateQuery || { _id: existing._id }, updateData, { new: true });
-    console.log('PUT - Saved exam detail patterns:', JSON.stringify(updated?.patterns, null, 2));
-    console.log('PUT - Saved patterns count:', updated?.patterns?.length || 0);
-    res.json({ success: true, examDetail: formatExamDetailResponse(updated) });
+      const updated = await ExamDetail.findOneAndUpdate(updateQuery || { _id: existing._id }, updateData, { new: true });
+      console.log('PUT - Saved exam detail patterns:', JSON.stringify(updated?.patterns, null, 2));
+      console.log('PUT - Saved exam detail syllabuses:', JSON.stringify(updated?.syllabuses, null, 2));
+      console.log('PUT - Saved exam detail cutoffs:', JSON.stringify(updated?.cutoffs, null, 2));
+      console.log('PUT - Saved patterns count:', updated?.patterns?.length || 0);
+      console.log('PUT - Saved syllabuses count:', updated?.syllabuses?.length || 0);
+      console.log('PUT - Saved cutoffs count:', updated?.cutoffs?.length || 0);
+      res.json({ success: true, examDetail: formatExamDetailResponse(updated) });
   } catch (err) {
     console.error('Error updating exam details:', err);
     if (req.files) {

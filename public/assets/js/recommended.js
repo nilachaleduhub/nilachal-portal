@@ -5,6 +5,149 @@ const expiryScript = document.createElement('script');
 expiryScript.src = 'assets/js/expiry-utils.js';
 document.head.appendChild(expiryScript);
 
+// Cache for user purchases from server
+let userPurchasesCache = null;
+let purchasesCacheTime = null;
+const CACHE_DURATION = 60000; // 1 minute cache
+
+// Function to invalidate cache (call after purchase)
+function invalidatePurchaseCache() {
+  userPurchasesCache = null;
+  purchasesCacheTime = null;
+}
+
+// Make it globally accessible for other scripts
+window.invalidatePurchaseCache = invalidatePurchaseCache;
+
+// Fetch user purchases from server
+async function fetchUserPurchases() {
+  // Check cache first
+  const now = Date.now();
+  if (userPurchasesCache && purchasesCacheTime && (now - purchasesCacheTime) < CACHE_DURATION) {
+    return userPurchasesCache;
+  }
+
+  try {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      userPurchasesCache = [];
+      purchasesCacheTime = now;
+      return [];
+    }
+
+    const user = JSON.parse(userStr);
+    const userId = user.id || user._id || user.userId || user.email;
+    if (!userId) {
+      userPurchasesCache = [];
+      purchasesCacheTime = now;
+      return [];
+    }
+
+    // Fetch purchases from server
+    const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true`);
+    const data = await res.json();
+    
+    if (data.success && Array.isArray(data.purchases)) {
+      userPurchasesCache = data.purchases;
+      purchasesCacheTime = now;
+      return data.purchases;
+    }
+    
+    userPurchasesCache = [];
+    purchasesCacheTime = now;
+    return [];
+  } catch (err) {
+    console.warn('Error fetching user purchases:', err);
+    userPurchasesCache = [];
+    purchasesCacheTime = now;
+    return [];
+  }
+}
+
+// Check if user has purchased an item (server-based)
+async function checkServerPurchaseAccess(itemId, itemType, categoryId = null) {
+  try {
+    const purchases = await fetchUserPurchases();
+    if (!purchases || purchases.length === 0) {
+      return { hasAccess: false, isExpired: false };
+    }
+
+    // Find matching purchase
+    const purchase = purchases.find(p => {
+      if (p.status !== 'completed') return false;
+      
+      const purchaseId = p.purchaseId;
+      const purchaseType = p.purchaseType;
+      
+      // Direct match
+      if (purchaseId === itemId && purchaseType === itemType) {
+        return true;
+      }
+      
+      // Category access for exams/tests
+      if ((itemType === 'exam' || itemType === 'test') && categoryId && 
+          p.categoryId === categoryId && purchaseType === 'category') {
+        return true;
+      }
+      
+      // Exam access for tests
+      if (itemType === 'test' && categoryId && 
+          p.categoryId === categoryId && purchaseType === 'exam') {
+        return true;
+      }
+      
+      return false;
+    });
+
+    if (!purchase) {
+      return { hasAccess: false, isExpired: false };
+    }
+
+    // Check if expired
+    let isExpired = false;
+    if (purchase.expiresAt) {
+      const expiryDate = purchase.expiresAt instanceof Date 
+        ? purchase.expiresAt 
+        : new Date(purchase.expiresAt);
+      isExpired = expiryDate < new Date();
+    } else if (purchase.courseValidity && purchase.purchasedAt) {
+      // Calculate expiry from validity string (use expiry-utils if available)
+      if (typeof calculateExpiryDate === 'function') {
+        const expiryDate = calculateExpiryDate(purchase.courseValidity, purchase.purchasedAt);
+        if (expiryDate) {
+          isExpired = expiryDate < new Date();
+        }
+      } else {
+        // Fallback: simple expiry check
+        const purchaseDate = new Date(purchase.purchasedAt);
+        if (!isNaN(purchaseDate.getTime())) {
+          // Try to parse validity string
+          const validity = purchase.courseValidity.toLowerCase().trim();
+          const daysMatch = validity.match(/(\d+)\s*days?/);
+          const monthsMatch = validity.match(/(\d+)\s*months?/);
+          const yearsMatch = validity.match(/(\d+)\s*years?/);
+          
+          const expiryDate = new Date(purchaseDate);
+          if (daysMatch) {
+            expiryDate.setDate(expiryDate.getDate() + parseInt(daysMatch[1], 10));
+          } else if (monthsMatch) {
+            expiryDate.setMonth(expiryDate.getMonth() + parseInt(monthsMatch[1], 10));
+          } else if (yearsMatch) {
+            expiryDate.setFullYear(expiryDate.getFullYear() + parseInt(yearsMatch[1], 10));
+          }
+          
+          isExpired = expiryDate < new Date();
+        }
+      }
+    }
+
+    return { hasAccess: !isExpired, isExpired };
+  } catch (err) {
+    console.warn('Error checking server purchase access:', err);
+    return { hasAccess: false, isExpired: false };
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // Tab switching functionality
   const tabButtons = document.querySelectorAll('.tab-btn');
@@ -140,10 +283,11 @@ async function loadRecommendedTests() {
       const recommended = allRecommendations.slice(0, 6);
       container.innerHTML = '';
       
-      recommended.forEach(item => {
-        const card = createRecommendationCard(item);
+      // Create cards asynchronously to check server purchases
+      for (const item of recommended) {
+        const card = await createRecommendationCard(item);
         container.appendChild(card);
-      });
+      }
       
       window.testsLoaded = true;
     } else {
@@ -219,8 +363,9 @@ async function loadRecommendedCourses() {
         const recommended = allCourses.slice(0, 6);
         container.innerHTML = '';
         
-        recommended.forEach(course => {
-          const card = createRecommendationCard({
+        // Create cards asynchronously to check server purchases
+        for (const course of recommended) {
+          const card = await createRecommendationCard({
             id: course.id || course._id,
             name: course.name,
             description: course.description || '',
@@ -235,7 +380,7 @@ async function loadRecommendedCourses() {
             discountMessage: course.discountMessage || ''
           });
           container.appendChild(card);
-        });
+        }
         
         window.coursesLoaded = true;
       } else {
@@ -250,7 +395,7 @@ async function loadRecommendedCourses() {
   }
 }
 
-function createRecommendationCard(item) {
+async function createRecommendationCard(item) {
   const card = document.createElement('div');
   card.className = 'recommended-card';
   
@@ -266,15 +411,15 @@ function createRecommendationCard(item) {
     icon = '📚';
   }
   
-  // Check if user has purchased and if it's expired
-  const accessCheck = typeof checkPurchaseAccess !== 'undefined' ? checkPurchaseAccess(item.id, item.type, item.categoryId || null) : { hasAccess: false, isExpired: false };
+  // Check if user has purchased from server (not localStorage)
+  const accessCheck = await checkServerPurchaseAccess(item.id, item.type, item.categoryId || null);
   const hasAccess = accessCheck.hasAccess;
   const isExpired = accessCheck.isExpired;
   
   let buttonText, buttonLink;
   if (hasAccess && !isExpired) {
     if (item.type === 'category') {
-      buttonText = 'View Tests';
+      buttonText = 'View Exams';
       buttonLink = item.link;
     } else if (item.type === 'exam') {
       buttonText = 'View Tests';

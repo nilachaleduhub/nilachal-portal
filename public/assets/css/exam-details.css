@@ -142,11 +142,12 @@
 }
 
 .image-preview img {
-    max-width: 300px;
-    max-height: 200px;
+    max-width: 200px;
+    max-height: 150px;
     border-radius: 8px;
     border: 2px solid #e2e8f0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    object-fit: contain;
 }
 
 /* Pattern Image Preview */
@@ -157,8 +158,40 @@
 }
 
 .pattern-image-preview img {
-    max-width: 300px;
-    max-height: 200px;
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    object-fit: contain;
+}
+
+/* Syllabus Image Preview */
+.syllabus-image-preview {
+    margin-top: 15px;
+    position: relative;
+    display: inline-block;
+}
+
+.syllabus-image-preview img {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    object-fit: contain;
+}
+
+/* Cutoff Image Preview */
+.cutoff-image-preview {
+    margin-top: 15px;
+    position: relative;
+    display: inline-block;
+}
+
+.cutoff-image-preview img {
+    max-width: 200px;
+    max-height: 150px;
     border-radius: 8px;
     border: 2px solid #e2e8f0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);

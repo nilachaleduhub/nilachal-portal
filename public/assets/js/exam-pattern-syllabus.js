@@ -63,7 +63,7 @@ function displayExamList(exams) {
       <div class="exam-card-icon">
         <i class="fas fa-clipboard-list"></i>
       </div>
-      <h3>${escapeHtml(exam.examName || 'Unnamed Exam')}</h3>
+      <h3>${escapeHtml(exam.examNamedetails || exam.examName || 'Unnamed Exam')}</h3>
       <a href="exam-pattern-syllabus.html?examId=${encodeURIComponent(exam._id || exam.id)}" class="view-details-btn">
         <i class="fas fa-eye"></i> View Details
       </a>
@@ -95,7 +95,7 @@ function displayExamDetails(exam) {
   // 1. Exam Name
   const examNameTitle = document.getElementById('exam-name-title');
   if (examNameTitle) {
-    examNameTitle.innerHTML = `<i class="fas fa-certificate"></i> ${escapeHtml(exam.examName || 'Exam')}`;
+    examNameTitle.innerHTML = `<i class="fas fa-certificate"></i> ${escapeHtml(exam.examNamedetails || exam.examName || 'Exam')}`;
   }
 
   // 2. About Exam
@@ -169,28 +169,99 @@ function displayExamDetails(exam) {
   const syllabusContent = document.getElementById('syllabus-content');
   if (syllabusContent) {
     let html = '';
-    if (exam.examSyllabusText) {
-      html += `<div class="text-content">${formatText(exam.examSyllabusText)}</div>`;
+    
+    // Show main syllabus caption if available
+    if (exam.examSyllabusCaption) {
+      html += `<h3 style="color: #0a1931; margin-bottom: 1rem; font-size: 1.3rem;">${escapeHtml(exam.examSyllabusCaption)}</h3>`;
     }
-    if (exam.examSyllabusImagePath) {
-      html += `<img src="${exam.examSyllabusImagePath}" alt="Exam Syllabus" />`;
+    
+    // Show multiple syllabus items
+    if (exam.syllabuses && Array.isArray(exam.syllabuses) && exam.syllabuses.length > 0) {
+      exam.syllabuses.forEach(syllabus => {
+        html += `<div class="syllabus-item-display" style="margin-bottom: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 12px; border-left: 4px solid #8b5cf6;">`;
+        html += `<h3 style="color: #0a1931; margin-bottom: 1rem; font-size: 1.3rem;">${escapeHtml(syllabus.caption || 'Syllabus')}</h3>`;
+        
+        if (syllabus.type === 'text' && syllabus.text) {
+          html += `<div class="text-content">${formatText(syllabus.text)}</div>`;
+        } else if (syllabus.type === 'picture' && syllabus.imagePath) {
+          // Use the imagePath as-is since it's already normalized by the server
+          let imagePath = syllabus.imagePath;
+          // Ensure it starts with / if it's a relative path
+          if (!imagePath.startsWith('http') && !imagePath.startsWith('/') && !imagePath.startsWith('data:') && !imagePath.startsWith('blob:')) {
+            imagePath = '/' + imagePath;
+          }
+          html += `<div style="margin-top: 1rem;">
+            <img src="${escapeHtml(imagePath)}" alt="${escapeHtml(syllabus.caption || 'Syllabus Image')}" 
+                 style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <div style="display: none; padding: 1rem; background: #fee; border-radius: 8px; color: #c33;">
+              Image failed to load. Path: ${escapeHtml(imagePath)}
+            </div>
+          </div>`;
+        } else if (syllabus.type === 'table' && syllabus.table) {
+          html += `<div class="table-wrapper">${syllabus.table}</div>`;
+        }
+        
+        html += `</div>`;
+      });
+    } else {
+      // Fallback to legacy fields for backward compatibility
+      if (exam.examSyllabusText) {
+        html += `<div class="text-content">${formatText(exam.examSyllabusText)}</div>`;
+      }
+      if (exam.examSyllabusImagePath) {
+        html += `<img src="${exam.examSyllabusImagePath}" alt="Exam Syllabus" />`;
+      }
+      if (exam.syllabusTable) {
+        html += `<div class="table-wrapper">${exam.syllabusTable}</div>`;
+      }
     }
-    if (exam.syllabusTable) {
-      html += `<div class="table-wrapper">${exam.syllabusTable}</div>`;
-    }
+    
     syllabusContent.innerHTML = html || '<div class="no-content">No syllabus information available</div>';
   }
 
-  // 5. Previous Year Cut Off
+  // 6. Previous Year Cut Off
   const cutoffContent = document.getElementById('cutoff-content');
   if (cutoffContent) {
     let html = '';
-    if (exam.cutoffImagePath) {
-      html += `<img src="${exam.cutoffImagePath}" alt="Previous Year Cut Off" />`;
+    
+    // Show multiple cutoff items
+    if (exam.cutoffs && Array.isArray(exam.cutoffs) && exam.cutoffs.length > 0) {
+      exam.cutoffs.forEach(cutoff => {
+        html += `<div class="cutoff-item-display" style="margin-bottom: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 12px; border-left: 4px solid #8b5cf6;">`;
+        html += `<h3 style="color: #0a1931; margin-bottom: 1rem; font-size: 1.3rem;">${escapeHtml(cutoff.caption || 'Cut Off')}</h3>`;
+        
+        if (cutoff.type === 'picture' && cutoff.imagePath) {
+          // Use the imagePath as-is since it's already normalized by the server
+          let imagePath = cutoff.imagePath;
+          // Ensure it starts with / if it's a relative path
+          if (!imagePath.startsWith('http') && !imagePath.startsWith('/') && !imagePath.startsWith('data:') && !imagePath.startsWith('blob:')) {
+            imagePath = '/' + imagePath;
+          }
+          html += `<div style="margin-top: 1rem;">
+            <img src="${escapeHtml(imagePath)}" alt="${escapeHtml(cutoff.caption || 'Cut Off Image')}" 
+                 style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <div style="display: none; padding: 1rem; background: #fee; border-radius: 8px; color: #c33;">
+              Image failed to load. Path: ${escapeHtml(imagePath)}
+            </div>
+          </div>`;
+        } else if (cutoff.type === 'table' && cutoff.table) {
+          html += `<div class="table-wrapper">${cutoff.table}</div>`;
+        }
+        
+        html += `</div>`;
+      });
+    } else {
+      // Fallback to legacy fields for backward compatibility
+      if (exam.cutoffImagePath) {
+        html += `<img src="${exam.cutoffImagePath}" alt="Previous Year Cut Off" />`;
+      }
+      if (exam.cutoffTable) {
+        html += `<div class="table-wrapper">${exam.cutoffTable}</div>`;
+      }
     }
-    if (exam.cutoffTable) {
-      html += `<div class="table-wrapper">${exam.cutoffTable}</div>`;
-    }
+    
     cutoffContent.innerHTML = html || '<div class="no-content">No cut off information available</div>';
   }
 }

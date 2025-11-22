@@ -811,6 +811,11 @@
                       console.warn('Error saving purchase to localStorage:', e);
                     }
 
+                    // Invalidate purchase cache so recommendations update
+                    if (typeof window.invalidatePurchaseCache === 'function') {
+                      window.invalidatePurchaseCache();
+                    }
+                    
                     alert('Payment successful! Redirecting to dashboard...');
                     window.location.href = 'dashboard.html';
                   } else {

@@ -95,14 +95,18 @@ function initializeExamDetails() {
 
     // Image preview handlers
     setupImagePreview('about-exam-image', 'about-exam-image-preview', 'about-exam-image-preview-img');
-    setupImagePreview('exam-syllabus-image', 'exam-syllabus-image-preview', 'exam-syllabus-image-preview-img');
-    setupImagePreview('cutoff-image', 'cutoff-image-preview', 'cutoff-image-preview-img');
 
     // Link input handlers
     setupLinkInputs();
     
     // Pattern input handlers
     setupPatternInputs();
+    
+    // Syllabus input handlers
+    setupSyllabusInputs();
+    
+    // Cutoff input handlers
+    setupCutoffInputs();
 }
 
 // Setup image preview
@@ -513,6 +517,515 @@ function getPatternsData() {
     return patterns;
 }
 
+// Setup syllabus inputs
+function setupSyllabusInputs() {
+    const syllabusItems = document.querySelectorAll('.syllabus-item');
+    syllabusItems.forEach((item, index) => {
+        const typeRadios = item.querySelectorAll('input[name^="syllabus-type-"]');
+        typeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                handleSyllabusTypeChange(item, e.target.value);
+            });
+        });
+        
+        // Setup image preview for syllabus images
+        const imageInput = item.querySelector('.syllabus-image');
+        if (imageInput) {
+            imageInput.addEventListener('change', (e) => {
+                handleSyllabusImageChange(item, e.target.files[0]);
+            });
+        }
+    });
+}
+
+// Handle syllabus type change
+function handleSyllabusTypeChange(syllabusItem, type) {
+    const textContent = syllabusItem.querySelector('.syllabus-text-content');
+    const pictureContent = syllabusItem.querySelector('.syllabus-picture-content');
+    const tableContent = syllabusItem.querySelector('.syllabus-table-content');
+    
+    // Hide all content
+    [textContent, pictureContent, tableContent].forEach(content => {
+        if (content) content.style.display = 'none';
+    });
+    
+    // Show selected content
+    if (type === 'text' && textContent) {
+        textContent.style.display = 'block';
+    } else if (type === 'picture' && pictureContent) {
+        pictureContent.style.display = 'block';
+    } else if (type === 'table' && tableContent) {
+        tableContent.style.display = 'block';
+    }
+}
+
+// Handle syllabus image change
+function handleSyllabusImageChange(syllabusItem, file) {
+    if (!file) return;
+    
+    const preview = syllabusItem.querySelector('.syllabus-image-preview');
+    const previewImg = syllabusItem.querySelector('.syllabus-image-preview-img');
+    
+    if (preview && previewImg) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            previewImg.src = event.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Add syllabus item
+function addSyllabusItem() {
+    const container = document.getElementById('exam-syllabus-container');
+    if (!container) return;
+    
+    const syllabusItems = container.querySelectorAll('.syllabus-item');
+    const newIndex = syllabusItems.length;
+    
+    const syllabusItem = document.createElement('div');
+    syllabusItem.className = 'syllabus-item';
+    syllabusItem.innerHTML = `
+        <input type="text" class="syllabus-caption" placeholder="Syllabus Caption (e.g., Mathematics Syllabus, Physics Syllabus)" name="syllabus-caption[]">
+        <div class="syllabus-content-options">
+            <label><input type="radio" name="syllabus-type-${newIndex}" value="text" checked> Text</label>
+            <label><input type="radio" name="syllabus-type-${newIndex}" value="picture"> Picture</label>
+            <label><input type="radio" name="syllabus-type-${newIndex}" value="table"> Table</label>
+        </div>
+        <div class="syllabus-content syllabus-text-content">
+            <textarea class="syllabus-text" placeholder="Enter syllabus details" rows="4" name="syllabus-text[]"></textarea>
+        </div>
+        <div class="syllabus-content syllabus-picture-content" style="display: none;">
+            <input type="file" class="syllabus-image" accept="image/*" name="syllabus-image[]">
+            <div class="syllabus-image-preview" style="display: none;">
+                <img class="syllabus-image-preview-img" src="" alt="Preview">
+                <button type="button" class="remove-image-btn" onclick="removeSyllabusImagePreview(this)">Remove</button>
+            </div>
+        </div>
+        <div class="syllabus-content syllabus-table-content" style="display: none;">
+            <div class="syllabus-table-editor">
+                <div class="table-editor-controls">
+                    <input type="number" class="syllabus-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                    <input type="number" class="syllabus-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                    <button type="button" class="btn-secondary" onclick="generateSyllabusItemTable(this)">Generate Table</button>
+                    <button type="button" class="btn-secondary" onclick="cancelSyllabusItemTable(this)">Cancel</button>
+                </div>
+                <div class="syllabus-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+            </div>
+        </div>
+        <button type="button" class="remove-syllabus-btn" onclick="removeSyllabusItem(this)">Remove</button>
+    `;
+    
+    container.appendChild(syllabusItem);
+    // Initialize dataset.imagePath to empty string to prevent undefined issues
+    syllabusItem.dataset.imagePath = '';
+    setupSyllabusInputs();
+
+    
+    // Show remove button on first item if there are multiple
+    const allItems = container.querySelectorAll('.syllabus-item');
+    if (allItems.length > 1) {
+        allItems[0].querySelector('.remove-syllabus-btn').style.display = 'block';
+    }
+}
+
+// Remove syllabus item
+function removeSyllabusItem(btn) {
+    const item = btn.closest('.syllabus-item');
+    if (item) {
+        item.remove();
+        
+        // Hide remove button on first item if only one remains
+        const container = document.getElementById('exam-syllabus-container');
+        const allItems = container.querySelectorAll('.syllabus-item');
+        if (allItems.length === 1) {
+            allItems[0].querySelector('.remove-syllabus-btn').style.display = 'none';
+        }
+    }
+}
+
+// Remove syllabus image preview
+function removeSyllabusImagePreview(btn) {
+    const preview = btn.closest('.syllabus-image-preview');
+    const syllabusItem = btn.closest('.syllabus-item');
+    const imageInput = syllabusItem.querySelector('.syllabus-image');
+    
+    if (preview) preview.style.display = 'none';
+    if (imageInput) imageInput.value = '';
+}
+
+// Generate syllabus item table
+function generateSyllabusItemTable(btn) {
+    const syllabusItem = btn.closest('.syllabus-item');
+    const rowsInput = syllabusItem.querySelector('.syllabus-table-rows');
+    const colsInput = syllabusItem.querySelector('.syllabus-table-cols');
+    const preview = syllabusItem.querySelector('.syllabus-table-preview');
+    
+    if (!rowsInput || !colsInput || !preview) return;
+    
+    const rows = parseInt(rowsInput.value || 3);
+    const cols = parseInt(colsInput.value || 3);
+    
+    let tableHTML = '<table class="editable-table syllabus-table"><thead><tr>';
+    for (let i = 0; i < cols; i++) {
+        tableHTML += `<th contenteditable="true">Header ${i + 1}</th>`;
+    }
+    tableHTML += '</tr></thead><tbody>';
+    
+    for (let i = 0; i < rows; i++) {
+        tableHTML += '<tr>';
+        for (let j = 0; j < cols; j++) {
+            tableHTML += `<td contenteditable="true">Cell ${i + 1}-${j + 1}</td>`;
+        }
+        tableHTML += '</tr>';
+    }
+    tableHTML += '</tbody></table>';
+    
+    preview.innerHTML = tableHTML;
+    
+    // Store initial table HTML immediately
+    syllabusItem.dataset.tableHtml = preview.innerHTML;
+    
+    // Capture table changes
+    const table = preview.querySelector('.syllabus-table');
+    if (table) {
+        const updateTableHtml = () => {
+            syllabusItem.dataset.tableHtml = preview.innerHTML;
+        };
+        
+        table.addEventListener('input', updateTableHtml);
+        table.addEventListener('blur', updateTableHtml, true);
+        table.addEventListener('focusout', updateTableHtml);
+        
+        const cells = table.querySelectorAll('th, td');
+        cells.forEach(cell => {
+            cell.addEventListener('blur', updateTableHtml);
+        });
+    }
+}
+
+// Cancel syllabus item table
+function cancelSyllabusItemTable(btn) {
+    const syllabusItem = btn.closest('.syllabus-item');
+    const preview = syllabusItem.querySelector('.syllabus-table-preview');
+    if (preview) {
+        preview.innerHTML = '';
+        syllabusItem.dataset.tableHtml = '';
+    }
+}
+
+// Get syllabus data
+function getSyllabusData() {
+    const syllabuses = [];
+    const syllabusItems = document.querySelectorAll('.syllabus-item');
+    
+    syllabusItems.forEach((item, index) => {
+        const caption = item.querySelector('.syllabus-caption')?.value.trim();
+        const typeRadio = item.querySelector('input[name^="syllabus-type-"]:checked');
+        const type = typeRadio ? typeRadio.value : 'text';
+        
+        if (!caption) return; // Skip if no caption
+        
+        const syllabus = {
+            caption: caption,
+            type: type
+        };
+        
+        if (type === 'text') {
+            const text = item.querySelector('.syllabus-text')?.value.trim() || '';
+            syllabus.text = text;
+        } else if (type === 'picture') {
+            const imageFile = item.querySelector('.syllabus-image')?.files[0];
+            if (imageFile) {
+                syllabus.imageFile = imageFile;
+                console.log('Syllabus picture file found:', imageFile.name);
+            }
+            // CRITICAL: Always preserve existing image path from dataset (set during edit load)
+            if (item.dataset.imagePath) {
+                syllabus.imagePath = item.dataset.imagePath;
+                console.log('Syllabus picture path from dataset:', syllabus.imagePath);
+            } else {
+                // Fallback to checking preview image src
+                const previewImg = item.querySelector('.syllabus-image-preview-img');
+                if (previewImg && previewImg.src && !previewImg.src.startsWith('data:') && !previewImg.src.startsWith('blob:')) {
+                    syllabus.imagePath = previewImg.src;
+                    console.log('Syllabus picture path from preview:', syllabus.imagePath);
+                }
+            }
+            // ALWAYS include imagePath if found - don't skip it
+            if (syllabus.imagePath) {
+                console.log('Syllabus imagePath included:', syllabus.imagePath);
+            } else if (!syllabus.imageFile) {
+                console.warn('Syllabus picture has no image file or path for caption:', syllabus.caption);
+            }
+        }
+ else if (type === 'table') {
+            const tablePreview = item.querySelector('.syllabus-table-preview');
+            let tableHtml = '';
+            
+            if (tablePreview && tablePreview.innerHTML.trim()) {
+                tableHtml = tablePreview.innerHTML;
+                item.dataset.tableHtml = tableHtml;
+            } else if (item.dataset.tableHtml) {
+                tableHtml = item.dataset.tableHtml;
+            }
+            
+            if (tableHtml) {
+                syllabus.table = tableHtml;
+            }
+        }
+        
+        if (syllabus.caption) {
+            syllabuses.push(syllabus);
+        }
+    });
+    
+    return syllabuses;
+}
+
+// Setup cutoff inputs
+function setupCutoffInputs() {
+    const cutoffItems = document.querySelectorAll('.cutoff-item');
+    cutoffItems.forEach((item, index) => {
+        const typeRadios = item.querySelectorAll('input[name^="cutoff-type-"]');
+        typeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                handleCutoffTypeChange(item, e.target.value);
+            });
+        });
+        
+        // Setup image preview for cutoff images
+        const imageInput = item.querySelector('.cutoff-image');
+        if (imageInput) {
+            imageInput.addEventListener('change', (e) => {
+                handleCutoffImageChange(item, e.target.files[0]);
+            });
+        }
+    });
+}
+
+// Handle cutoff type change
+function handleCutoffTypeChange(cutoffItem, type) {
+    const pictureContent = cutoffItem.querySelector('.cutoff-picture-content');
+    const tableContent = cutoffItem.querySelector('.cutoff-table-content');
+    
+    // Hide all content
+    [pictureContent, tableContent].forEach(content => {
+        if (content) content.style.display = 'none';
+    });
+    
+    // Show selected content
+    if (type === 'picture' && pictureContent) {
+        pictureContent.style.display = 'block';
+    } else if (type === 'table' && tableContent) {
+        tableContent.style.display = 'block';
+    }
+}
+
+// Handle cutoff image change
+function handleCutoffImageChange(cutoffItem, file) {
+    if (!file) return;
+    
+    const preview = cutoffItem.querySelector('.cutoff-image-preview');
+    const previewImg = cutoffItem.querySelector('.cutoff-image-preview-img');
+    
+    if (preview && previewImg) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            previewImg.src = event.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Add cutoff item
+function addCutoffItem() {
+    const container = document.getElementById('exam-cutoff-container');
+    if (!container) return;
+    
+    const cutoffItems = container.querySelectorAll('.cutoff-item');
+    const newIndex = cutoffItems.length;
+    
+    const cutoffItem = document.createElement('div');
+    cutoffItem.className = 'cutoff-item';
+    cutoffItem.innerHTML = `
+        <input type="text" class="cutoff-caption" placeholder="Cut Off Caption (e.g., 2023 Cut Off, Category-wise Cut Off)" name="cutoff-caption[]">
+        <div class="cutoff-content-options">
+            <label><input type="radio" name="cutoff-type-${newIndex}" value="picture" checked> Picture</label>
+            <label><input type="radio" name="cutoff-type-${newIndex}" value="table"> Table</label>
+        </div>
+        <div class="cutoff-content cutoff-picture-content">
+            <input type="file" class="cutoff-image" accept="image/*" name="cutoff-image[]">
+            <div class="cutoff-image-preview" style="display: none;">
+                <img class="cutoff-image-preview-img" src="" alt="Preview">
+                <button type="button" class="remove-image-btn" onclick="removeCutoffImagePreview(this)">Remove</button>
+            </div>
+        </div>
+        <div class="cutoff-content cutoff-table-content" style="display: none;">
+            <div class="cutoff-table-editor">
+                <div class="table-editor-controls">
+                    <input type="number" class="cutoff-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                    <input type="number" class="cutoff-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                    <button type="button" class="btn-secondary" onclick="generateCutoffItemTable(this)">Generate Table</button>
+                    <button type="button" class="btn-secondary" onclick="cancelCutoffItemTable(this)">Cancel</button>
+                </div>
+                <div class="cutoff-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+            </div>
+        </div>
+        <button type="button" class="remove-cutoff-btn" onclick="removeCutoffItem(this)">Remove</button>
+    `;
+    
+    container.appendChild(cutoffItem);
+    setupCutoffInputs();
+    
+    // Show remove button on first item if there are multiple
+    const allItems = container.querySelectorAll('.cutoff-item');
+    if (allItems.length > 1) {
+        allItems[0].querySelector('.remove-cutoff-btn').style.display = 'block';
+    }
+}
+
+// Remove cutoff item
+function removeCutoffItem(btn) {
+    const item = btn.closest('.cutoff-item');
+    if (item) {
+        item.remove();
+        
+        // Hide remove button on first item if only one remains
+        const container = document.getElementById('exam-cutoff-container');
+        const allItems = container.querySelectorAll('.cutoff-item');
+        if (allItems.length === 1) {
+            allItems[0].querySelector('.remove-cutoff-btn').style.display = 'none';
+        }
+    }
+}
+
+// Remove cutoff image preview
+function removeCutoffImagePreview(btn) {
+    const preview = btn.closest('.cutoff-image-preview');
+    const cutoffItem = btn.closest('.cutoff-item');
+    const imageInput = cutoffItem.querySelector('.cutoff-image');
+    
+    if (preview) preview.style.display = 'none';
+    if (imageInput) imageInput.value = '';
+}
+
+// Generate cutoff item table
+function generateCutoffItemTable(btn) {
+    const cutoffItem = btn.closest('.cutoff-item');
+    const rowsInput = cutoffItem.querySelector('.cutoff-table-rows');
+    const colsInput = cutoffItem.querySelector('.cutoff-table-cols');
+    const preview = cutoffItem.querySelector('.cutoff-table-preview');
+    
+    if (!rowsInput || !colsInput || !preview) return;
+    
+    const rows = parseInt(rowsInput.value || 3);
+    const cols = parseInt(colsInput.value || 3);
+    
+    let tableHTML = '<table class="editable-table cutoff-table"><thead><tr>';
+    for (let i = 0; i < cols; i++) {
+        tableHTML += `<th contenteditable="true">Header ${i + 1}</th>`;
+    }
+    tableHTML += '</tr></thead><tbody>';
+    
+    for (let i = 0; i < rows; i++) {
+        tableHTML += '<tr>';
+        for (let j = 0; j < cols; j++) {
+            tableHTML += `<td contenteditable="true">Cell ${i + 1}-${j + 1}</td>`;
+        }
+        tableHTML += '</tr>';
+    }
+    tableHTML += '</tbody></table>';
+    
+    preview.innerHTML = tableHTML;
+    
+    // Store initial table HTML immediately
+    cutoffItem.dataset.tableHtml = preview.innerHTML;
+    
+    // Capture table changes
+    const table = preview.querySelector('.cutoff-table');
+    if (table) {
+        const updateTableHtml = () => {
+            cutoffItem.dataset.tableHtml = preview.innerHTML;
+        };
+        
+        table.addEventListener('input', updateTableHtml);
+        table.addEventListener('blur', updateTableHtml, true);
+        table.addEventListener('focusout', updateTableHtml);
+        
+        const cells = table.querySelectorAll('th, td');
+        cells.forEach(cell => {
+            cell.addEventListener('blur', updateTableHtml);
+        });
+    }
+}
+
+// Cancel cutoff item table
+function cancelCutoffItemTable(btn) {
+    const cutoffItem = btn.closest('.cutoff-item');
+    const preview = cutoffItem.querySelector('.cutoff-table-preview');
+    if (preview) {
+        preview.innerHTML = '';
+        cutoffItem.dataset.tableHtml = '';
+    }
+}
+
+// Get cutoff data
+function getCutoffData() {
+    const cutoffs = [];
+    const cutoffItems = document.querySelectorAll('.cutoff-item');
+    
+    cutoffItems.forEach((item, index) => {
+        const caption = item.querySelector('.cutoff-caption')?.value.trim();
+        const typeRadio = item.querySelector('input[name^="cutoff-type-"]:checked');
+        const type = typeRadio ? typeRadio.value : 'picture';
+        
+        if (!caption) return; // Skip if no caption
+        
+        const cutoff = {
+            caption: caption,
+            type: type
+        };
+        
+        if (type === 'picture') {
+            const imageFile = item.querySelector('.cutoff-image')?.files[0];
+            if (imageFile) {
+                cutoff.imageFile = imageFile;
+            }
+            if (item.dataset.imagePath) {
+                cutoff.imagePath = item.dataset.imagePath;
+            } else {
+                const previewImg = item.querySelector('.cutoff-image-preview-img');
+                if (previewImg && previewImg.src && !previewImg.src.startsWith('data:') && !previewImg.src.startsWith('blob:')) {
+                    cutoff.imagePath = previewImg.src;
+                }
+            }
+        } else if (type === 'table') {
+            const tablePreview = item.querySelector('.cutoff-table-preview');
+            let tableHtml = '';
+            
+            if (tablePreview && tablePreview.innerHTML.trim()) {
+                tableHtml = tablePreview.innerHTML;
+                item.dataset.tableHtml = tableHtml;
+            } else if (item.dataset.tableHtml) {
+                tableHtml = item.dataset.tableHtml;
+            }
+            
+            if (tableHtml) {
+                cutoff.table = tableHtml;
+            }
+        }
+        
+        if (cutoff.caption) {
+            cutoffs.push(cutoff);
+        }
+    });
+    
+    return cutoffs;
+}
+
 // Add syllabus table
 function addSyllabusTable() {
     const editor = document.getElementById('syllabus-table-editor');
@@ -632,7 +1145,7 @@ async function handleExamDetailsSubmit(e) {
     const form = e.target;
     
     // Get form values - try multiple methods to ensure we get the value
-    const examNameInput = document.getElementById('exam-name');
+    const examNameInput = document.getElementById('exam-namedetails');
     let examName = '';
     
     if (examNameInput) {
@@ -644,7 +1157,7 @@ async function handleExamDetailsSubmit(e) {
     // Fallback: try to get from form data if input element method didn't work
     if (!examName || examName.length === 0) {
         const formDataCheck = new FormData(form);
-        const examNameFromForm = formDataCheck.get('exam-name');
+        const examNameFromForm = formDataCheck.get('exam-namedetails');
         if (examNameFromForm) {
             examName = examNameFromForm.trim();
             console.log('Exam name from FormData:', examName);
@@ -666,27 +1179,13 @@ async function handleExamDetailsSubmit(e) {
         examName: examName,
         aboutExamText: document.getElementById('about-exam-text')?.value.trim() || '',
         aboutExamImage: document.getElementById('about-exam-image')?.files[0] || null,
-        examSyllabusText: document.getElementById('exam-syllabus-text')?.value.trim() || '',
-        examSyllabusImage: document.getElementById('exam-syllabus-image')?.files[0] || null,
-        cutoffImage: document.getElementById('cutoff-image')?.files[0] || null,
+        examPatternCaption: document.getElementById('exam-pattern-caption')?.value.trim() || '',
+        examSyllabusCaption: document.getElementById('exam-syllabus-caption')?.value.trim() || '',
         links: getLinksData(),
         patterns: getPatternsData(),
-        syllabusTable: syllabusTableHTML,
-        cutoffTable: cutoffTableHTML
+        syllabuses: getSyllabusData(),
+        cutoffs: getCutoffData()
     };
-
-    // Capture current table HTML before submission
-    const syllabusPreview = document.getElementById('syllabus-table-preview');
-    const cutoffPreview = document.getElementById('cutoff-table-preview');
-    if (syllabusPreview && syllabusPreview.innerHTML.trim()) {
-        syllabusTableHTML = syllabusPreview.innerHTML;
-    }
-    if (cutoffPreview && cutoffPreview.innerHTML.trim()) {
-        cutoffTableHTML = cutoffPreview.innerHTML;
-    }
-    
-    examDetails.syllabusTable = syllabusTableHTML;
-    examDetails.cutoffTable = cutoffTableHTML;
 
     // Capture pattern table HTML right before submission
     const patternItems = document.querySelectorAll('.pattern-item');
@@ -700,8 +1199,34 @@ async function handleExamDetailsSubmit(e) {
         }
     });
     
-    // Re-get patterns data after capturing latest table HTML
+    // Capture syllabus table HTML right before submission
+    const syllabusItems = document.querySelectorAll('.syllabus-item');
+    syllabusItems.forEach((item) => {
+        const typeRadio = item.querySelector('input[name^="syllabus-type-"]:checked');
+        if (typeRadio && typeRadio.value === 'table') {
+            const tablePreview = item.querySelector('.syllabus-table-preview');
+            if (tablePreview && tablePreview.innerHTML.trim()) {
+                item.dataset.tableHtml = tablePreview.innerHTML;
+            }
+        }
+    });
+    
+    // Capture cutoff table HTML right before submission
+    const cutoffItems = document.querySelectorAll('.cutoff-item');
+    cutoffItems.forEach((item) => {
+        const typeRadio = item.querySelector('input[name^="cutoff-type-"]:checked');
+        if (typeRadio && typeRadio.value === 'table') {
+            const tablePreview = item.querySelector('.cutoff-table-preview');
+            if (tablePreview && tablePreview.innerHTML.trim()) {
+                item.dataset.tableHtml = tablePreview.innerHTML;
+            }
+        }
+    });
+    
+    // Re-get data after capturing latest table HTML
     examDetails.patterns = getPatternsData();
+    examDetails.syllabuses = getSyllabusData();
+    examDetails.cutoffs = getCutoffData();
     
     // Ensure patterns is always an array
     if (!Array.isArray(examDetails.patterns)) {
@@ -729,7 +1254,7 @@ async function handleExamDetailsSubmit(e) {
 
     // Build FormData for file uploads
     const submitData = new FormData();
-    submitData.append('examName', examDetails.examName);
+    submitData.append('exam-namedetails', examDetails.examName);
     submitData.append('aboutExamText', examDetails.aboutExamText || '');
     submitData.append('examSyllabusText', examDetails.examSyllabusText || '');
     submitData.append('links', JSON.stringify(examDetails.links));
@@ -769,20 +1294,87 @@ async function handleExamDetailsSubmit(e) {
         }
     });
     
-    submitData.append('syllabusTable', examDetails.syllabusTable);
-    submitData.append('cutoffTable', examDetails.cutoffTable);
+    // Add pattern caption
+    submitData.append('examPatternCaption', examDetails.examPatternCaption || '');
+    
+    // Add syllabuses data (without files first, then add files separately)
+    const syllabusesForJson = examDetails.syllabuses.map((s, index) => {
+        const syllabusData = {
+            caption: s.caption || '',
+            type: s.type || 'text'
+        };
+        if (s.type === 'text') {
+            syllabusData.text = s.text || '';
+        } else if (s.type === 'picture') {
+            // Always include imagePath if it exists (for existing images)
+            if (s.imagePath) {
+                syllabusData.imagePath = s.imagePath;
+            }
+            // Note: imageFile will be added separately as FormData file
+        } else if (s.type === 'table') {
+            syllabusData.table = s.table || '';
+        }
+        console.log(`Syllabus ${index} data:`, syllabusData);
+        return syllabusData;
+    });
+    
+    // Debug: Log syllabuses being sent
+    console.log('Syllabuses being sent (JSON):', JSON.stringify(syllabusesForJson, null, 2));
+    console.log('Syllabuses count:', syllabusesForJson.length);
+    
+    // Always send syllabuses, even if empty array
+    submitData.append('syllabuses', JSON.stringify(syllabusesForJson));
+    submitData.append('examSyllabusCaption', examDetails.examSyllabusCaption || '');
+    
+    // Add syllabus image files
+        // Add syllabus image files
+        examDetails.syllabuses.forEach((syllabus, index) => {
+            if (syllabus.type === 'picture') {
+                // Log both new files and existing paths
+                if (syllabus.imageFile) {
+                    console.log(`Adding syllabus image file ${index}:`, syllabus.imageFile.name);
+                    submitData.append(`syllabusImage_${index}`, syllabus.imageFile);
+                }
+                // CRITICAL: Log if imagePath is being sent
+                if (syllabus.imagePath) {
+                    console.log(`Syllabus ${index} has imagePath: ${syllabus.imagePath}`);
+                }
+            }
+        });
+    
+    
+    // Add cutoffs data (without files first, then add files separately)
+    const cutoffsForJson = examDetails.cutoffs.map((c, index) => {
+        const cutoffData = {
+            caption: c.caption || '',
+            type: c.type || 'picture'
+        };
+        if (c.type === 'picture') {
+            if (c.imagePath) {
+                cutoffData.imagePath = c.imagePath;
+            }
+        } else if (c.type === 'table') {
+            cutoffData.table = c.table || '';
+            console.log(`Cutoff ${index} table data length:`, cutoffData.table ? cutoffData.table.length : 0);
+        }
+        console.log(`Cutoff ${index} data:`, { caption: cutoffData.caption, type: cutoffData.type, hasImage: !!cutoffData.imagePath, hasTable: !!cutoffData.table });
+        return cutoffData;
+    });
+    console.log('Cutoffs being sent (JSON):', JSON.stringify(cutoffsForJson, null, 2));
+    submitData.append('cutoffs', JSON.stringify(cutoffsForJson));
+    
+    // Add cutoff image files
+    examDetails.cutoffs.forEach((cutoff, index) => {
+        if (cutoff.type === 'picture' && cutoff.imageFile) {
+            submitData.append(`cutoffImage_${index}`, cutoff.imageFile);
+        }
+    });
     
     // Debug: Log examName being sent
     console.log('Sending examName:', examDetails.examName);
     
     if (examDetails.aboutExamImage) {
         submitData.append('aboutExamImage', examDetails.aboutExamImage);
-    }
-    if (examDetails.examSyllabusImage) {
-        submitData.append('examSyllabusImage', examDetails.examSyllabusImage);
-    }
-    if (examDetails.cutoffImage) {
-        submitData.append('cutoffImage', examDetails.cutoffImage);
     }
     
     if (currentEditingId) {
@@ -798,7 +1390,11 @@ async function handleExamDetailsSubmit(e) {
         const result = await response.json();
         
         if (result.success) {
-            alert('Exam details saved successfully!');
+            if (currentEditingId) {
+                alert('Exam details updated successfully!');
+            } else {
+                alert('Exam details saved successfully!');
+            }
             resetExamDetailsForm();
             loadExamDetails();
         } else {
@@ -867,7 +1463,7 @@ function displayExamDetailsList(exams) {
         const examId = exam.id || exam._id;
         html += `
             <div class="exam-details-card">
-                <h4>${escapeHtml(exam.examName || 'Unnamed Exam')}</h4>
+                <h4>${escapeHtml(exam.examNamedetails || exam.examName || 'Unnamed Exam')}</h4>
                 <div class="exam-details-actions">
                     <button class="btn-edit" onclick="editExamDetails('${examId}')">Edit</button>
                     <button class="btn-delete" onclick="deleteExamDetails('${examId}')">Delete</button>
@@ -907,7 +1503,7 @@ async function editExamDetails(id) {
     
     if (!exam) {
         console.error('Exam not found for id:', id);
-        console.error('Available exams:', examDetailsData.map(e => ({ id: e.id, _id: e._id, examName: e.examName })));
+        console.error('Available exams:', examDetailsData.map(e => ({ id: e.id, _id: e._id, examNamedetails: e.examNamedetails, examName: e.examName })));
         alert('Exam not found. Please refresh the page and try again.');
         return;
     }
@@ -918,12 +1514,13 @@ async function editExamDetails(id) {
     currentEditingId = String(exam.id || exam._id);
     
     console.log('Current editing ID:', currentEditingId);
+    console.log('Exam object examNamedetails field:', exam.examNamedetails);
     console.log('Exam object examName field:', exam.examName);
     console.log('Exam object keys:', Object.keys(exam));
     console.log('Full exam object:', JSON.stringify(exam, null, 2));
     
     // If exam name is missing, try to fetch from server
-    if (!exam.examName) {
+    if (!exam.examNamedetails && !exam.examName) {
         console.log('WARNING: Exam name missing in local data, fetching from server...');
         try {
             const fetchResponse = await adminFetch(`/api/admin/exam-details`);
@@ -935,11 +1532,12 @@ async function editExamDetails(id) {
                 });
                 if (serverExam) {
                     console.log('Server exam found:', JSON.stringify(serverExam, null, 2));
-                    if (serverExam.examName) {
-                        exam.examName = serverExam.examName;
-                        console.log('Fetched exam name from server:', exam.examName);
+                    if (serverExam.examNamedetails || serverExam.examName) {
+                        exam.examNamedetails = serverExam.examNamedetails || serverExam.examName;
+                        exam.examName = serverExam.examName || serverExam.examNamedetails;
+                        console.log('Fetched exam name from server:', exam.examNamedetails || exam.examName);
                     } else {
-                        console.error('Server exam also missing examName!');
+                        console.error('Server exam also missing exam name!');
                     }
                 } else {
                     console.error('Server exam not found for id:', idStr);
@@ -949,12 +1547,12 @@ async function editExamDetails(id) {
             console.warn('Could not fetch exam from server:', fetchErr);
         }
     } else {
-        console.log('Exam name found in local data:', exam.examName);
+        console.log('Exam name found in local data:', exam.examNamedetails || exam.examName);
     }
 
     // START SIMPLIFIED EXAM NAME SETTING
-    const examNameInput = document.getElementById('exam-name');
-    const examNameToSet = exam.examName || exam.exam_name || exam.name || '';
+    const examNameInput = document.getElementById('exam-namedetails');
+    const examNameToSet = exam.examNamedetails || exam.examName || exam.exam_name || exam.Namedetails || exam.name || '';
 
     if (examNameInput) {
         // Set the value directly
@@ -1069,20 +1667,29 @@ async function editExamDetails(id) {
                             if (textArea) {
                                 textArea.value = pattern.text || '';
                             }
-                        } else if (pattern.type === 'picture' && pattern.imagePath) {
-                            const previewImg = lastItem.querySelector('.pattern-image-preview-img');
-                            const preview = lastItem.querySelector('.pattern-image-preview');
+                        } else if (syllabus.type === 'picture' && syllabus.imagePath) {
+                            const previewImg = lastItem.querySelector('.syllabus-image-preview-img');
+                            const preview = lastItem.querySelector('.syllabus-image-preview');
                             if (previewImg && preview) {
                                 // Ensure image path is correct
-                                let imagePath = pattern.imagePath;
+                                let imagePath = syllabus.imagePath;
                                 if (!imagePath.startsWith('http') && !imagePath.startsWith('/')) {
                                     imagePath = '/' + imagePath;
                                 }
                                 previewImg.src = imagePath;
+                                previewImg.onerror = function() {
+                                    console.error('Failed to load syllabus image:', imagePath);
+                                    preview.style.display = 'none';
+                                };
+                                previewImg.onload = function() {
+                                    preview.style.display = 'block';
+                                };
                                 preview.style.display = 'block';
-                                // Store the image path in the pattern item for later retrieval
+                                // CRITICAL: Store the image path in the syllabus item for later retrieval
                                 lastItem.dataset.imagePath = imagePath;
+                                console.log('Stored syllabus imagePath in dataset:', imagePath);
                             }
+
                         } else if (pattern.type === 'table' && pattern.table) {
                             const preview = lastItem.querySelector('.pattern-table-preview');
                             if (preview) {
@@ -1153,7 +1760,244 @@ async function editExamDetails(id) {
         }
     }
 
-    // Load tables
+    // Set pattern caption
+    const examPatternCaptionInput = document.getElementById('exam-pattern-caption');
+    if (examPatternCaptionInput) {
+        examPatternCaptionInput.value = exam.examPatternCaption || '';
+    }
+    
+    // Set syllabus caption
+    const examSyllabusCaptionInput = document.getElementById('exam-syllabus-caption');
+    if (examSyllabusCaptionInput) {
+        examSyllabusCaptionInput.value = exam.examSyllabusCaption || '';
+    }
+
+    // Load syllabuses
+    if (exam.syllabuses && Array.isArray(exam.syllabuses) && exam.syllabuses.length > 0) {
+        const container = document.getElementById('exam-syllabus-container');
+        if (container) {
+            container.innerHTML = '';
+            exam.syllabuses.forEach((syllabus, index) => {
+                addSyllabusItem();
+                const items = container.querySelectorAll('.syllabus-item');
+                const lastItem = items[items.length - 1];
+                
+                // Set caption
+                const captionInput = lastItem.querySelector('.syllabus-caption');
+                if (captionInput) {
+                    captionInput.value = syllabus.caption || '';
+                }
+                
+                // Set type
+                const typeRadios = lastItem.querySelectorAll(`input[name^="syllabus-type-"]`);
+                typeRadios.forEach(radio => {
+                    if (radio.value === syllabus.type) {
+                        radio.checked = true;
+                        radio.dispatchEvent(new Event('change'));
+                        handleSyllabusTypeChange(lastItem, syllabus.type);
+                        
+                        // Set content based on type
+                        if (syllabus.type === 'text' && syllabus.text) {
+                            const textArea = lastItem.querySelector('.syllabus-text');
+                            if (textArea) {
+                                textArea.value = syllabus.text || '';
+                            }
+                        } else if (syllabus.type === 'picture' && syllabus.imagePath) {
+                            const previewImg = lastItem.querySelector('.syllabus-image-preview-img');
+                            const preview = lastItem.querySelector('.syllabus-image-preview');
+                            if (previewImg && preview) {
+                                // Ensure image path is correct
+                                let imagePath = syllabus.imagePath;
+                                if (!imagePath.startsWith('http') && !imagePath.startsWith('/')) {
+                                    imagePath = '/' + imagePath;
+                                }
+                                previewImg.src = imagePath;
+                                preview.style.display = 'block';
+                                // Store the image path in the syllabus item for later retrieval
+                                lastItem.dataset.imagePath = imagePath;
+                            }
+                        } else if (syllabus.type === 'table' && syllabus.table) {
+                            const preview = lastItem.querySelector('.syllabus-table-preview');
+                            if (preview) {
+                                preview.innerHTML = syllabus.table;
+                                lastItem.dataset.tableHtml = syllabus.table;
+                                
+                                const table = preview.querySelector('.syllabus-table');
+                                if (table) {
+                                    const updateTableHtml = () => {
+                                        lastItem.dataset.tableHtml = preview.innerHTML;
+                                    };
+                                    
+                                    table.addEventListener('input', updateTableHtml);
+                                    table.addEventListener('blur', updateTableHtml, true);
+                                    table.addEventListener('focusout', updateTableHtml);
+                                    
+                                    const cells = table.querySelectorAll('th, td');
+                                    cells.forEach(cell => {
+                                        cell.addEventListener('blur', updateTableHtml);
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            setupSyllabusInputs();
+        }
+    } else {
+        // Reset to default if no syllabuses
+        const container = document.getElementById('exam-syllabus-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="syllabus-item">
+                    <input type="text" class="syllabus-caption" placeholder="Syllabus Caption (e.g., Mathematics Syllabus, Physics Syllabus)" name="syllabus-caption[]">
+                    <div class="syllabus-content-options">
+                        <label><input type="radio" name="syllabus-type-0" value="text" checked> Text</label>
+                        <label><input type="radio" name="syllabus-type-0" value="picture"> Picture</label>
+                        <label><input type="radio" name="syllabus-type-0" value="table"> Table</label>
+                    </div>
+                    <div class="syllabus-content syllabus-text-content">
+                        <textarea class="syllabus-text" placeholder="Enter syllabus details" rows="4" name="syllabus-text[]"></textarea>
+                    </div>
+                    <div class="syllabus-content syllabus-picture-content" style="display: none;">
+                        <input type="file" class="syllabus-image" accept="image/*" name="syllabus-image[]">
+                        <div class="syllabus-image-preview" style="display: none;">
+                            <img class="syllabus-image-preview-img" src="" alt="Preview">
+                            <button type="button" class="remove-image-btn" onclick="removeSyllabusImagePreview(this)">Remove</button>
+                        </div>
+                    </div>
+                    <div class="syllabus-content syllabus-table-content" style="display: none;">
+                        <div class="syllabus-table-editor">
+                            <div class="table-editor-controls">
+                                <input type="number" class="syllabus-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                                <input type="number" class="syllabus-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                                <button type="button" class="btn-secondary" onclick="generateSyllabusItemTable(this)">Generate Table</button>
+                                <button type="button" class="btn-secondary" onclick="cancelSyllabusItemTable(this)">Cancel</button>
+                            </div>
+                            <div class="syllabus-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="remove-syllabus-btn" onclick="removeSyllabusItem(this)" style="display: none;">Remove</button>
+                </div>
+            `;
+            setupSyllabusInputs();
+        }
+    }
+
+    // Load cutoffs
+    if (exam.cutoffs && Array.isArray(exam.cutoffs) && exam.cutoffs.length > 0) {
+        const container = document.getElementById('exam-cutoff-container');
+        if (container) {
+            container.innerHTML = '';
+            exam.cutoffs.forEach((cutoff, index) => {
+                addCutoffItem();
+                const items = container.querySelectorAll('.cutoff-item');
+                const lastItem = items[items.length - 1];
+                
+                // Set caption
+                const captionInput = lastItem.querySelector('.cutoff-caption');
+                if (captionInput) {
+                    captionInput.value = cutoff.caption || '';
+                }
+                
+                // Set type
+                const typeRadios = lastItem.querySelectorAll(`input[name^="cutoff-type-"]`);
+                typeRadios.forEach(radio => {
+                    if (radio.value === cutoff.type) {
+                        radio.checked = true;
+                        radio.dispatchEvent(new Event('change'));
+                        handleCutoffTypeChange(lastItem, cutoff.type);
+                        
+                        // Set content based on type
+                        if (cutoff.type === 'picture' && cutoff.imagePath) {
+                            const previewImg = lastItem.querySelector('.cutoff-image-preview-img');
+                            const preview = lastItem.querySelector('.cutoff-image-preview');
+                            if (previewImg && preview) {
+                                // Use the imagePath as-is since server already normalizes it
+                                let imagePath = cutoff.imagePath.trim();
+                                // Only add leading slash if it's a relative path and doesn't start with http, data, or blob
+                                if (!imagePath.startsWith('http') && !imagePath.startsWith('/') && !imagePath.startsWith('data:') && !imagePath.startsWith('blob:')) {
+                                    imagePath = '/' + imagePath;
+                                }
+                                // Ensure the path is properly formatted
+                                if (imagePath && imagePath !== '/') {
+                                    previewImg.src = imagePath;
+                                    previewImg.onerror = function() {
+                                        console.error('Failed to load cutoff image:', imagePath);
+                                        this.style.display = 'none';
+                                    };
+                                    previewImg.onload = function() {
+                                        preview.style.display = 'block';
+                                    };
+                                    preview.style.display = 'block';
+                                    lastItem.dataset.imagePath = imagePath;
+                                }
+                            }
+                        } else if (cutoff.type === 'table' && cutoff.table) {
+                            const preview = lastItem.querySelector('.cutoff-table-preview');
+                            if (preview) {
+                                preview.innerHTML = cutoff.table;
+                                lastItem.dataset.tableHtml = cutoff.table;
+                                
+                                const table = preview.querySelector('.cutoff-table');
+                                if (table) {
+                                    const updateTableHtml = () => {
+                                        lastItem.dataset.tableHtml = preview.innerHTML;
+                                    };
+                                    
+                                    table.addEventListener('input', updateTableHtml);
+                                    table.addEventListener('blur', updateTableHtml, true);
+                                    table.addEventListener('focusout', updateTableHtml);
+                                    
+                                    const cells = table.querySelectorAll('th, td');
+                                    cells.forEach(cell => {
+                                        cell.addEventListener('blur', updateTableHtml);
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            setupCutoffInputs();
+        }
+    } else {
+        // Reset to default if no cutoffs
+        const container = document.getElementById('exam-cutoff-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="cutoff-item">
+                    <input type="text" class="cutoff-caption" placeholder="Cut Off Caption (e.g., 2023 Cut Off, Category-wise Cut Off)" name="cutoff-caption[]">
+                    <div class="cutoff-content-options">
+                        <label><input type="radio" name="cutoff-type-0" value="picture" checked> Picture</label>
+                        <label><input type="radio" name="cutoff-type-0" value="table"> Table</label>
+                    </div>
+                    <div class="cutoff-content cutoff-picture-content">
+                        <input type="file" class="cutoff-image" accept="image/*" name="cutoff-image[]">
+                        <div class="cutoff-image-preview" style="display: none;">
+                            <img class="cutoff-image-preview-img" src="" alt="Preview">
+                            <button type="button" class="remove-image-btn" onclick="removeCutoffImagePreview(this)">Remove</button>
+                        </div>
+                    </div>
+                    <div class="cutoff-content cutoff-table-content" style="display: none;">
+                        <div class="cutoff-table-editor">
+                            <div class="table-editor-controls">
+                                <input type="number" class="cutoff-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                                <input type="number" class="cutoff-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                                <button type="button" class="btn-secondary" onclick="generateCutoffItemTable(this)">Generate Table</button>
+                                <button type="button" class="btn-secondary" onclick="cancelCutoffItemTable(this)">Cancel</button>
+                            </div>
+                            <div class="cutoff-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="remove-cutoff-btn" onclick="removeCutoffItem(this)" style="display: none;">Remove</button>
+                </div>
+            `;
+            setupCutoffInputs();
+        }
+    }
+
+    // Load tables (legacy - for backward compatibility)
     if (exam.syllabusTable) {
         syllabusTableHTML = exam.syllabusTable;
         const syllabusPreview = document.getElementById('syllabus-table-preview');
@@ -1271,8 +2115,78 @@ function resetExamDetailsForm() {
 
     // Reset tables
     document.getElementById('links-table-container').style.display = 'none';
-    cancelSyllabusTable();
-    cancelCutoffTable();
+    
+    // Reset syllabus items
+    const syllabusContainer = document.getElementById('exam-syllabus-container');
+    if (syllabusContainer) {
+        syllabusContainer.innerHTML = `
+            <div class="syllabus-item">
+                <input type="text" class="syllabus-caption" placeholder="Syllabus Caption (e.g., Mathematics Syllabus, Physics Syllabus)" name="syllabus-caption[]">
+                <div class="syllabus-content-options">
+                    <label><input type="radio" name="syllabus-type-0" value="text" checked> Text</label>
+                    <label><input type="radio" name="syllabus-type-0" value="picture"> Picture</label>
+                    <label><input type="radio" name="syllabus-type-0" value="table"> Table</label>
+                </div>
+                <div class="syllabus-content syllabus-text-content">
+                    <textarea class="syllabus-text" placeholder="Enter syllabus details" rows="4" name="syllabus-text[]"></textarea>
+                </div>
+                <div class="syllabus-content syllabus-picture-content" style="display: none;">
+                    <input type="file" class="syllabus-image" accept="image/*" name="syllabus-image[]">
+                    <div class="syllabus-image-preview" style="display: none;">
+                        <img class="syllabus-image-preview-img" src="" alt="Preview">
+                        <button type="button" class="remove-image-btn" onclick="removeSyllabusImagePreview(this)">Remove</button>
+                    </div>
+                </div>
+                <div class="syllabus-content syllabus-table-content" style="display: none;">
+                    <div class="syllabus-table-editor">
+                        <div class="table-editor-controls">
+                            <input type="number" class="syllabus-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                            <input type="number" class="syllabus-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                            <button type="button" class="btn-secondary" onclick="generateSyllabusItemTable(this)">Generate Table</button>
+                            <button type="button" class="btn-secondary" onclick="cancelSyllabusItemTable(this)">Cancel</button>
+                        </div>
+                        <div class="syllabus-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                    </div>
+                </div>
+                <button type="button" class="remove-syllabus-btn" onclick="removeSyllabusItem(this)" style="display: none;">Remove</button>
+            </div>
+        `;
+        setupSyllabusInputs();
+    }
+    
+    // Reset cutoff items
+    const cutoffContainer = document.getElementById('exam-cutoff-container');
+    if (cutoffContainer) {
+        cutoffContainer.innerHTML = `
+            <div class="cutoff-item">
+                <input type="text" class="cutoff-caption" placeholder="Cut Off Caption (e.g., 2023 Cut Off, Category-wise Cut Off)" name="cutoff-caption[]">
+                <div class="cutoff-content-options">
+                    <label><input type="radio" name="cutoff-type-0" value="picture" checked> Picture</label>
+                    <label><input type="radio" name="cutoff-type-0" value="table"> Table</label>
+                </div>
+                <div class="cutoff-content cutoff-picture-content">
+                    <input type="file" class="cutoff-image" accept="image/*" name="cutoff-image[]">
+                    <div class="cutoff-image-preview" style="display: none;">
+                        <img class="cutoff-image-preview-img" src="" alt="Preview">
+                        <button type="button" class="remove-image-btn" onclick="removeCutoffImagePreview(this)">Remove</button>
+                    </div>
+                </div>
+                <div class="cutoff-content cutoff-table-content" style="display: none;">
+                    <div class="cutoff-table-editor">
+                        <div class="table-editor-controls">
+                            <input type="number" class="cutoff-table-rows" placeholder="Rows" min="1" value="3" style="width: 100px;">
+                            <input type="number" class="cutoff-table-cols" placeholder="Columns" min="1" value="3" style="width: 100px;">
+                            <button type="button" class="btn-secondary" onclick="generateCutoffItemTable(this)">Generate Table</button>
+                            <button type="button" class="btn-secondary" onclick="cancelCutoffItemTable(this)">Cancel</button>
+                        </div>
+                        <div class="cutoff-table-preview" style="margin-top: 15px; overflow-x: auto;"></div>
+                    </div>
+                </div>
+                <button type="button" class="remove-cutoff-btn" onclick="removeCutoffItem(this)" style="display: none;">Remove</button>
+            </div>
+        `;
+        setupCutoffInputs();
+    }
 }
 
 // Escape HTML
@@ -1294,12 +2208,16 @@ window.removePatternItem = removePatternItem;
 window.removePatternImagePreview = removePatternImagePreview;
 window.generatePatternTable = generatePatternTable;
 window.cancelPatternTable = cancelPatternTable;
-window.addSyllabusTable = addSyllabusTable;
-window.generateSyllabusTable = generateSyllabusTable;
-window.cancelSyllabusTable = cancelSyllabusTable;
-window.addCutoffTable = addCutoffTable;
-window.generateCutoffTable = generateCutoffTable;
-window.cancelCutoffTable = cancelCutoffTable;
+window.addSyllabusItem = addSyllabusItem;
+window.removeSyllabusItem = removeSyllabusItem;
+window.removeSyllabusImagePreview = removeSyllabusImagePreview;
+window.generateSyllabusItemTable = generateSyllabusItemTable;
+window.cancelSyllabusItemTable = cancelSyllabusItemTable;
+window.addCutoffItem = addCutoffItem;
+window.removeCutoffItem = removeCutoffItem;
+window.removeCutoffImagePreview = removeCutoffImagePreview;
+window.generateCutoffItemTable = generateCutoffItemTable;
+window.cancelCutoffItemTable = cancelCutoffItemTable;
 window.removeImagePreview = removeImagePreview;
 window.resetExamDetailsForm = resetExamDetailsForm;
 

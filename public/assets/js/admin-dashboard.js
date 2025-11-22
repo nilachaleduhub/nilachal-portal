@@ -91,18 +91,70 @@ async function loadUsers() {
                 return;
             }
             
-            let html = '<table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Registered Date</th></tr></thead><tbody>';
+            let html = '<table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Registered Date</th><th>Actions</th></tr></thead><tbody>';
             data.users.forEach(user => {
                 const date = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A';
+                const userId = user._id || user.id || user.email;
                 html += `<tr>
                     <td>${escapeHtml(user.name || 'N/A')}</td>
                     <td>${escapeHtml(user.email || 'N/A')}</td>
                     <td>${escapeHtml(user.phone || 'N/A')}</td>
                     <td>${date}</td>
+                    <td>
+                        <button class="btn-remove-user" data-user-id="${userId}" data-user-email="${escapeHtml(user.email || '')}" style="background-color: #dc2626; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background-color 0.2s;">
+                            Remove
+                        </button>
+                    </td>
                 </tr>`;
             });
             html += '</tbody></table>';
             usersContent.innerHTML = html;
+            
+            // Add event listeners for Remove buttons
+            document.querySelectorAll('.btn-remove-user').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const userId = btn.dataset.userId;
+                    const userEmail = btn.dataset.userEmail;
+                    const userName = btn.closest('tr').querySelector('td:first-child').textContent;
+                    
+                    const confirmMessage = `Are you sure you want to permanently delete user "${userName}" (${userEmail})?\n\nThis will:\n- Delete the user account\n- Delete all their sessions\n- Delete all their purchase records\n\nThis action cannot be undone.`;
+                    
+                    if (!confirm(confirmMessage)) {
+                        return;
+                    }
+                    
+                    // Disable button and show loading state
+                    btn.disabled = true;
+                    btn.textContent = 'Removing...';
+                    btn.style.opacity = '0.6';
+                    
+                    try {
+                        const res = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const result = await res.json();
+                        
+                        if (result.success) {
+                            // Reload users list
+                            await loadUsers();
+                            // Show success message (you can add a toast notification here if needed)
+                            alert('User removed successfully.');
+                        } else {
+                            alert('Failed to remove user: ' + (result.message || 'Unknown error'));
+                            btn.disabled = false;
+                            btn.textContent = 'Remove';
+                            btn.style.opacity = '1';
+                        }
+                    } catch (error) {
+                        console.error('Error removing user:', error);
+                        alert('Error removing user: ' + error.message);
+                        btn.disabled = false;
+                        btn.textContent = 'Remove';
+                        btn.style.opacity = '1';
+                    }
+                });
+            });
         } else {
             console.error('Invalid users data format:', data);
             usersContent.innerHTML = '<div class="error">Failed to load users: ' + (data.message || 'Invalid response') + '</div>';
@@ -141,11 +193,12 @@ async function loadPurchases() {
                 return;
             }
             
-            let html = '<table class="data-table"><thead><tr><th>User Name</th><th>Email</th><th>Purchase Type</th><th>Item Name</th><th>Amount</th><th>Purchase Date</th></tr></thead><tbody>';
+            let html = '<table class="data-table"><thead><tr><th>User Name</th><th>Email</th><th>Purchase Type</th><th>Item Name</th><th>Amount</th><th>Purchase Date</th><th>Actions</th></tr></thead><tbody>';
             completedPurchases.forEach(purchase => {
                 const date = purchase.purchasedAt ? new Date(purchase.purchasedAt).toLocaleDateString() : 'N/A';
                 const amount = purchase.amount ? `₹${purchase.amount}` : 'N/A';
                 const typeClass = purchase.purchaseType || 'course';
+                const purchaseId = purchase.id || purchase._id;
                 html += `<tr>
                     <td>${escapeHtml(purchase.userName || 'N/A')}</td>
                     <td>${escapeHtml(purchase.userEmail || 'N/A')}</td>
@@ -153,10 +206,60 @@ async function loadPurchases() {
                     <td>${escapeHtml(purchase.purchaseName || 'N/A')}</td>
                     <td>${amount}</td>
                     <td>${date}</td>
+                    <td>
+                        <button class="btn-delete-purchase" data-purchase-id="${purchaseId}" data-purchase-name="${escapeHtml(purchase.purchaseName || '')}" style="background-color: #dc2626; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background-color 0.2s;">
+                            Delete
+                        </button>
+                    </td>
                 </tr>`;
             });
             html += '</tbody></table>';
             purchasesContent.innerHTML = html;
+            
+            // Add event listeners for Delete buttons
+            document.querySelectorAll('.btn-delete-purchase').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const purchaseId = btn.dataset.purchaseId;
+                    const purchaseName = btn.dataset.purchaseName;
+                    
+                    const confirmMessage = `Are you sure you want to delete the purchase record for "${purchaseName}"?\n\nThe user will lose access to this item immediately.\n\nThis action cannot be undone.`;
+                    
+                    if (!confirm(confirmMessage)) {
+                        return;
+                    }
+                    
+                    // Disable button and show loading state
+                    btn.disabled = true;
+                    btn.textContent = 'Deleting...';
+                    btn.style.opacity = '0.6';
+                    
+                    try {
+                        const res = await adminFetch(`/api/admin/purchases/${encodeURIComponent(purchaseId)}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const result = await res.json();
+                        
+                        if (result.success) {
+                            // Reload purchases list
+                            await loadPurchases();
+                            // Show success message
+                            alert('Purchase record deleted successfully. User access has been revoked.');
+                        } else {
+                            alert('Failed to delete purchase: ' + (result.message || 'Unknown error'));
+                            btn.disabled = false;
+                            btn.textContent = 'Delete';
+                            btn.style.opacity = '1';
+                        }
+                    } catch (error) {
+                        console.error('Error deleting purchase:', error);
+                        alert('Error deleting purchase: ' + error.message);
+                        btn.disabled = false;
+                        btn.textContent = 'Delete';
+                        btn.style.opacity = '1';
+                    }
+                });
+            });
         } else {
             console.error('Invalid purchases data format:', data);
             purchasesContent.innerHTML = '<div class="error">Failed to load purchases: ' + (data.message || 'Invalid response') + '</div>';

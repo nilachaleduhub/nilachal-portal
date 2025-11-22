@@ -3,6 +3,140 @@
   const testSeriesExamsContainer = document.getElementById('test-series-exams');
   const courseIndividualContainer = document.getElementById('course-individual-container');
 
+  // Cache for user purchases from server
+  let userPurchasesCache = null;
+  let purchasesCacheTime = null;
+  const CACHE_DURATION = 60000; // 1 minute cache
+
+  // Function to invalidate cache (call after purchase)
+  function invalidatePurchaseCache() {
+    userPurchasesCache = null;
+    purchasesCacheTime = null;
+  }
+
+  // Make it globally accessible for other scripts
+  window.invalidatePurchaseCache = invalidatePurchaseCache;
+
+  // Fetch user purchases from server
+  async function fetchUserPurchases() {
+    // Check cache first
+    const now = Date.now();
+    if (userPurchasesCache && purchasesCacheTime && (now - purchasesCacheTime) < CACHE_DURATION) {
+      return userPurchasesCache;
+    }
+
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        userPurchasesCache = [];
+        purchasesCacheTime = now;
+        return [];
+      }
+
+      const user = JSON.parse(userStr);
+      const userId = user.id || user._id || user.userId || user.email;
+      if (!userId) {
+        userPurchasesCache = [];
+        purchasesCacheTime = now;
+        return [];
+      }
+
+      // Fetch purchases from server
+      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true`);
+      const data = await res.json();
+      
+      if (data.success && Array.isArray(data.purchases)) {
+        userPurchasesCache = data.purchases;
+        purchasesCacheTime = now;
+        return data.purchases;
+      }
+      
+      userPurchasesCache = [];
+      purchasesCacheTime = now;
+      return [];
+    } catch (err) {
+      console.warn('Error fetching user purchases:', err);
+      userPurchasesCache = [];
+      purchasesCacheTime = now;
+      return [];
+    }
+  }
+
+  // Check if user has purchased an item (server-based)
+  async function checkServerPurchaseAccess(itemId, itemType, categoryId = null) {
+    try {
+      const purchases = await fetchUserPurchases();
+      if (!purchases || purchases.length === 0) {
+        return { hasAccess: false, isExpired: false };
+      }
+
+      // Find matching purchase
+      const purchase = purchases.find(p => {
+        if (p.status !== 'completed') return false;
+        
+        const purchaseId = p.purchaseId;
+        const purchaseType = p.purchaseType;
+        
+        // Direct match
+        if (purchaseId === itemId && purchaseType === itemType) {
+          return true;
+        }
+        
+        // Category access for exams/tests
+        if ((itemType === 'exam' || itemType === 'test') && categoryId && 
+            p.categoryId === categoryId && purchaseType === 'category') {
+          return true;
+        }
+        
+        // Exam access for tests
+        if (itemType === 'test' && categoryId && 
+            p.categoryId === categoryId && purchaseType === 'exam') {
+          return true;
+        }
+        
+        return false;
+      });
+
+      if (!purchase) {
+        return { hasAccess: false, isExpired: false };
+      }
+
+      // Check if expired
+      let isExpired = false;
+      if (purchase.expiresAt) {
+        const expiryDate = purchase.expiresAt instanceof Date 
+          ? purchase.expiresAt 
+          : new Date(purchase.expiresAt);
+        isExpired = expiryDate < new Date();
+      } else if (purchase.courseValidity && purchase.purchasedAt) {
+        // Calculate expiry from validity string
+        const purchaseDate = new Date(purchase.purchasedAt);
+        if (!isNaN(purchaseDate.getTime())) {
+          const validity = purchase.courseValidity.toLowerCase().trim();
+          const daysMatch = validity.match(/(\d+)\s*days?/);
+          const monthsMatch = validity.match(/(\d+)\s*months?/);
+          const yearsMatch = validity.match(/(\d+)\s*years?/);
+          
+          const expiryDate = new Date(purchaseDate);
+          if (daysMatch) {
+            expiryDate.setDate(expiryDate.getDate() + parseInt(daysMatch[1], 10));
+          } else if (monthsMatch) {
+            expiryDate.setMonth(expiryDate.getMonth() + parseInt(monthsMatch[1], 10));
+          } else if (yearsMatch) {
+            expiryDate.setFullYear(expiryDate.getFullYear() + parseInt(yearsMatch[1], 10));
+          }
+          
+          isExpired = expiryDate < new Date();
+        }
+      }
+
+      return { hasAccess: !isExpired, isExpired };
+    } catch (err) {
+      console.warn('Error checking server purchase access:', err);
+      return { hasAccess: false, isExpired: false };
+    }
+  }
+
   const getEntityId = (item = {}) => {
     if (!item) return null;
     return item.id || item._id || null;
@@ -174,28 +308,46 @@
     }
 
     testSeriesCategoryContainer.innerHTML = '';
-    uniqueCategories.forEach(category => {
+    
+    // Check purchase status for all categories
+    for (const category of uniqueCategories) {
       const categoryId = getEntityId(category);
-      if (!categoryId) return;
+      if (!categoryId) continue;
 
       const details = [
         { label: 'Price', value: category.courseCost },
         { label: 'Validity', value: category.courseValidity }
       ];
 
-      const navigateToDetails = () => {
-        const params = new URLSearchParams();
-        params.set('type', 'category');
-        params.set('id', categoryId);
-        window.location.href = `buy-course-details.html?${params.toString()}`;
-      };
+      // Check if user has purchased this category
+      const accessCheck = await checkServerPurchaseAccess(categoryId, 'category', categoryId);
+      const hasAccess = accessCheck.hasAccess;
+      const isExpired = accessCheck.isExpired;
+
+      let buttonLabel, navigateAction;
+      if (hasAccess && !isExpired) {
+        // User has purchased - show "View Exams"
+        buttonLabel = 'View Exams';
+        navigateAction = () => {
+          window.location.href = `category.html?cat=${encodeURIComponent(categoryId)}`;
+        };
+      } else {
+        // User hasn't purchased - show "Buy Now"
+        buttonLabel = 'Buy Now';
+        navigateAction = () => {
+          const params = new URLSearchParams();
+          params.set('type', 'category');
+          params.set('id', categoryId);
+          window.location.href = `buy-course-details.html?${params.toString()}`;
+        };
+      }
 
       const card = createCard({
         title: category.name || 'Untitled Category',
         description: category.description || '',
         details,
-        onCardClick: navigateToDetails,
-        button: { onClick: navigateToDetails, label: 'Buy Now' },
+        onCardClick: navigateAction,
+        button: { onClick: navigateAction, label: buttonLabel },
         type: 'category',
         hasDiscount: category.hasDiscount || false,
         discountPercent: category.discountPercent || 0,
@@ -203,7 +355,7 @@
         discountMessage: category.discountMessage || ''
       });
       testSeriesCategoryContainer.appendChild(card);
-    });
+    }
 
     return uniqueCategories;
   };
@@ -277,29 +429,48 @@
     }
 
     testSeriesExamsContainer.innerHTML = '';
-    uniqueExams.forEach(exam => {
+    
+    // Check purchase status for all exams
+    for (const exam of uniqueExams) {
       const examId = getEntityId(exam);
-      if (!examId) return;
+      if (!examId) continue;
 
       const details = [
         { label: 'Price', value: exam.courseCost },
         { label: 'Validity', value: exam.courseValidity }
       ];
 
-      const navigateToDetails = () => {
-        const params = new URLSearchParams();
-        params.set('type', 'exam');
-        params.set('id', examId);
-        if (exam.categoryId) params.set('categoryId', exam.categoryId);
-        window.location.href = `buy-course-details.html?${params.toString()}`;
-      };
+      // Check if user has purchased this exam
+      const accessCheck = await checkServerPurchaseAccess(examId, 'exam', exam.categoryId || null);
+      const hasAccess = accessCheck.hasAccess;
+      const isExpired = accessCheck.isExpired;
+
+      let buttonLabel, navigateAction;
+      if (hasAccess && !isExpired) {
+        // User has purchased - show "View Tests"
+        buttonLabel = 'View Tests';
+        navigateAction = () => {
+          const categoryId = exam.categoryId || '';
+          window.location.href = `exam.html?cat=${categoryId}&exam=${examId}`;
+        };
+      } else {
+        // User hasn't purchased - show "Buy Now"
+        buttonLabel = 'Buy Now';
+        navigateAction = () => {
+          const params = new URLSearchParams();
+          params.set('type', 'exam');
+          params.set('id', examId);
+          if (exam.categoryId) params.set('categoryId', exam.categoryId);
+          window.location.href = `buy-course-details.html?${params.toString()}`;
+        };
+      }
 
       const card = createCard({
         title: exam.name || 'Untitled Exam',
         description: exam.description || '',
         details,
-        onCardClick: navigateToDetails,
-        button: { onClick: navigateToDetails, label: 'Buy Now' },
+        onCardClick: navigateAction,
+        button: { onClick: navigateAction, label: buttonLabel },
         type: 'exam',
         hasDiscount: exam.hasDiscount || false,
         discountPercent: exam.discountPercent || 0,
@@ -307,7 +478,7 @@
         discountMessage: exam.discountMessage || ''
       });
       testSeriesExamsContainer.appendChild(card);
-    });
+    }
   };
 
   const loadCourseCategories = async () => {
@@ -374,29 +545,47 @@
 
     const uniqueCourses = uniqueById(allCourses);
     courseIndividualContainer.innerHTML = '';
-    uniqueCourses.forEach(course => {
+    
+    // Check purchase status for all courses
+    for (const course of uniqueCourses) {
       const courseId = getEntityId(course);
-      if (!courseId) return;
+      if (!courseId) continue;
 
       const details = [
         { label: 'Price', value: course.courseCost },
         { label: 'Validity', value: course.courseValidity }
       ];
 
-      const navigateToDetails = () => {
-        const params = new URLSearchParams();
-        params.set('type', 'course');
-        params.set('id', courseId);
-        if (course.categoryId) params.set('categoryId', course.categoryId);
-        window.location.href = `buy-course-details.html?${params.toString()}`;
-      };
+      // Check if user has purchased this course
+      const accessCheck = await checkServerPurchaseAccess(courseId, 'course', course.categoryId || null);
+      const hasAccess = accessCheck.hasAccess;
+      const isExpired = accessCheck.isExpired;
+
+      let buttonLabel, navigateAction;
+      if (hasAccess && !isExpired) {
+        // User has purchased - show "View Course"
+        buttonLabel = 'View Course';
+        navigateAction = () => {
+          window.location.href = `courses-lessons.html?catId=${encodeURIComponent(course.categoryId || '')}&courseId=${encodeURIComponent(courseId)}`;
+        };
+      } else {
+        // User hasn't purchased - show "Buy Now"
+        buttonLabel = 'Buy Now';
+        navigateAction = () => {
+          const params = new URLSearchParams();
+          params.set('type', 'course');
+          params.set('id', courseId);
+          if (course.categoryId) params.set('categoryId', course.categoryId);
+          window.location.href = `buy-course-details.html?${params.toString()}`;
+        };
+      }
 
       const card = createCard({
         title: course.name || 'Untitled Course',
         description: course.description || '',
         details,
-        onCardClick: navigateToDetails,
-        button: { onClick: navigateToDetails, label: 'Buy Now' },
+        onCardClick: navigateAction,
+        button: { onClick: navigateAction, label: buttonLabel },
         type: 'course',
         hasDiscount: course.hasDiscount || false,
         discountPercent: course.discountPercent || 0,
@@ -404,7 +593,7 @@
         discountMessage: course.discountMessage || ''
       });
       courseIndividualContainer.appendChild(card);
-    });
+    }
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
