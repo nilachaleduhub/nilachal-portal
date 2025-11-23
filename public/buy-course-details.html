@@ -816,8 +816,45 @@
                       window.invalidatePurchaseCache();
                     }
                     
-                    alert('Payment successful! Redirecting to dashboard...');
-                    window.location.href = 'dashboard.html';
+                    // Wait for purchase to be queryable before redirecting
+                    // This ensures the purchase is visible when dashboard loads
+                    alert('Payment successful! Verifying purchase...');
+                    
+                    const purchaseId = getEntityId(item);
+                    const purchaseType = type;
+                    let purchaseFound = false;
+                    let attempts = 0;
+                    const maxAttempts = 5;
+                    
+                    // Poll the server to check if purchase is queryable
+                    while (!purchaseFound && attempts < maxAttempts) {
+                      await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms between attempts
+                      attempts++;
+                      
+                      try {
+                        const userId = user.id || user._id || user.email;
+                        const checkRes = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true&_t=${Date.now()}`);
+                        const checkData = await checkRes.json();
+                        
+                        if (checkData.success && Array.isArray(checkData.purchases)) {
+                          purchaseFound = checkData.purchases.some(p => 
+                            p.purchaseId === purchaseId && 
+                            p.purchaseType === purchaseType && 
+                            p.status === 'completed'
+                          );
+                        }
+                      } catch (err) {
+                        console.warn('Error checking purchase:', err);
+                      }
+                    }
+                    
+                    if (purchaseFound) {
+                      console.log(`Purchase verified after ${attempts} attempt(s)`);
+                    } else {
+                      console.warn('Purchase not found after verification attempts, but proceeding anyway');
+                    }
+                    
+                    window.location.href = 'dashboard.html?purchaseComplete=true';
                   } else {
                     alert('Payment verification failed: ' + (verifyData.message || 'Unknown error'));
                     buyBtn.disabled = false;

@@ -1,6 +1,13 @@
 // dashboard.js: Handles user dashboard logic
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check if we just completed a purchase - if so, wait a bit longer before fetching
+  const urlParams = new URLSearchParams(window.location.search);
+  const purchaseComplete = urlParams.get('purchaseComplete') === 'true';
+  if (purchaseComplete) {
+    // Wait a bit longer if purchase was just completed to ensure database write is visible
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
   const profileName = document.getElementById('profile-name');
   const profileEmail = document.getElementById('profile-email');
   const profileAvatar = document.getElementById('profile-avatar');
@@ -122,20 +129,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         serverPurchases = data.purchases;
       }
       
-      // If server returns empty and this is the first attempt, retry once after a short delay
+      // If server returns empty, retry with exponential backoff
       // This handles race conditions where purchase was just saved but not yet queryable
-      if (serverPurchases.length === 0 && retryCount === 0) {
-        console.log('No purchases found on first fetch, retrying after delay...');
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
-        return getPurchases(1); // Retry once
+      if (serverPurchases.length === 0 && retryCount < 3) {
+        const delay = Math.min(500 * Math.pow(2, retryCount), 2000); // 500ms, 1000ms, 2000ms
+        console.log(`No purchases found on attempt ${retryCount + 1}, retrying after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return getPurchases(retryCount + 1); // Retry with incremented count
       }
     } catch (err) {
       console.warn('Error fetching purchases from server:', err);
-      // If first attempt fails, retry once after a short delay
-      if (retryCount === 0) {
-        console.log('Purchase fetch failed, retrying after delay...');
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
-        return getPurchases(1); // Retry once
+      // If fetch fails, retry with exponential backoff
+      if (retryCount < 3) {
+        const delay = Math.min(500 * Math.pow(2, retryCount), 2000); // 500ms, 1000ms, 2000ms
+        console.log(`Purchase fetch failed on attempt ${retryCount + 1}, retrying after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return getPurchases(retryCount + 1); // Retry with incremented count
       }
     }
 
