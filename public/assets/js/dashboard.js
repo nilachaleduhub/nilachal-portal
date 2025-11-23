@@ -102,20 +102,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   // My Library: Read purchases from server (source of truth) and enrich with localStorage data
-  async function getPurchases() {
+  async function getPurchases(retryCount = 0) {
     const userId = user && (user.id || user._id || user.userId || user.email);
     if (!userId) return { courses: [], categories: [], exams: [], tests: [] };
 
     let serverPurchases = [];
     try {
-      // Fetch both active and expired purchases to show renew options
-      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true`);
+      // Force fresh fetch by adding cache-busting timestamp parameter
+      const cacheBuster = Date.now();
+      const res = await fetch(`/api/purchases?userId=${encodeURIComponent(userId)}&includeExpired=true&_t=${cacheBuster}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await res.json();
       if (data.success && Array.isArray(data.purchases)) {
         serverPurchases = data.purchases;
       }
+      
+      // If server returns empty and this is the first attempt, retry once after a short delay
+      // This handles race conditions where purchase was just saved but not yet queryable
+      if (serverPurchases.length === 0 && retryCount === 0) {
+        console.log('No purchases found on first fetch, retrying after delay...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+        return getPurchases(1); // Retry once
+      }
     } catch (err) {
       console.warn('Error fetching purchases from server:', err);
+      // If first attempt fails, retry once after a short delay
+      if (retryCount === 0) {
+        console.log('Purchase fetch failed, retrying after delay...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+        return getPurchases(1); // Retry once
+      }
     }
 
     let store = null;
@@ -215,7 +236,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Always prioritize server purchases - localStorage is only used for enrichment
+    // Only return empty if we've exhausted retries and have no server purchases and no localStorage
     if (serverPurchases.length === 0 && !store) {
+      // If we haven't retried yet, the retry logic above should have handled it
+      // This is a final check after retries
       return { courses: [], categories: [], exams: [], tests: [] };
     }
 
@@ -798,6 +822,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (myCoursesTab) myCoursesTab.addEventListener('click', showMyCourses);
   if (myTestsTab) myTestsTab.addEventListener('click', showMyTests);
+  
+  // Force refresh purchases when page becomes visible (user switches back to tab)
+  // This ensures fresh data if user made a purchase in another tab/window
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      // Page became visible - refresh the currently active tab
+      if (myTestsSection && myTestsSection.style.display !== 'none') {
+        showMyTests();
+      } else if (myCoursesSection && myCoursesSection.style.display !== 'none') {
+        showMyCourses();
+      }
+    }
+  });
+  
   // Default tab: My Test (changed from My Course)
   showMyTests();
 
