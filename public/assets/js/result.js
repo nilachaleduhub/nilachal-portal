@@ -138,7 +138,25 @@ async function renderResult() {
     // Build explanation image HTML if available
     let explanationImageHTML = '';
     if (q.explanationImage && q.explanationImage.trim() !== '') {
-      explanationImageHTML = `<img src="${q.explanationImage}" alt="Explanation image" style="max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
+      // Apply custom dimensions if provided (convert cm to pixels: 1cm ≈ 37.8px at 96 DPI)
+      const cmToPx = 37.7952755906;
+      let explanationImageStyle = 'margin: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0; display: block;';
+      
+      if (q.explanationImageWidth && typeof q.explanationImageWidth === 'number' && q.explanationImageWidth > 0) {
+        const widthPx = q.explanationImageWidth * cmToPx;
+        explanationImageStyle += `width: ${widthPx}px; max-width: ${widthPx}px; min-width: 0;`;
+      } else {
+        explanationImageStyle += 'max-width: 100%; width: auto;';
+      }
+      
+      if (q.explanationImageHeight && typeof q.explanationImageHeight === 'number' && q.explanationImageHeight > 0) {
+        const heightPx = q.explanationImageHeight * cmToPx;
+        explanationImageStyle += `height: ${heightPx}px; max-height: ${heightPx}px; min-height: 0; object-fit: contain;`;
+      } else {
+        explanationImageStyle += 'height: auto; max-height: none;';
+      }
+      
+      explanationImageHTML = `<img src="${q.explanationImage}" alt="Explanation image" style="${explanationImageStyle}" />`;
     }
     
     // Build table HTML if available

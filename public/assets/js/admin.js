@@ -566,6 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const explanationFileInput = block.querySelector('.explanation-image-file');
             const explanationImgPreview = block.querySelector('.explanation-image-preview');
             const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+            const explanationImageDimensionsContainer = block.querySelector('.explanation-image-dimensions-container');
+            const explanationImageWidthInput = block.querySelector('.explanation-image-width-input');
+            const explanationImageHeightInput = block.querySelector('.explanation-image-height-input');
             
             if (explanationFileInput) {
                 explanationFileInput.addEventListener('change', (e) => {
@@ -608,6 +611,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (removeExplanationImageBtn) {
                                 removeExplanationImageBtn.style.display = 'block';
                             }
+                            if (explanationImageDimensionsContainer) {
+                                explanationImageDimensionsContainer.style.display = 'block';
+                            }
                             
                             const originalSize = (f.size / 1024).toFixed(2);
                             const compressedSize = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
@@ -629,6 +635,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     explanationImgPreview.src = '';
                     explanationImgPreview.style.display = 'none';
                     removeExplanationImageBtn.style.display = 'none';
+                    // Hide and clear dimension inputs
+                    if (explanationImageDimensionsContainer) {
+                        explanationImageDimensionsContainer.style.display = 'none';
+                    }
+                    if (explanationImageWidthInput) {
+                        explanationImageWidthInput.value = '';
+                    }
+                    if (explanationImageHeightInput) {
+                        explanationImageHeightInput.value = '';
+                    }
                     if (explanationFileInput) {
                         explanationFileInput.value = '';
                     }
@@ -797,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${headerLabel}
                 <button type="button" class="btn-red-small" onclick="document.getElementById('${questionId}').remove(); updateQuestionCount();">Remove</button>
             </h4>
-            <textarea class="question-text" placeholder="Question text" required></textarea>
+            <textarea class="question-text" placeholder="Question text"></textarea>
             <div class="media-controls">
                 <label class="file-label">Attach image <input type="file" class="question-image-file" accept="image/*"></label>
                 <button type="button" class="btn-gray add-table-btn">Add Table</button>
@@ -841,8 +857,12 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="explanation-image-controls" style="margin-top: 8px;">
                 <label class="file-label" style="display: inline-block; margin-right: 10px;">Attach explanation image <input type="file" class="explanation-image-file" accept="image/*"></label>
                 <div class="explanation-image-preview-wrap" style="position:relative; display:inline-block; margin-top:8px;">
-                    <img class="explanation-image-preview" style="max-width:300px; max-height:200px; display:none; margin-top:8px; border-radius:8px; border:1px solid #ddd;"/>
+                    <img class="explanation-image-preview" style="max-width:100%; display:none; margin-top:8px; border-radius:8px; border:1px solid #ddd;"/>
                     <button type="button" class="remove-explanation-image-btn" style="display:none; position:absolute; top:8px; right:8px; background:#ff4444; color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:16px; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="Remove image">×</button>
+                </div>
+                <div class="explanation-image-dimensions-container" style="display:none; margin-top:8px; padding:8px; background:#f5f5f5; border-radius:4px;">
+                    <label style="margin-right:12px;">Width (cm): <input type="number" class="explanation-image-width-input" min="0.1" step="0.1" style="width:80px; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:14px;" placeholder="Auto"></label>
+                    <label>Height (cm): <input type="number" class="explanation-image-height-input" min="0.1" step="0.1" style="width:80px; padding:4px; border:1px solid #ddd; border-radius:4px; font-size:14px;" placeholder="Auto"></label>
                 </div>
             </div>
         `;
@@ -1392,10 +1412,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Restore explanation image if available
                         const explanationImgPreview = block.querySelector('.explanation-image-preview');
                         const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+                        const explanationImageDimensionsContainer = block.querySelector('.explanation-image-dimensions-container');
+                        const explanationImageWidthInput = block.querySelector('.explanation-image-width-input');
+                        const explanationImageHeightInput = block.querySelector('.explanation-image-height-input');
                         if (q.explanationImage && q.explanationImage.trim() !== '' && explanationImgPreview) {
                             explanationImgPreview.src = q.explanationImage;
                             explanationImgPreview.style.display = 'block';
                             if (removeExplanationImageBtn) { removeExplanationImageBtn.style.display = 'block'; }
+                            if (explanationImageDimensionsContainer) { explanationImageDimensionsContainer.style.display = 'block'; }
+                            // Restore explanation image dimensions if available
+                            if (explanationImageWidthInput && q.explanationImageWidth) {
+                                explanationImageWidthInput.value = q.explanationImageWidth;
+                            }
+                            if (explanationImageHeightInput && q.explanationImageHeight) {
+                                explanationImageHeightInput.value = q.explanationImageHeight;
+                            }
                             console.log('Restored explanation image for question:', q.explanationImage.substring(0, 50) + '...');
                         }
                         // Restore table if available
@@ -1437,10 +1468,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Restore explanation image if available
                         const explanationImgPreview = block.querySelector('.explanation-image-preview');
                         const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+                        const explanationImageDimensionsContainer = block.querySelector('.explanation-image-dimensions-container');
+                        const explanationImageWidthInput = block.querySelector('.explanation-image-width-input');
+                        const explanationImageHeightInput = block.querySelector('.explanation-image-height-input');
                         if (q.explanationImage && q.explanationImage.trim() !== '' && explanationImgPreview) {
                             explanationImgPreview.src = q.explanationImage;
                             explanationImgPreview.style.display = 'block';
                             if (removeExplanationImageBtn) { removeExplanationImageBtn.style.display = 'block'; }
+                            if (explanationImageDimensionsContainer) { explanationImageDimensionsContainer.style.display = 'block'; }
+                            // Restore explanation image dimensions if available
+                            if (explanationImageWidthInput && q.explanationImageWidth) {
+                                explanationImageWidthInput.value = q.explanationImageWidth;
+                            }
+                            if (explanationImageHeightInput && q.explanationImageHeight) {
+                                explanationImageHeightInput.value = q.explanationImageHeight;
+                            }
                             console.log('Restored explanation image for question:', q.explanationImage.substring(0, 50) + '...');
                         }
                         const imgPreview = block.querySelector('.question-image-preview');
@@ -2256,7 +2298,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const correctAnswerRadio = block.querySelector('input[type="radio"]:checked');
             const optionInputs = block.querySelectorAll('.option-text');
 
-            if (questionText && correctAnswerRadio && optionInputs.length === 4) {
+            if (correctAnswerRadio && optionInputs.length === 4) {
                 const options = Array.from(optionInputs).map(input => input.value);
                 const correctAnswer = parseInt(correctAnswerRadio.value);
                 let sectionIndex = null;
@@ -2266,7 +2308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const qObj = {
-                    question: questionText,
+                    question: questionText || '',
                     options: options,
                     correctAnswer: correctAnswer,
                     explanation: explanation
@@ -2280,6 +2322,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Capture explanation image if present
                 const explanationImgPreview = block.querySelector('.explanation-image-preview');
+                const explanationImageWidthInput = block.querySelector('.explanation-image-width-input');
+                const explanationImageHeightInput = block.querySelector('.explanation-image-height-input');
                 if (explanationImgPreview && explanationImgPreview.src) {
                     const explanationImgSrc = explanationImgPreview.src.trim();
                     const isNotHidden = explanationImgPreview.style.display !== 'none' && 
@@ -2290,6 +2334,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         (explanationImgSrc.startsWith('data:') || explanationImgSrc.startsWith('http')) &&
                         isNotHidden) {
                         qObj.explanationImage = explanationImgSrc;
+                        // Capture explanation image dimensions if provided
+                        if (explanationImageWidthInput && explanationImageWidthInput.value) {
+                            const width = parseFloat(explanationImageWidthInput.value);
+                            if (!isNaN(width) && width > 0) {
+                                qObj.explanationImageWidth = width;
+                            }
+                        }
+                        if (explanationImageHeightInput && explanationImageHeightInput.value) {
+                            const height = parseFloat(explanationImageHeightInput.value);
+                            if (!isNaN(height) && height > 0) {
+                                qObj.explanationImageHeight = height;
+                            }
+                        }
                         console.log('Captured explanation image data for question');
                     }
                 }

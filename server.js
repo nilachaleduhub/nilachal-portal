@@ -91,6 +91,8 @@ const QuestionSchema = new mongoose.Schema({
   tableData: String,
   imageWidth: Number,
   imageHeight: Number,
+  explanationImageWidth: Number,
+  explanationImageHeight: Number,
   sectionIndex: Number
 }, { _id: false });
 
@@ -296,6 +298,8 @@ const QuestionDocSchema = new mongoose.Schema({
   tableData: String,
   imageWidth: Number,
   imageHeight: Number,
+  explanationImageWidth: Number,
+  explanationImageHeight: Number,
   sectionIndex: Number,
   createdAt: { type: Date, default: Date.now }
 });
@@ -859,6 +863,8 @@ app.get('/api/tests/:testId', async (req, res) => {
           tableData: qDoc.tableData || '',
           imageWidth: typeof qDoc.imageWidth === 'number' ? qDoc.imageWidth : null,
           imageHeight: typeof qDoc.imageHeight === 'number' ? qDoc.imageHeight : null,
+          explanationImageWidth: typeof qDoc.explanationImageWidth === 'number' ? qDoc.explanationImageWidth : null,
+          explanationImageHeight: typeof qDoc.explanationImageHeight === 'number' ? qDoc.explanationImageHeight : null,
           sectionIndex: qDoc.sectionIndex !== undefined ? qDoc.sectionIndex : null
         }));
         console.log(`Loaded ${questions.length} questions from QuestionDoc for test: ${test.name || testId}`);
@@ -1273,6 +1279,8 @@ app.post('/api/admin/tests/:id/questions', async (req, res) => {
         tableData: q.tableData || '',
         imageWidth: typeof q.imageWidth === 'number' ? q.imageWidth : null,
         imageHeight: typeof q.imageHeight === 'number' ? q.imageHeight : null,
+        explanationImageWidth: typeof q.explanationImageWidth === 'number' ? q.explanationImageWidth : null,
+        explanationImageHeight: typeof q.explanationImageHeight === 'number' ? q.explanationImageHeight : null,
         sectionIndex: typeof q.sectionIndex !== 'undefined' ? q.sectionIndex : null
       };
       // Log if imageData is present for debugging
