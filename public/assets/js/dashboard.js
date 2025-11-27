@@ -626,12 +626,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     myTestsEmpty.style.display = 'none';
+    let dismissedPurchases = [];
+    try {
+      const storedDismissed = localStorage.getItem('dismissedPurchases');
+      if (storedDismissed) {
+        dismissedPurchases = JSON.parse(storedDismissed) || [];
+      }
+    } catch (e) {
+      dismissedPurchases = [];
+    }
+    const dismissedSet = new Set(dismissedPurchases);
     myTestsList.innerHTML = '';
     allItems.forEach(item => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.cssText = 'background-color: white; padding: 1.5rem 1rem; border-radius: 15px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; display: flex; flex-direction: column; justify-content: space-between; word-wrap: break-word; overflow-wrap: break-word; height: 100%;';
-      
       const isCategory = item.itemType === 'category' || item.purchaseType === 'category' || item.type === 'category';
       const isExam = item.itemType === 'exam' || item.purchaseType === 'exam' || item.type === 'exam';
       const isTest = item.itemType === 'test' || item.purchaseType === 'test' || item.type === 'test';
@@ -653,7 +659,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         linkText = 'Start Test';
         badgeColor = 'linear-gradient(135deg, #10b981, #059669)';
       }
-      
+      const normalizedType = isCategory ? 'category' : isExam ? 'exam' : 'test';
+      const purchaseId = item.id || '';
+      const purchaseKey = `${normalizedType}_${purchaseId}`;
+
       // Get expiry date - prioritize server-provided expiresAt, fallback to calculation
       let expiryDate = null;
       if (item.expiresAt) {
@@ -667,6 +676,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const expiryDateStr = expiryDate ? formatExpiryDate(expiryDate) : null;
       const isExpired = expiryDate && expiryDate < new Date();
+      
+      if (isExpired && dismissedSet.has(purchaseKey)) {
+        return;
+      }
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = 'background-color: white; padding: 1.5rem 1rem; border-radius: 15px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; display: flex; flex-direction: column; justify-content: space-between; word-wrap: break-word; overflow-wrap: break-word; height: 100%;';
       
       card.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
@@ -710,7 +727,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (renewNoBtn) {
           renewNoBtn.addEventListener('click', () => {
-            // Hide this card so the user no longer sees the expired purchase details
+            dismissedSet.add(purchaseKey);
+            try {
+              localStorage.setItem('dismissedPurchases', JSON.stringify(Array.from(dismissedSet)));
+            } catch (e) {
+              console.error('Failed to store dismissed purchases', e);
+            }
             card.style.display = 'none';
           });
         }
