@@ -709,66 +709,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         }
         if (renewNoBtn) {
-          renewNoBtn.addEventListener('click', async () => {
-            const itemId = renewNoBtn.dataset.itemId;
-            const itemType = renewNoBtn.dataset.itemType;
-            
-            try {
-              // Add to dismissed purchases list (works for both server and localStorage purchases)
-              let dismissedPurchases = [];
-              try {
-                const dismissed = localStorage.getItem('dismissedPurchases');
-                if (dismissed) {
-                  dismissedPurchases = JSON.parse(dismissed);
-                }
-              } catch (e) {
-                dismissedPurchases = [];
-              }
-              
-              // Create a unique key for this purchase
-              const purchaseKey = `${itemType}_${itemId}`;
-              if (!dismissedPurchases.includes(purchaseKey)) {
-                dismissedPurchases.push(purchaseKey);
-                localStorage.setItem('dismissedPurchases', JSON.stringify(dismissedPurchases));
-              }
-              
-              // Also remove from localStorage purchases if it exists there
-              const userId = user && (user.id || user._id || user.userId || user.email);
-              if (userId) {
-                let userPurchases = null;
-                try {
-                  userPurchases = JSON.parse(localStorage.getItem('userPurchases') || '{}');
-                } catch (e) {
-                  userPurchases = {};
-                }
-                
-                if (userPurchases[userId]) {
-                  // Remove from courses array (for courses, categories, exams)
-                  if (itemType === 'course' || itemType === 'category' || itemType === 'exam') {
-                    userPurchases[userId].courses = (userPurchases[userId].courses || []).filter(p => {
-                      const pId = p.id || p.courseId || p.testId || p._id;
-                      const pType = p.purchaseType || p.type;
-                      return !(pId === itemId && pType === itemType);
-                    });
-                  }
-                  // Remove from tests array
-                  else if (itemType === 'test') {
-                    userPurchases[userId].tests = (userPurchases[userId].tests || []).filter(p => {
-                      const pId = p.id || p.courseId || p.testId || p._id;
-                      const pType = p.purchaseType || p.type;
-                      return !(pId === itemId && pType === itemType);
-                    });
-                  }
-                  
-                  localStorage.setItem('userPurchases', JSON.stringify(userPurchases));
-                }
-              }
-              
-              // Refresh the dashboard display
-              await showMyTests();
-            } catch (e) {
-              console.error('Error dismissing purchase:', e);
-            }
+          renewNoBtn.addEventListener('click', () => {
+            // Hide this card so the user no longer sees the expired purchase details
+            card.style.display = 'none';
           });
         }
       }
