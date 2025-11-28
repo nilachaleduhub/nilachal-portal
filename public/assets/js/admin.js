@@ -1343,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load existing questions for the selected test in the Add Questions panel
-    function loadSelectedTestQuestions() {
+    async function loadSelectedTestQuestions() {
         const categoryId = questionCategorySelect.value;
         const examId = questionExamSelect.value;
         const testId = questionTestSelect.value;
@@ -1378,13 +1378,53 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        currentTestHasExistingQuestions = Array.isArray(test.questions) && test.questions.length > 0;
+        // CRITICAL FIX: Always fetch questions from server API using test ID
+        // This ensures questions load correctly even after test name is edited
+        // Questions are linked by testId in QuestionDoc collection, not by test name
+        let questions = test.questions || [];
+        try {
+            const res = await fetch(`/api/tests/${testId}`);
+            if (res.ok) {
+                const testData = await res.json();
+                if (testData.success && testData.test && Array.isArray(testData.test.questions)) {
+                    questions = testData.test.questions;
+                    console.log(`Loaded ${questions.length} questions from server API for test ID: ${testId}`);
+                    
+                    // Update localStorage with fresh questions for future use
+                    test.questions = questions;
+                    // Update in separate test storage
+                    const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+                    const idx = tests.findIndex(t => t.id === testId);
+                    if (idx !== -1) {
+                        tests[idx].questions = questions;
+                        saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
+                    }
+                    // Also update in exam structure
+                    const examIdx = exams.findIndex(e => e.id === examId);
+                    if (examIdx !== -1 && exams[examIdx].tests) {
+                        const tIdx = exams[examIdx].tests.findIndex(t => t.id === testId);
+                        if (tIdx !== -1) {
+                            exams[examIdx].tests[tIdx].questions = questions;
+                            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
+                        }
+                    }
+                } else {
+                    console.log('No questions found in server response, using localStorage data');
+                }
+            } else {
+                console.warn('Failed to fetch questions from server, using localStorage data');
+            }
+        } catch (err) {
+            console.warn('Error fetching questions from server, using localStorage data:', err);
+        }
 
-        // If test already has saved questions, render them
-        if (test.questions && test.questions.length > 0) {
+        currentTestHasExistingQuestions = Array.isArray(questions) && questions.length > 0;
+
+        // If test has saved questions, render them
+        if (questions && questions.length > 0) {
             if (test.hasSections && test.sections && test.sections.length > 0) {
                 renderQuestionSectionContainers(test);
-                test.questions.forEach((q) => {
+                questions.forEach((q) => {
                     const sectionIndex = (typeof q.sectionIndex !== 'undefined') ? q.sectionIndex : null;
                     questionCounter++;
                     addQuestionBlock(questionCounter, sectionIndex);
@@ -1452,7 +1492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             } else {
-                test.questions.forEach((q) => {
+                questions.forEach((q) => {
                     questionCounter++;
                     addQuestionBlock(questionCounter);
                     const blocks = questionsContainer.getElementsByClassName('question-block');
