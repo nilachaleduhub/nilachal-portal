@@ -184,35 +184,37 @@ async function loadRecommendedTests() {
   try {
     const allRecommendations = [];
     
-    // 1. Fetch categories (which contain test series) - use public API
-    let res = await fetch('/api/categories');
+    // 1. Fetch categories (which contain test series) - use public API with cache-busting
+    let res = await fetch('/api/categories?' + new Date().getTime(), {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
     let data = await res.json();
     
     // Fallback to admin API if public API fails
     if (!data.success || !Array.isArray(data.categories) || data.categories.length === 0) {
       try {
-        res = await fetch('/api/admin/categories');
+        res = await fetch('/api/admin/categories?' + new Date().getTime(), {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         data = await res.json();
       } catch (err) {
-        console.warn('Admin API also failed, trying localStorage');
+        console.warn('Admin API also failed:', err);
       }
     }
     
-    // Final fallback: try localStorage
-    if (!data.success || !Array.isArray(data.categories) || data.categories.length === 0) {
-      try {
-        const adminCategories = JSON.parse(localStorage.getItem('adminCategories') || '[]');
-        if (Array.isArray(adminCategories) && adminCategories.length > 0) {
-          data = { success: true, categories: adminCategories };
-        }
-      } catch (err) {
-        console.warn('localStorage fallback failed');
-      }
-    }
-    
-    // Add categories to recommendations
+    // Add categories to recommendations (show newest first)
     if (data.success && Array.isArray(data.categories) && data.categories.length > 0) {
-      data.categories.slice(0, 3).forEach(category => {
+      // Reverse to show newest items first, then take first 3
+      const sortedCategories = [...data.categories].reverse();
+      sortedCategories.slice(0, 3).forEach(category => {
         allRecommendations.push({
           id: category.id || category._id,
           name: category.name,
@@ -230,9 +232,15 @@ async function loadRecommendedTests() {
       });
     }
     
-    // 2. Fetch individual exams - use public API
+    // 2. Fetch individual exams - use public API with cache-busting
     try {
-      let examsRes = await fetch('/api/exams');
+      let examsRes = await fetch('/api/exams?' + new Date().getTime(), {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       let examsData = await examsRes.json();
       
       // Fallback to admin API if public API fails
@@ -241,7 +249,13 @@ async function loadRecommendedTests() {
         if (data.success && Array.isArray(data.categories) && data.categories.length > 0) {
           const categoryIds = data.categories.map(cat => cat.id || cat._id).filter(Boolean);
           const examPromises = categoryIds.slice(0, 3).map(catId => 
-            fetch(`/api/admin/exams/${catId}`).then(res => res.json()).catch(() => ({ success: false, exams: [] }))
+            fetch(`/api/admin/exams/${catId}?` + new Date().getTime(), {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            }).then(res => res.json()).catch(() => ({ success: false, exams: [] }))
           );
           const examResults = await Promise.all(examPromises);
           const allExams = examResults
@@ -254,10 +268,11 @@ async function loadRecommendedTests() {
         }
       }
       
-      // Add exams to recommendations
+      // Add exams to recommendations (show newest first)
       if (examsData.success && Array.isArray(examsData.exams) && examsData.exams.length > 0) {
-        // Take first 3 exams
-        examsData.exams.slice(0, 3).forEach(exam => {
+        // Reverse to show newest items first, then take first 3
+        const sortedExams = [...examsData.exams].reverse();
+        sortedExams.slice(0, 3).forEach(exam => {
           allRecommendations.push({
             id: exam.id || exam._id,
             name: exam.name,
@@ -309,12 +324,24 @@ async function loadRecommendedCourses() {
     let catData;
     
     try {
-      catRes = await fetch('/api/course-categories');
+      catRes = await fetch('/api/course-categories?' + new Date().getTime(), {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       catData = await catRes.json();
     } catch (err) {
       // Fallback to admin API
       try {
-        catRes = await fetch('/api/admin/course-categories');
+        catRes = await fetch('/api/admin/course-categories?' + new Date().getTime(), {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         catData = await catRes.json();
       } catch (adminErr) {
         console.warn('Both course category APIs failed');
@@ -323,8 +350,9 @@ async function loadRecommendedCourses() {
     }
     
     if (catData.success && Array.isArray(catData.categories) && catData.categories.length > 0) {
-      // Get courses from first few categories
-      const categories = catData.categories.slice(0, 3);
+      // Get courses from newest categories first
+      const sortedCategories = [...catData.categories].reverse();
+      const categories = sortedCategories.slice(0, 3);
       const allCourses = [];
       
       for (const category of categories) {
@@ -333,7 +361,13 @@ async function loadRecommendedCourses() {
           let courseData;
           
           try {
-            courseRes = await fetch(`/api/admin/courses/${encodeURIComponent(category.id)}`);
+            courseRes = await fetch(`/api/admin/courses/${encodeURIComponent(category.id)}?` + new Date().getTime(), {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            });
             if (!courseRes.ok) {
               console.warn(`Admin courses API returned ${courseRes.status} for category ${category.id}`);
               continue;
@@ -345,7 +379,9 @@ async function loadRecommendedCourses() {
           }
           
           if (courseData.success && Array.isArray(courseData.courses)) {
-            courseData.courses.slice(0, 2).forEach(course => {
+            // Show newest courses first
+            const sortedCourses = [...courseData.courses].reverse();
+            sortedCourses.slice(0, 2).forEach(course => {
               allCourses.push({
                 ...course,
                 categoryId: category.id,

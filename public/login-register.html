@@ -30,8 +30,52 @@
       border-radius: 5px;
       font-size: 1rem;
     }
+
+    /* Password field wrapper for eye icon */
+    .password-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .password-wrapper input {
+      width: 100%;
+      padding-right: 2.5rem;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent !important;
+      border: none !important;
+      outline: none !important;
+      color: #000 !important;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      box-shadow: none !important;
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus,
+    .password-toggle:active {
+      background: transparent !important;
+      border: none !important;
+      outline: none !important;
+      color: #000 !important;
+      box-shadow: none !important;
+    }
+
+    .password-toggle i {
+      color: #000 !important;
+    }
     
-    .auth-form button {
+    .auth-form button:not(.password-toggle) {
       padding: 0.8rem;
       background-color: #00bfff;
       color: white;
@@ -43,7 +87,7 @@
       transition: background-color 0.3s;
     }
     
-    .auth-form button:hover {
+    .auth-form button:not(.password-toggle):hover {
       background-color: #0095cc;
     }
     
@@ -205,13 +249,13 @@
 <body>
   <!-- Header / Navbar -->
   <header class="navbar">
-    <div class="site-name">
+    <a href="index.html" class="site-name" style="text-decoration: none; color: inherit;">
 
       <img src="assets/images/mylogo.png" alt="Nilachal Eduhub logo" class="site-logo">
 
       <div class="site-name-text">Nilachal <span>Eduhub</span></div>
 
-    </div>
+    </a>
     
     <nav class="nav-links nav-buttons">
       <a href="index.html" class="nav-btn">Home</a>
@@ -229,7 +273,12 @@
     <form id="loginForm" class="auth-form">
       <h2>Login</h2>
       <input id="loginEmail" type="email" placeholder="Email" required>
-      <input id="loginPassword" type="password" placeholder="Password" required>
+      <div class="password-wrapper">
+        <input id="loginPassword" type="password" placeholder="Password" required>
+        <button type="button" class="password-toggle" id="loginPasswordToggle" aria-label="Toggle password visibility">
+          <i class="fas fa-eye"></i>
+        </button>
+      </div>
       <button type="submit">Login</button>
       <div class="toggle-form">
         <a href="#" onclick="toggleForm()">Don't have an account? Register</a>
@@ -243,7 +292,12 @@
       <input id="regEmail" type="email" placeholder="Email" required>
       <input id="regPhone" type="tel" placeholder="Phone Number" pattern="[0-9]{10}" required>
       <input id="regPassword" type="password" placeholder="Password" required>
-      <input id="regConfirm" type="password" placeholder="Confirm Password" required>
+      <div class="password-wrapper">
+        <input id="regConfirm" type="password" placeholder="Confirm Password" required>
+        <button type="button" class="password-toggle" id="regConfirmToggle" aria-label="Toggle password visibility">
+          <i class="fas fa-eye"></i>
+        </button>
+      </div>
       <button type="submit">Register</button>
       <div class="toggle-form">
         <a href="#" onclick="toggleForm()">Already have an account? Login</a>
@@ -354,6 +408,38 @@
       } catch (err) {
         showMessage('Network or server error', 'error');
         console.error(err);
+      }
+    });
+
+    // Password visibility toggle for login form
+    document.getElementById('loginPasswordToggle').addEventListener('click', function() {
+      const passwordInput = document.getElementById('loginPassword');
+      const icon = this.querySelector('i');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    });
+
+    // Password visibility toggle for register form (confirm password only)
+    document.getElementById('regConfirmToggle').addEventListener('click', function() {
+      const confirmInput = document.getElementById('regConfirm');
+      const icon = this.querySelector('i');
+      
+      if (confirmInput.type === 'password') {
+        confirmInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        confirmInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
       }
     });
 

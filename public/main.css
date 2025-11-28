@@ -34,6 +34,12 @@ body {
   font-weight: 700;
   color: #ffffff;
   letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.site-name:hover {
+  opacity: 0.9;
 }
 
 .site-logo {
@@ -51,11 +57,22 @@ body {
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
+  color: #ffffff;
 }
 
 .site-name-text span {
   color: #00bfff;
   display: inline-block;
+}
+
+/* Ensure anchor tag doesn't override text colors */
+a.site-name,
+a.site-name .site-name-text {
+  color: #ffffff !important;
+}
+
+a.site-name .site-name-text span {
+  color: #00bfff !important;
 }
 
 /* Nav Buttons Group */
