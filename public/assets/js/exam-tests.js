@@ -57,6 +57,68 @@
     }
 
     /**
+     * Check if a test has all required questions added
+     * Returns true if all questions are added, false otherwise
+     */
+    async function hasAllQuestionsAdded(test) {
+      try {
+        // Calculate required question count
+        let requiredCount = 0;
+        
+        if (test.hasSections && Array.isArray(test.sections) && test.sections.length > 0) {
+          // If test has sections, sum up the numQuestions from each section
+          requiredCount = test.sections.reduce((sum, section) => {
+            return sum + (typeof section.numQuestions === 'number' ? section.numQuestions : 0);
+          }, 0);
+        } else if (typeof test.numQuestions === 'number' && test.numQuestions > 0) {
+          // Use numQuestions if available
+          requiredCount = test.numQuestions;
+        } else {
+          // If no required count is specified, assume test is complete if it has any questions
+          // This handles legacy tests that might not have numQuestions set
+          return true;
+        }
+
+        // If required count is 0, test is not ready
+        if (requiredCount === 0) {
+          return false;
+        }
+
+        // Get actual question count
+        let actualCount = 0;
+
+        // First, try to get from embedded questions if available
+        if (Array.isArray(test.questions) && test.questions.length > 0) {
+          actualCount = test.questions.length;
+        } else {
+          // Fetch from API to get the actual question count
+          try {
+            const res = await fetch(`/api/tests/${encodeURIComponent(test.id)}`);
+            if (res.ok) {
+              const testData = await res.json();
+              if (testData.success && testData.test) {
+                if (Array.isArray(testData.test.questions)) {
+                  actualCount = testData.test.questions.length;
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('Error fetching test questions count:', err);
+            // If we can't fetch, assume incomplete to be safe
+            return false;
+          }
+        }
+
+        // Check if all questions are added
+        return actualCount >= requiredCount;
+      } catch (err) {
+        console.error('Error checking if test has all questions:', err);
+        // On error, assume incomplete to be safe
+        return false;
+      }
+    }
+
+    /**
      * Check if user has purchased a test, exam, or category
      * Returns true if user has access, false otherwise
      * Also checks if the purchase has expired
@@ -335,6 +397,19 @@
         for (const test of tests) {
           const card = document.createElement('div');
           card.className = 'card';
+          
+          // Check if test has all questions added
+          const allQuestionsAdded = await hasAllQuestionsAdded(test);
+          
+          // If questions are not complete, show "Coming Soon" regardless of purchase status
+          if (!allQuestionsAdded) {
+            card.innerHTML = `
+              <h3>${test.name}</h3>
+              <button class="btn card-btn" style="background-color: #94a3b8; color: white; padding: 0.6rem 1rem; border-radius: 5px; font-weight: bold; border: none; cursor: not-allowed; opacity: 0.8;" disabled>Coming Soon</button>
+            `;
+            container.appendChild(card);
+            continue;
+          }
           
           // Check if user has purchased access
           let hasAccess = isLoggedIn ? await hasPurchasedAccess(test.id, examId, categoryId) : false;

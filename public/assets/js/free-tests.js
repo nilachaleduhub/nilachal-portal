@@ -42,6 +42,68 @@ const buildMarkingSummary = (test = {}) => {
 
 const getTestId = (test = {}) => test.id || test._id || '';
 
+/**
+ * Check if a test has all required questions added
+ * Returns true if all questions are added, false otherwise
+ */
+async function hasAllQuestionsAdded(test) {
+  try {
+    // Calculate required question count
+    let requiredCount = 0;
+    
+    if (test.hasSections && Array.isArray(test.sections) && test.sections.length > 0) {
+      // If test has sections, sum up the numQuestions from each section
+      requiredCount = test.sections.reduce((sum, section) => {
+        return sum + (typeof section.numQuestions === 'number' ? section.numQuestions : 0);
+      }, 0);
+    } else if (typeof test.numQuestions === 'number' && test.numQuestions > 0) {
+      // Use numQuestions if available
+      requiredCount = test.numQuestions;
+    } else {
+      // If no required count is specified, assume test is complete if it has any questions
+      // This handles legacy tests that might not have numQuestions set
+      return true;
+    }
+
+    // If required count is 0, test is not ready
+    if (requiredCount === 0) {
+      return false;
+    }
+
+    // Get actual question count
+    let actualCount = 0;
+
+    // First, try to get from embedded questions if available
+    if (Array.isArray(test.questions) && test.questions.length > 0) {
+      actualCount = test.questions.length;
+    } else {
+      // Fetch from API to get the actual question count
+      try {
+        const res = await fetch(`/api/tests/${encodeURIComponent(test.id)}`);
+        if (res.ok) {
+          const testData = await res.json();
+          if (testData.success && testData.test) {
+            if (Array.isArray(testData.test.questions)) {
+              actualCount = testData.test.questions.length;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching test questions count:', err);
+        // If we can't fetch, assume incomplete to be safe
+        return false;
+      }
+    }
+
+    // Check if all questions are added
+    return actualCount >= requiredCount;
+  } catch (err) {
+    console.error('Error checking if test has all questions:', err);
+    // On error, assume incomplete to be safe
+    return false;
+  }
+}
+
 const loadFreeTests = async () => {
   const container = document.getElementById('free-tests-container');
   const loginNotice = document.getElementById('free-tests-login-notice');
@@ -71,7 +133,8 @@ const loadFreeTests = async () => {
 
     container.innerHTML = '';
 
-    data.tests.forEach(test => {
+    // Process tests sequentially to check question completeness
+    for (const test of data.tests) {
       const card = document.createElement('div');
       card.className = 'card';
       card.style.cssText = 'background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 1rem;';
@@ -90,6 +153,22 @@ const loadFreeTests = async () => {
       title.textContent = test.name || 'Free Test';
       title.style.cssText = 'color: #0a1931; font-size: 1.3rem; font-weight: 700; margin: 0; line-height: 1.3;';
       card.appendChild(title);
+
+      // Check if test has all questions added
+      const allQuestionsAdded = await hasAllQuestionsAdded(test);
+
+      // If questions are not complete, show "Coming Soon" regardless of login status
+      if (!allQuestionsAdded) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'buy-btn';
+        button.textContent = 'Coming Soon';
+        button.style.cssText = 'background: #94a3b8; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; border: none; cursor: not-allowed; transition: all 0.3s ease; margin-top: auto; font-size: 1rem; opacity: 0.8;';
+        button.disabled = true;
+        card.appendChild(button);
+        container.appendChild(card);
+        continue;
+      }
 
       const button = document.createElement('button');
       button.type = 'button';
@@ -146,7 +225,7 @@ const loadFreeTests = async () => {
 
       card.appendChild(button);
       container.appendChild(card);
-    });
+    }
   } catch (err) {
     console.error('Unable to load free tests:', err);
     container.innerHTML = '<p class="empty-state">Unable to load free tests right now. Please try again later.</p>';

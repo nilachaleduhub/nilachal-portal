@@ -813,6 +813,7 @@ app.get('/api/tests/free', async (req, res) => {
       negativeMark: test.negativeMark || '',
       sectionalTiming: !!test.sectionalTiming,
       hasSections: !!test.hasSections,
+      sections: Array.isArray(test.sections) ? test.sections : undefined,
       examId: test.examId || '',
       categoryId: test.categoryId || '',
       examName: examNameMap[test.examId] || '',
