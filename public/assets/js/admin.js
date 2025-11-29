@@ -1022,6 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="list-item-actions">
                         <button class="btn-edit" data-id="${exam.id}" data-cat-id="${cat.id}">Edit</button>
+                        <button class="btn-move" data-id="${exam.id}" data-cat-id="${cat.id}" data-exam-name="${exam.name}">Move</button>
                         <button class="btn-delete" data-id="${exam.id}" data-cat-id="${cat.id}">Delete</button>
                     </div>
                 `;
@@ -2225,7 +2226,66 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     examList.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('btn-delete')) {
+        if (e.target.classList.contains('btn-move')) {
+            const id = e.target.dataset.id;
+            const currentCategoryId = e.target.dataset.catId;
+            const examName = e.target.dataset.examName || 'this exam';
+            if (!id || !currentCategoryId) return;
+            
+            // Get all categories for selection
+            const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+            const currentCategory = categories.find(cat => cat.id === currentCategoryId);
+            const otherCategories = categories.filter(cat => cat.id !== currentCategoryId);
+            
+            if (otherCategories.length === 0) {
+                alert('No other categories available to move to.');
+                return;
+            }
+            
+            // Create a simple selection dialog
+            let categoryOptions = otherCategories.map((cat, idx) => 
+                `${idx + 1}. ${cat.name}`
+            ).join('\n');
+            
+            const promptMessage = `Move "${examName}" to another category.\n\nAvailable categories:\n${categoryOptions}\n\nEnter the number of the target category:`;
+            const userInput = prompt(promptMessage);
+            
+            if (!userInput) return; // User cancelled
+            
+            const selectedIndex = parseInt(userInput) - 1;
+            if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= otherCategories.length) {
+                alert('Invalid selection. Please try again.');
+                return;
+            }
+            
+            const targetCategory = otherCategories[selectedIndex];
+            
+            // Confirm the move
+            const confirmMessage = `Move exam "${examName}" from "${currentCategory?.name || 'current category'}" to "${targetCategory.name}"?\n\nThis will also move all associated tests and questions to the new category.`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            try {
+                const res = await adminFetch(`/api/admin/exams/${id}/move`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ newCategoryId: targetCategory.id })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(`Exam moved successfully!\n\nTests updated: ${data.testsUpdated || 0}\nQuestions updated: ${data.questionsUpdated || 0}`);
+                    // Reload all data to refresh the UI
+                    await loadAllData();
+                    renderExams();
+                } else {
+                    alert(data.message || 'Failed to move exam');
+                }
+            } catch (err) {
+                console.error('Error moving exam:', err);
+                alert('Error moving exam: ' + (err.message || 'Unknown error'));
+            }
+        } else if (e.target.classList.contains('btn-delete')) {
             const id = e.target.dataset.id;
             const categoryId = e.target.dataset.catId;
             if (!id || !categoryId) return;

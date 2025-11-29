@@ -1206,6 +1206,77 @@ app.delete('/api/admin/exams/:id', async (req, res) => {
   } catch (err) { console.error(err); res.json({ success: false, message: 'Server error' }); }
 });
 
+// Move exam to another category (and update all related tests and questions)
+app.patch('/api/admin/exams/:id/move', async (req, res) => {
+  const id = req.params.id;
+  const { newCategoryId } = req.body || {};
+  
+  if (!newCategoryId) {
+    return res.json({ success: false, message: 'newCategoryId is required' });
+  }
+  
+  try {
+    // Validate exam exists
+    const exam = await Exam.findOne({ id });
+    if (!exam) {
+      return res.json({ success: false, message: 'Exam not found' });
+    }
+    
+    // Check if moving to same category
+    if (exam.categoryId === newCategoryId) {
+      return res.json({ success: false, message: 'Exam is already in this category' });
+    }
+    
+    // Validate target category exists
+    const targetCategory = await Category.findOne({ id: newCategoryId });
+    if (!targetCategory) {
+      return res.json({ success: false, message: 'Target category not found' });
+    }
+    
+    // Store original categoryId for potential rollback
+    const originalCategoryId = exam.categoryId;
+    
+    try {
+      // Update exam
+      await Exam.findOneAndUpdate({ id }, { categoryId: newCategoryId });
+      
+      // Update all tests belonging to this exam
+      const testUpdateResult = await Test.updateMany(
+        { examId: id },
+        { categoryId: newCategoryId }
+      );
+      
+      // Update all questions belonging to this exam
+      const questionUpdateResult = await QuestionDoc.updateMany(
+        { examId: id },
+        { categoryId: newCategoryId }
+      );
+      
+      const updatedExam = await Exam.findOne({ id }).lean();
+      res.json({
+        success: true,
+        message: 'Exam moved successfully',
+        exam: updatedExam,
+        testsUpdated: testUpdateResult.modifiedCount,
+        questionsUpdated: questionUpdateResult.modifiedCount
+      });
+    } catch (updateErr) {
+      // Attempt rollback on error (best effort)
+      try {
+        await Exam.findOneAndUpdate({ id }, { categoryId: originalCategoryId });
+        await Test.updateMany({ examId: id }, { categoryId: originalCategoryId });
+        await QuestionDoc.updateMany({ examId: id }, { categoryId: originalCategoryId });
+      } catch (rollbackErr) {
+        console.error('Rollback failed:', rollbackErr);
+      }
+      throw updateErr;
+    }
+  } catch (err) {
+    console.error('Error moving exam:', err);
+    res.json({ success: false, message: 'Server error: ' + (err.message || 'Unknown error') });
+  }
+});
+
 // Tests: list by category
 app.get('/api/admin/tests/:categoryId', async (req, res) => {
   try {
