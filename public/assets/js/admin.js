@@ -342,8 +342,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const TEST_DATA_PREFIX = 'testData_';
 
     // --- Utility Functions ---
-    const getFromLS = (key, defaultValue = []) => JSON.parse(localStorage.getItem(key)) || defaultValue;
-    const saveToLS = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+    const getFromLS = (key, defaultValue = []) => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return defaultValue;
+            return JSON.parse(raw);
+        } catch (err) {
+            console.warn('Error reading from localStorage for key', key, err);
+            return defaultValue;
+        }
+    };
+
+    // Safe wrapper around localStorage.setItem so quota errors never break main flows
+    const saveToLS = (key, data) => {
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (err) {
+            if (err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+                console.warn('localStorage quota exceeded for key', key, '- skipping cache write');
+            } else {
+                console.warn('Error writing to localStorage for key', key, err);
+            }
+        }
+    };
     const generateId = () => `admin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const VALIDITY_UNIT_LABELS = {
@@ -1901,6 +1922,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let serverSuccess = false;
+        let savedTest = null;
         try {
             const res = await adminFetch('/api/admin/tests', {
                 method: 'POST',
@@ -1910,22 +1932,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.success && data.test) {
                 serverSuccess = true;
-                // After saving, fetch all tests for the category and sync to localStorage
-                const res2 = await adminFetch(`/api/admin/tests/${categoryId}`);
-                const all = await res2.json();
-                if (all.success && Array.isArray(all.tests)) {
-                    saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, all.tests);
-                }
+                savedTest = data.test;
                 const isUpdate = testId && testId.length > 0;
-                alert(isUpdate ? 'Test updated successfully!' : 'Test saved to server (MongoDB) and synced to localStorage!');
+                alert(isUpdate ? 'Test updated successfully!' : 'Test saved to server (MongoDB)!');
             }
         } catch (err) {
             console.warn('Server save failed, falling back to localStorage', err);
         }
+
         if (!serverSuccess) {
-            newTest.id = generateId();
+            // Fallback: generate an ID locally and keep a very small cache entry if desired.
+            const localTest = {
+                ...newTest,
+                id: newTest.id || generateId(),
+                // Ensure we don't accidentally store large question payloads in localStorage
+                questions: [],
+                sections: Array.isArray(newTest.sections) ? newTest.sections : []
+            };
             const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
-            tests.push(newTest);
+            tests.push({
+                id: localTest.id,
+                categoryId: localTest.categoryId,
+                examId: localTest.examId,
+                name: localTest.name,
+                hasSections: !!localTest.hasSections,
+                numQuestions: localTest.numQuestions,
+                timeLimit: localTest.timeLimit,
+                positiveMark: localTest.positiveMark,
+                negativeMark: localTest.negativeMark,
+                isFree: !!localTest.isFree
+            });
             saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
             alert('Test saved locally (localStorage). Server unavailable.');
         }
@@ -1938,6 +1974,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (testIdInput) testIdInput.value = '';
         if (testIsFreeYes) testIsFreeYes.checked = false;
         if (testIsFreeNo) testIsFreeNo.checked = true;
+
+        // Re-render tests list using the latest data in localStorage (categories/exams)
+        // and any small cached test summaries.
         renderTests();
     });
 
@@ -2554,31 +2593,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (data.success) {
                 serverSuccess = true;
-                // After saving, fetch the test from server and sync its questions to localStorage
-                const res2 = await fetch(`/api/tests/${testId}`);
-                const testData = await res2.json();
-                if (testData.success && testData.test) {
-                    // Update in separate test storage
-                    const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
-                    const idx = tests.findIndex(t => t.id === testId);
-                    if (idx !== -1) {
-                        tests[idx].questions = testData.test.questions || [];
-                        saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
-                    }
-                    // Also update in exam structure
-                    const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
-                    const examIdx = exams.findIndex(e => e.id === examId);
-                    if (examIdx !== -1 && exams[examIdx].tests) {
-                        const tIdx = exams[examIdx].tests.findIndex(t => t.id === testId);
-                        if (tIdx !== -1) {
-                            exams[examIdx].tests[tIdx].questions = testData.test.questions || [];
-                            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
-                        }
-                    }
-                }
+                // Questions are now safely stored in MongoDB; we no longer mirror full
+                // question payloads back into localStorage to avoid quota issues.
                 const successMessage = wasUpdatingExistingQuestions
                     ? 'Questions updated successfully!'
-                    : `Successfully saved ${questions.length} questions to the test (MongoDB) and synced to localStorage!`;
+                    : `Successfully saved ${questions.length} questions to the test (MongoDB)!`;
                 alert(successMessage);
             } else {
                 console.warn('Server returned success:false', data);
@@ -2588,7 +2607,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Server save failed, falling back to localStorage', err);
         }
         if (!serverSuccess) {
-            // Try exam structure first
+            // Offline / server-failure fallback: store questions only inside the lighter
+            // exam structure and test summaries, but still avoid huge blobs where possible.
             const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
             const examIndex = exams.findIndex(e => e.id === examId);
             if (examIndex !== -1 && exams[examIndex].tests) {
@@ -2598,7 +2618,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
                 }
             }
-            // Also update in separate test storage
+            // Also update in separate test storage, but keep this as a fallback only
             const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
             const separateTestIndex = tests.findIndex(t => t.id === testId);
             if (separateTestIndex !== -1) {
@@ -2643,7 +2663,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('=== END DEBUG ===');
     };
 
-    // Load All Data on Page Load - Fetch from database first, then sync to localStorage
+    // Load All Data on Page Load - Fetch from database first, then sync lightweight data to localStorage
     async function loadAllData() {
         try {
             // Step 1: Fetch categories from database
@@ -2654,7 +2674,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Save categories to localStorage
                 saveToLS(ADMIN_CATEGORIES_KEY, categoriesData.categories);
                 
-                // Step 2: For each category, fetch exams and tests
+                // Step 2: For each category, fetch exams for that category
+                // NOTE: We no longer bulk-fetch and cache all tests per category here,
+                // to avoid storing huge test/question payloads in localStorage.
                 for (const category of categoriesData.categories) {
                     const categoryId = category.id;
                     
@@ -2668,18 +2690,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch (err) {
                         console.warn(`Error loading exams for category ${categoryId}:`, err);
-                    }
-                    
-                    // Fetch tests for this category
-                    try {
-                        const testsRes = await adminFetch(`/api/admin/tests/${categoryId}`);
-                        const testsData = await testsRes.json();
-                        if (testsData.success && Array.isArray(testsData.tests)) {
-                            // Save tests to localStorage
-                            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, testsData.tests);
-                        }
-                    } catch (err) {
-                        console.warn(`Error loading tests for category ${categoryId}:`, err);
                     }
                 }
             } else {
