@@ -5,7 +5,7 @@ function getQueryParam(param) {
   return urlParams.get(param);
 }
 
-function loadTestAndAnswers() {
+async function loadTestAndAnswers() {
   const resultId = getQueryParam('resultId');
   const testId = getQueryParam('testId');
   
@@ -14,7 +14,47 @@ function loadTestAndAnswers() {
     return loadResultFromServer(resultId);
   }
   
-  // Otherwise, load from localStorage (existing behavior)
+  // Try to get testId from localStorage if not in URL
+  let actualTestId = testId;
+  if (!actualTestId) {
+    try {
+      const answerData = localStorage.getItem('mockTestAnswers');
+      if (answerData) {
+        const parsed = JSON.parse(answerData);
+        actualTestId = parsed.testId;
+      }
+      if (!actualTestId) {
+        const resultData = localStorage.getItem('testResult');
+        if (resultData) {
+          const parsed = JSON.parse(resultData);
+          actualTestId = parsed.testId;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not get testId from localStorage', e);
+    }
+  }
+  
+  // Try to load full test from server first (even for instant results)
+  if (actualTestId) {
+    try {
+      const testResponse = await fetch(`/api/tests/${actualTestId}`);
+      const testData = await testResponse.json();
+      
+      if (testData.success && testData.test) {
+        // Successfully loaded from server - get answers from localStorage
+        const answerData = localStorage.getItem('mockTestAnswers');
+        if (answerData) {
+          const answers = JSON.parse(answerData);
+          return { test: testData.test, answers };
+        }
+      }
+    } catch (error) {
+      console.warn('Could not load test from server, falling back to localStorage:', error);
+    }
+  }
+  
+  // Fallback to localStorage (for offline/API failure cases)
   const testData = localStorage.getItem('previewTest');
   const answerData = localStorage.getItem('mockTestAnswers');
   if (!testData || !answerData) return null;

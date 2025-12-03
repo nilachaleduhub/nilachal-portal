@@ -324,10 +324,29 @@
                 return;
             }
         } else {
-            // Fallback to localStorage (for immediate results after test submission)
+            // For instant results: Try to load full test from server first
             const localResult = localStorage.getItem('testResult');
             if (localResult) {
                 result = JSON.parse(localResult);
+                const actualTestId = result.testId || testId;
+                
+                // Try to load full test from server (even for instant results)
+                if (actualTestId) {
+                    try {
+                        const testRes = await fetch(`/api/tests/${actualTestId}`);
+                        const testData = await testRes.json();
+                        if (testData.success && testData.test) {
+                            test = testData.test; // Full test with images from server
+                            const answerData = localStorage.getItem('mockTestAnswers');
+                            if (answerData) {
+                                answers = JSON.parse(answerData);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Could not load test from server, using localStorage fallback:', err);
+                        // Continue with localStorage fallback below
+                    }
+                }
             }
         }
         
