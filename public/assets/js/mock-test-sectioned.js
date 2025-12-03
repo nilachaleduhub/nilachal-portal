@@ -514,7 +514,35 @@ function submitTest() {
     savedAnswers
   }));
 
-  localStorage.setItem('previewTest', JSON.stringify(test)); // Store test for results page
+  // Store a lightweight version of the test for the results page to avoid
+  // QuotaExceededError for very large sectional tests (many questions / images).
+  try {
+    const lightTest = {
+      _id: test._id || test.id || '',
+      id: test.id,
+      testName: test.testName,
+      name: test.name,
+      positiveMark: test.positiveMark,
+      negativeMark: test.negativeMark,
+      marksPerQuestion: test.marksPerQuestion,
+      negativeMarks: test.negativeMarks,
+      sections: Array.isArray(test.sections) ? test.sections : [],
+      sectionalTiming: !!test.sectionalTiming,
+      questions: Array.isArray(test.questions) ? test.questions.map(q => ({
+        question: q.question,
+        options: q.options,
+        answer: q.answer,
+        correct: q.correct,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        tableData: q.tableData,
+        sectionIndex: q.sectionIndex
+      })) : []
+    };
+    localStorage.setItem('previewTest', JSON.stringify(lightTest));
+  } catch (err) {
+    console.warn('Could not store previewTest in localStorage (possibly quota exceeded)', err);
+  }
   
   // Try to send result to server if user is logged in
   try {
