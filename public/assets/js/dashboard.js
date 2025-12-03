@@ -155,6 +155,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.warn('Unable to parse userPurchases from localStorage', err);
     }
 
+    // Respect previously dismissed renewals before building item lists
+    let dismissedPurchases = [];
+    try {
+      const dismissed = localStorage.getItem('dismissedPurchases');
+      if (dismissed) {
+        dismissedPurchases = JSON.parse(dismissed);
+      }
+    } catch (err) {
+      console.warn('Unable to parse dismissedPurchases from localStorage', err);
+      dismissedPurchases = [];
+    }
+    if (Array.isArray(dismissedPurchases) && dismissedPurchases.length > 0) {
+      const dismissedSet = new Set(dismissedPurchases);
+      serverPurchases = serverPurchases.filter(p => {
+        const purchaseKey = `${p.purchaseType}_${p.purchaseId}`;
+        return !dismissedSet.has(purchaseKey);
+      });
+    }
+
     // Convert server purchases to dashboard format
     // Separate courses, categories, and exams
     const serverCourses = serverPurchases
@@ -224,25 +243,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         validityUnit: p.validityUnit || null,
         expiresAt: p.expiresAt ? (typeof p.expiresAt === 'string' ? p.expiresAt : (p.expiresAt.toISOString ? p.expiresAt.toISOString() : null)) : null
       }));
-
-    // Get dismissed purchases (user clicked "Renew No")
-    let dismissedPurchases = [];
-    try {
-      const dismissed = localStorage.getItem('dismissedPurchases');
-      if (dismissed) {
-        dismissedPurchases = JSON.parse(dismissed);
-      }
-    } catch (err) {
-      console.warn('Unable to parse dismissedPurchases from localStorage', err);
-    }
-
-    // Filter out dismissed purchases from server data
-    if (Array.isArray(dismissedPurchases) && dismissedPurchases.length > 0) {
-      serverPurchases = serverPurchases.filter(p => {
-        const purchaseKey = `${p.purchaseType}_${p.purchaseId}`;
-        return !dismissedPurchases.includes(purchaseKey);
-      });
-    }
 
     // Always prioritize server purchases - localStorage is only used for enrichment
     // Only return empty if we've exhausted retries and have no server purchases and no localStorage

@@ -64,49 +64,61 @@
       try {
         // Calculate required question count
         let requiredCount = 0;
-        
+
         if (test.hasSections && Array.isArray(test.sections) && test.sections.length > 0) {
           // If test has sections, sum up the numQuestions from each section
           requiredCount = test.sections.reduce((sum, section) => {
-            return sum + (typeof section.numQuestions === 'number' ? section.numQuestions : 0);
+            const raw = section && section.numQuestions;
+            const val = typeof raw === 'number' ? raw : parseInt(raw, 10);
+            return sum + (Number.isFinite(val) && val > 0 ? val : 0);
           }, 0);
-        } else if (typeof test.numQuestions === 'number' && test.numQuestions > 0) {
-          // Use numQuestions if available
-          requiredCount = test.numQuestions;
+        } else if (test.numQuestions !== undefined && test.numQuestions !== null) {
+          // Use numQuestions if available (string or number)
+          const rawTotal = test.numQuestions;
+          const total = typeof rawTotal === 'number' ? rawTotal : parseInt(rawTotal, 10);
+          if (Number.isFinite(total) && total > 0) {
+            requiredCount = total;
+          }
         } else {
           // If no required count is specified, assume test is complete if it has any questions
           // This handles legacy tests that might not have numQuestions set
-          return true;
+          if (Array.isArray(test.questions) && test.questions.length > 0) {
+            return true;
+          }
         }
 
         // If required count is 0, test is not ready
-        if (requiredCount === 0) {
+        if (!Number.isFinite(requiredCount) || requiredCount <= 0) {
           return false;
         }
 
-        // Get actual question count
+        // Get actual question count.
+        // Prefer authoritative server data based on test ID; fall back to embedded questions
         let actualCount = 0;
 
-        // First, try to get from embedded questions if available
-        if (Array.isArray(test.questions) && test.questions.length > 0) {
-          actualCount = test.questions.length;
-        } else {
-          // Fetch from API to get the actual question count
+        if (test.id || test._id) {
+          const testId = encodeURIComponent(test.id || test._id);
           try {
-            const res = await fetch(`/api/tests/${encodeURIComponent(test.id)}`);
+            const res = await fetch(`/api/tests/${testId}`);
             if (res.ok) {
               const testData = await res.json();
-              if (testData.success && testData.test) {
-                if (Array.isArray(testData.test.questions)) {
-                  actualCount = testData.test.questions.length;
-                }
+              if (testData.success && testData.test && Array.isArray(testData.test.questions)) {
+                actualCount = testData.test.questions.length;
               }
             }
           } catch (err) {
             console.warn('Error fetching test questions count:', err);
-            // If we can't fetch, assume incomplete to be safe
-            return false;
+            // If we can't fetch, fall back to embedded questions if present
           }
+        }
+
+        if (actualCount === 0 && Array.isArray(test.questions) && test.questions.length > 0) {
+          actualCount = test.questions.length;
+        }
+
+        if (!Number.isFinite(actualCount) || actualCount <= 0) {
+          // No questions found; treat as incomplete
+          return false;
         }
 
         // Check if all questions are added
@@ -379,9 +391,14 @@
           console.warn('Error fetching tests from API:', err);
         }
 
-        const uniqueTests = collectedTests.filter((test, index, self) =>
-          test && test.id && index === self.findIndex(t => t && t.id === test.id)
-        );
+        // Prefer the latest version of each test ID (API data should override cached/local)
+        const testById = {};
+        for (const t of collectedTests) {
+          if (t && t.id) {
+            testById[t.id] = t;
+          }
+        }
+        const uniqueTests = Object.values(testById);
 
         if (uniqueTests.length === 0) {
           container.innerText = 'No tests available for this exam.';

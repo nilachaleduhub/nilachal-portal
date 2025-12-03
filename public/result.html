@@ -270,7 +270,20 @@
         .section-table th, .section-table td { border: 1px solid #e2e8f0 !important; }
     }
     #answers-list > div { margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; }
-    #answers-list .question-title { font-weight:600; color:#134e8b; }
+    #answers-list .question-title {
+        font-weight: 600;
+        color: #134e8b;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    #answers-list .question-title .q-number {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    #answers-list .question-title .q-text-content {
+        flex: 1;
+    }
     #answers-list .explanation { margin-top:6px; }
     </style>
 
@@ -675,12 +688,28 @@
                     else if (q.correct !== undefined && q.correct !== null) correctAns = q.correct;
                     else if (q.correctAnswer !== undefined && q.correctAnswer !== null) correctAns = q.correctAnswer;
                     const explanation = q.explanation || 'No explanation provided.';
-                    // Escape HTML and preserve line breaks for question text
-                    const escapedQuestion = String(q.question || '')
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/\n/g, '<br>');
+
+                    // Render rich question HTML if present, otherwise escape text.
+                    // Some backends may store the question HTML-encoded once or multiple times
+                    // (e.g. &amp;lt;div&gt;...), so we progressively decode a few times, then detect tags.
+                    const rawQuestion = typeof q.question === 'string' ? q.question : '';
+                    let decodedQuestion = rawQuestion;
+                    for (let j = 0; j < 3; j++) {
+                        const next = decodedQuestion
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&amp;/g, '&');
+                        if (next === decodedQuestion) break;
+                        decodedQuestion = next;
+                    }
+                    const hasQuestionHtmlTags = /<\/?[a-z][\s\S]*>/i.test(decodedQuestion.trim());
+                    const displayQuestion = hasQuestionHtmlTags
+                        ? decodedQuestion
+                        : String(decodedQuestion || '')
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/\n/g, '<br>');
                     // Escape HTML for options
                     const escapedUserOption = userAns !== undefined && userAns !== null && q.options && q.options[userAns] 
                         ? String(q.options[userAns] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -688,12 +717,27 @@
                     const escapedCorrectOption = correctAns !== undefined && q.options && q.options[correctAns]
                         ? String(q.options[correctAns] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                         : '';
-                    // Escape HTML for explanation
-                    const escapedExplanation = String(explanation)
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/\n/g, '<br>');
+
+                    // Render rich explanation HTML if present, otherwise escape text.
+                    // Similar to questions, explanations may be stored HTML-encoded one or more times.
+                    const rawExplanation = typeof explanation === 'string' ? explanation : '';
+                    let decodedExplanation = rawExplanation || 'No explanation provided.';
+                    for (let j = 0; j < 3; j++) {
+                        const next = decodedExplanation
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&amp;/g, '&');
+                        if (next === decodedExplanation) break;
+                        decodedExplanation = next;
+                    }
+                    const hasExplanationHtmlTags = /<\/?[a-z][\s\S]*>/i.test(decodedExplanation.trim());
+                    const explanationHTML = hasExplanationHtmlTags
+                        ? decodedExplanation
+                        : String(decodedExplanation || '')
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/\n/g, '<br>');
                     // Build image HTML if available
                     let imageHTML = '';
                     if (q.imageData && q.imageData.trim() !== '') {
@@ -726,11 +770,14 @@
                     
                     const qDiv = document.createElement('div');
                     qDiv.innerHTML = `
-                        <div class="question-title">Q${i+1}. ${escapedQuestion}</div>
+                        <div class="question-title">
+                            <span class="q-number">Q${i+1}.</span>
+                            <span class="q-text-content">${displayQuestion}</span>
+                        </div>
                         ${imageHTML}
                         <div style="margin:6px 0 2px 0;"><b>Your Answer:</b> ${userAns !== undefined && userAns !== null ? String.fromCharCode(65 + userAns) + '. ' + escapedUserOption : "<span style=\"color:#64748b\">Not Attempted</span>"}</div>
                         <div><b>Correct Answer:</b> ${correctAns !== undefined && q.options && q.options[correctAns] !== undefined ? String.fromCharCode(65 + correctAns) + '. ' + escapedCorrectOption : '?'}</div>
-                        <div class="explanation"><b>Explanation:</b> <span style="color:#0b1320;">${escapedExplanation}</span>${explanationImageHTML}</div>
+                        <div class="explanation"><b>Explanation:</b> <span style="color:#0b1320;">${explanationHTML}</span>${explanationImageHTML}</div>
                     `;
                     answersList.appendChild(qDiv);
                 }

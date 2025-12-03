@@ -105,12 +105,27 @@ async function renderResult() {
     // Render question result
     const qDiv = document.createElement('div');
     qDiv.className = `question-result ${status}`;
-    // Escape HTML and preserve line breaks for question text
-    const escapedQuestion = String(q.question || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
+    // Render rich question HTML if present, otherwise escape text.
+    // Some backends may store the question HTML-encoded once or multiple times
+    // (e.g. &amp;lt;div&gt;...), so we progressively decode a few times, then detect tags.
+    const rawQuestion = typeof q.question === 'string' ? q.question : '';
+    let decodedQuestion = rawQuestion;
+    for (let j = 0; j < 3; j++) {
+      const next = decodedQuestion
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+      if (next === decodedQuestion) break;
+      decodedQuestion = next;
+    }
+    const hasHtmlTags = /<\/?[a-z][\s\S]*>/i.test(decodedQuestion.trim());
+    const escapedQuestion = hasHtmlTags
+      ? decodedQuestion
+      : String(decodedQuestion || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
     // Escape HTML for options
     const escapedOptions = q.options.map((opt, idx) => {
       const escapedOpt = String(opt || '')
@@ -123,12 +138,26 @@ async function renderResult() {
       if (userAns === idx) cls += ' selected';
       return `<li class="option-item ${cls}">${String.fromCharCode(65 + idx)}. ${escapedOpt}</li>`;
     }).join('');
-    // Escape HTML for explanation
-    const escapedExplanation = String(q.explanation || 'No explanation provided.')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
+    // Render rich explanation HTML if present, otherwise escape text.
+    // Similar to questions, explanations may be stored HTML-encoded one or more times.
+    const rawExplanation = typeof q.explanation === 'string' ? q.explanation : '';
+    let decodedExplanation = rawExplanation || 'No explanation provided.';
+    for (let j = 0; j < 3; j++) {
+      const next = decodedExplanation
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+      if (next === decodedExplanation) break;
+      decodedExplanation = next;
+    }
+    const hasExplanationHtmlTags = /<\/?[a-z][\s\S]*>/i.test(decodedExplanation.trim());
+    const explanationHTML = hasExplanationHtmlTags
+      ? decodedExplanation
+      : String(decodedExplanation || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
     // Build image HTML if available
     let imageHTML = '';
     if (q.imageData && q.imageData.trim() !== '') {
@@ -166,7 +195,10 @@ async function renderResult() {
     }
     
     qDiv.innerHTML = `
-      <div class="question-title"><b>Q${i + 1}.</b> ${escapedQuestion}</div>
+      <div class="question-title">
+        <span class="q-number"><b>Q${i + 1}.</b></span>
+        <span class="q-text-content">${escapedQuestion}</span>
+      </div>
       ${imageHTML}
       ${tableHTML}
       <ul class="option-list">
@@ -174,7 +206,7 @@ async function renderResult() {
       </ul>
       <div><b>Your Answer:</b> ${userAns !== undefined && userAns !== null ? String.fromCharCode(65 + userAns) : '<span style="color:#64748b">Not Attempted</span>'}</div>
       <div><b>Correct Answer:</b> ${q.answer !== undefined ? String.fromCharCode(65 + q.answer) : (q.correct !== undefined ? String.fromCharCode(65 + q.correct) : '?')}</div>
-      <div class="explanation"><b>Explanation:</b> ${escapedExplanation}${explanationImageHTML}</div>
+      <div class="explanation"><b>Explanation:</b> ${explanationHTML}${explanationImageHTML}</div>
     `;
     qList.appendChild(qDiv);
   }

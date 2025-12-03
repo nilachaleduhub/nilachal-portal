@@ -60,7 +60,20 @@
       box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
     }
     .question-block { margin-bottom: 32px; }
-    .question-text { font-size: 1.1rem; margin-bottom: 18px; }
+    .question-text {
+      font-size: 1.1rem;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .question-text .q-number {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .question-text .q-text-content {
+      flex: 1;
+    }
     .options-list { list-style: none; padding: 0; margin: 0; }
     .option-item { margin-bottom: 12px; }
     .option-label { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }

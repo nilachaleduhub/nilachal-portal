@@ -927,7 +927,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${headerLabel}
                 <button type="button" class="btn-red-small" onclick="document.getElementById('${questionId}').remove(); updateQuestionCount();">Remove</button>
             </h4>
-            <textarea class="question-text" placeholder="Question text"></textarea>
+            <div class="question-editor-container" style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+                <div class="question-toolbar">
+                    <button type="button" class="toolbar-btn" data-command="bold" title="Bold"><strong>B</strong></button>
+                    <button type="button" class="toolbar-btn" data-command="italic" title="Italic"><em>I</em></button>
+                    <button type="button" class="toolbar-btn" data-command="justifyLeft" title="Align left">L</button>
+                    <button type="button" class="toolbar-btn" data-command="justifyCenter" title="Align center">C</button>
+                    <button type="button" class="toolbar-btn" data-command="justifyRight" title="Align right">R</button>
+                    <button type="button" class="toolbar-btn" data-command="justifyFull" title="Justify">J</button>
+                </div>
+                <div class="question-editor" contenteditable="true" data-placeholder="Question text" style="min-height:140px; padding:12px; border:1px solid #cbd5f5; border-radius:8px; background:#fff; font-size:1rem; line-height:1.5; box-shadow:0 1px 2px rgba(15,23,42,0.08);"></div>
+                <textarea class="question-text" placeholder="Question text" style="display:none;"></textarea>
+            </div>
             <div class="media-controls">
                 <label class="file-label">Attach image <input type="file" class="question-image-file" accept="image/*"></label>
                 <button type="button" class="btn-gray add-table-btn">Add Table</button>
@@ -949,23 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="table-editor-wrapper"></div>
                 </div>
             </div>
-            <div class="options-grid">
-                <div class="option-item">
-                    <input type="radio" name="correct-answer-${questionId}" value="0" required>
-                    <input type="text" class="option-text" placeholder="Option 1" required>
-                </div>
-                <div class="option-item">
-                    <input type="radio" name="correct-answer-${questionId}" value="1" required>
-                    <input type="text" class="option-text" placeholder="Option 2" required>
-                </div>
-                <div class="option-item">
-                    <input type="radio" name="correct-answer-${questionId}" value="2" required>
-                    <input type="text" class="option-text" placeholder="Option 3" required>
-                </div>
-                <div class="option-item">
-                    <input type="radio" name="correct-answer-${questionId}" value="3" required>
-                    <input type="text" class="option-text" placeholder="Option 4" required>
-                </div>
+            <div class="options-grid"></div>
+            <div class="option-actions">
+                <button type="button" class="btn-gray add-option-btn">Add more options</button>
             </div>
             <textarea class="explanation-text" placeholder="Answer explanation"></textarea>
             <div class="explanation-image-controls" style="margin-top: 8px;">
@@ -997,6 +994,141 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof initMediaHandlers === 'function') {
             initMediaHandlers(questionBlock);
         }
+
+        initQuestionEditor(questionBlock);
+        initOptionControls(questionBlock);
+        populateQuestionOptions(questionBlock);
+    }
+
+    function initQuestionEditor(block) {
+        const editor = block.querySelector('.question-editor');
+        const textarea = block.querySelector('.question-text');
+        if (!editor || !textarea || editor.dataset.initialized === 'true') return;
+
+        editor.dataset.initialized = 'true';
+
+        const syncContent = () => {
+            textarea.value = editor.innerHTML;
+        };
+
+        editor.addEventListener('input', syncContent);
+        editor.addEventListener('blur', syncContent);
+
+        const toolbarButtons = block.querySelectorAll('.question-toolbar .toolbar-btn');
+        toolbarButtons.forEach((btn) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                const command = btn.dataset.command;
+                const value = btn.dataset.value || null;
+                editor.focus();
+                document.execCommand(command, false, value);
+                syncContent();
+            });
+        });
+    }
+
+    function setQuestionEditorContent(block, content = '') {
+        const editor = block.querySelector('.question-editor');
+        const textarea = block.querySelector('.question-text');
+        if (editor) {
+            editor.innerHTML = content || '';
+        }
+        if (textarea) {
+            textarea.value = content || '';
+        }
+    }
+
+    function initOptionControls(block) {
+        const optionsGrid = block.querySelector('.options-grid');
+        if (!optionsGrid || optionsGrid.dataset.initialized === 'true') return;
+
+        optionsGrid.dataset.initialized = 'true';
+
+        const addOptionBtn = block.querySelector('.add-option-btn');
+        if (addOptionBtn) {
+            addOptionBtn.addEventListener('click', () => {
+                appendOptionInput(block);
+            });
+        }
+
+        optionsGrid.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-option-btn')) {
+                const optionItem = e.target.closest('.option-item');
+                if (!optionItem) return;
+                optionItem.remove();
+                renumberOptionInputs(block);
+            }
+        });
+    }
+
+    function appendOptionInput(block, presetValue = '') {
+        const optionsGrid = block.querySelector('.options-grid');
+        if (!optionsGrid) return;
+        const questionId = block.id || `question-${Date.now()}`;
+        const currentCount = optionsGrid.querySelectorAll('.option-item').length;
+        const optionLetter = String.fromCharCode(65 + currentCount);
+        const optionItem = document.createElement('div');
+        optionItem.className = 'option-item';
+        optionItem.innerHTML = `
+            <span class="option-badge">${optionLetter}.</span>
+            <input type="radio" name="correct-answer-${questionId}" value="${currentCount}" required>
+            <input type="text" class="option-text" placeholder="Option ${optionLetter}" required>
+        `;
+        optionsGrid.appendChild(optionItem);
+        const optionInput = optionItem.querySelector('.option-text');
+        if (optionInput && presetValue) {
+            optionInput.value = presetValue;
+        }
+        renumberOptionInputs(block);
+    }
+
+    function renumberOptionInputs(block) {
+        const optionItems = block.querySelectorAll('.option-item');
+        optionItems.forEach((item, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            const radio = item.querySelector('input[type="radio"]');
+            const textInput = item.querySelector('.option-text');
+            let badge = item.querySelector('.option-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'option-badge';
+                item.insertBefore(badge, item.firstChild);
+            }
+            badge.textContent = `${letter}.`;
+            if (radio) {
+                radio.value = idx;
+            }
+            if (textInput) {
+                textInput.placeholder = `Option ${letter}`;
+            }
+            const existingRemoveBtn = item.querySelector('.remove-option-btn');
+            if (idx < 4) {
+                if (existingRemoveBtn) {
+                    existingRemoveBtn.remove();
+                }
+            } else if (!existingRemoveBtn) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-option-btn';
+                removeBtn.title = 'Remove option';
+                removeBtn.textContent = '×';
+                item.appendChild(removeBtn);
+            }
+        });
+    }
+
+    function populateQuestionOptions(block, values = []) {
+        const optionsGrid = block.querySelector('.options-grid');
+        if (!optionsGrid) return;
+        const desiredCount = Math.max(4, Array.isArray(values) ? values.length : 4);
+        while (optionsGrid.querySelectorAll('.option-item').length < desiredCount) {
+            appendOptionInput(block);
+        }
+        const optionInputs = block.querySelectorAll('.option-text');
+        optionInputs.forEach((input, idx) => {
+            input.value = (Array.isArray(values) && typeof values[idx] !== 'undefined') ? values[idx] : '';
+        });
+        renumberOptionInputs(block);
     }
 
     // --- Sections UI Helpers ---
@@ -1519,9 +1651,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const blocks = container.getElementsByClassName('question-block');
                     const block = blocks[blocks.length - 1];
                     if (block) {
-                        block.querySelector('.question-text').value = q.question || '';
-                        const optionInputs = block.querySelectorAll('.option-text');
-                        optionInputs.forEach((opt, i) => opt.value = (q.options && q.options[i]) ? q.options[i] : '');
+                        setQuestionEditorContent(block, q.question || '');
+                        populateQuestionOptions(block, Array.isArray(q.options) ? q.options : []);
                         const correct = (typeof q.correctAnswer !== 'undefined') ? q.correctAnswer : 0;
                         const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
                         if (radio) radio.checked = true;
@@ -1585,9 +1716,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const blocks = questionsContainer.getElementsByClassName('question-block');
                     const block = blocks[blocks.length - 1];
                     if (block) {
-                        block.querySelector('.question-text').value = q.question || '';
-                        const optionInputs = block.querySelectorAll('.option-text');
-                        optionInputs.forEach((opt, i) => opt.value = (q.options && q.options[i]) ? q.options[i] : '');
+                        setQuestionEditorContent(block, q.question || '');
+                        populateQuestionOptions(block, Array.isArray(q.options) ? q.options : []);
                         const correct = (typeof q.correctAnswer !== 'undefined') ? q.correctAnswer : 0;
                         const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
                         if (radio) radio.checked = true;
@@ -2138,9 +2268,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const blocks = container.getElementsByClassName('question-block');
                             const block = blocks[blocks.length - 1];
                             if (block) {
-                                block.querySelector('.question-text').value = q.question || '';
-                                const optionInputs = block.querySelectorAll('.option-text');
-                                optionInputs.forEach((opt, i) => opt.value = (q.options && q.options[i]) ? q.options[i] : '');
+                                setQuestionEditorContent(block, q.question || '');
+                                populateQuestionOptions(block, Array.isArray(q.options) ? q.options : []);
                                 const correct = q.correctAnswer || 0;
                                 const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
                                 if (radio) radio.checked = true;
@@ -2156,39 +2285,34 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         });
                     } else {
-                        test.questions.forEach((q, index) => {
+                        test.questions.forEach((q) => {
                             questionCounter++;
-                            const questionId = `q_${Date.now()}_${index}`;
-                            const questionBlock = document.createElement('div');
-                            questionBlock.className = 'question-block';
-                            questionBlock.id = questionId;
-                            questionBlock.innerHTML = `
-                                <h4>
-                                    Question ${questionCounter}
-                                    <button type="button" class="btn-red-small" onclick="document.getElementById('${questionId}').remove(); updateQuestionCount();">Remove</button>
-                                </h4>
-                                <textarea class="question-text" placeholder="Question text" required>${q.question}</textarea>
-                                <div class="options-grid">
-                                    <div class="option-item">
-                                        <input type="radio" name="correct-answer-${questionId}" value="0" ${q.correctAnswer === 0 ? 'checked' : ''} required>
-                                        <input type="text" class="option-text" placeholder="Option 1" value="${q.options[0] || ''}" required>
-                                    </div>
-                                    <div class="option-item">
-                                        <input type="radio" name="correct-answer-${questionId}" value="1" ${q.correctAnswer === 1 ? 'checked' : ''} required>
-                                        <input type="text" class="option-text" placeholder="Option 2" value="${q.options[1] || ''}" required>
-                                    </div>
-                                    <div class="option-item">
-                                        <input type="radio" name="correct-answer-${questionId}" value="2" ${q.correctAnswer === 2 ? 'checked' : ''} required>
-                                        <input type="text" class="option-text" placeholder="Option 3" value="${q.options[2] || ''}" required>
-                                    </div>
-                                    <div class="option-item">
-                                        <input type="radio" name="correct-answer-${questionId}" value="3" ${q.correctAnswer === 3 ? 'checked' : ''} required>
-                                        <input type="text" class="option-text" placeholder="Option 4" value="${q.options[3] || ''}" required>
-                                    </div>
-                                </div>
-                                <textarea class="explanation-text" placeholder="Answer explanation">${q.explanation}</textarea>
-                            `;
-                            questionsContainer.appendChild(questionBlock);
+                            addQuestionBlock(questionCounter);
+                            const blocks = questionsContainer.getElementsByClassName('question-block');
+                            const block = blocks[blocks.length - 1];
+                            if (block) {
+                                setQuestionEditorContent(block, q.question || '');
+                                populateQuestionOptions(block, Array.isArray(q.options) ? q.options : []);
+                                const correct = (typeof q.correctAnswer !== 'undefined') ? q.correctAnswer : 0;
+                                const radio = block.querySelector(`input[type="radio"][value="${correct}"]`);
+                                if (radio) radio.checked = true;
+                                block.querySelector('.explanation-text').value = q.explanation || '';
+                                const explanationImgPreview = block.querySelector('.explanation-image-preview');
+                                const removeExplanationImageBtn = block.querySelector('.remove-explanation-image-btn');
+                                if (q.explanationImage && q.explanationImage.trim() !== '' && explanationImgPreview) {
+                                    explanationImgPreview.src = q.explanationImage;
+                                    explanationImgPreview.style.display = 'block';
+                                    if (removeExplanationImageBtn) { removeExplanationImageBtn.style.display = 'block'; }
+                                }
+                                const imgPreview = block.querySelector('.question-image-preview');
+                                const removeImageBtn = block.querySelector('.remove-image-btn');
+                                if (q.imageData && q.imageData.trim() !== '' && imgPreview) {
+                                    imgPreview.src = q.imageData;
+                                    imgPreview.style.display = 'block';
+                                    imgPreview.style.visibility = 'visible';
+                                    if (removeImageBtn) { removeImageBtn.style.display = 'block'; }
+                                }
+                            }
                         });
                     }
                 }
@@ -2406,7 +2530,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const correctAnswerRadio = block.querySelector('input[type="radio"]:checked');
             const optionInputs = block.querySelectorAll('.option-text');
 
-            if (correctAnswerRadio && optionInputs.length === 4) {
+            if (correctAnswerRadio && optionInputs.length >= 4) {
                 const options = Array.from(optionInputs).map(input => input.value);
                 const correctAnswer = parseInt(correctAnswerRadio.value);
                 let sectionIndex = null;

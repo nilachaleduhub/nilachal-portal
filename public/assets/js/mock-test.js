@@ -245,16 +245,22 @@ function renderQuestion() {
   // Clear and rebuild question display
   block.innerHTML = '';
   
-  // Question text
+  // Question text (render rich text from admin)
   const qText = document.createElement('div');
   qText.className = 'question-text';
-  // Escape HTML and preserve line breaks
-  const escapedQuestion = String(q.question || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-  qText.innerHTML = `<b>Q${(currentQuestion + 1)}.</b> ${escapedQuestion}`;
+  const rawQuestion = typeof q.question === 'string' ? q.question : '';
+  const hasHtmlTags = /<\/?[a-z][\s\S]*>/i.test(rawQuestion.trim());
+  const displayQuestion = hasHtmlTags
+    ? rawQuestion
+    : String(rawQuestion || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+  qText.innerHTML = `
+    <span class="q-number"><b>Q${(currentQuestion + 1)}.</b></span>
+    <span class="q-text-content">${displayQuestion}</span>
+  `;
   block.appendChild(qText);
   
   // Question image (if available)
