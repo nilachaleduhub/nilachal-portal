@@ -194,10 +194,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (data.success && data.token) {
+                // Persist token
                 localStorage.setItem('adminToken', data.token);
+                // Update in‑memory token so subsequent logic sees it
+                adminToken = data.token;
+                // Hide auth UI
                 showAuthModal(false);
-                // Initialize navigation after successful login
+                // Initialize navigation and load fresh data from server
                 initializeAdminNavigation();
+                loadAllData();
             } else {
                 setAuthError(data.message || 'Login failed');
             }
@@ -208,11 +213,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    // If not logged in, block admin panel
-    if (!adminToken) return;
-    
-    // Initialize navigation if already logged in
-    initializeAdminNavigation();
+    // If already logged in on page load, initialize and load data immediately
+    if (adminToken) {
+        initializeAdminNavigation();
+        loadAllData();
+    }
     
     // --- Navigation Elements ---
     const navButtons = document.querySelectorAll('.nav-btn');
@@ -365,7 +370,95 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
+
+    function normalizeTestForCache(test) {
+        if (!test || typeof test !== 'object') return null;
+        const normalized = {
+            id: test.id,
+            categoryId: test.categoryId,
+            examId: test.examId,
+            name: test.name || '',
+            numQuestions: test.numQuestions || '',
+            timeLimit: test.timeLimit || '',
+            positiveMark: test.positiveMark || '',
+            negativeMark: test.negativeMark || '',
+            hasSections: !!test.hasSections,
+            isFree: !!test.isFree,
+            sections: Array.isArray(test.sections) ? test.sections : [],
+            sectionalTiming: !!test.sectionalTiming
+        };
+        if (Array.isArray(test.questions)) {
+            normalized.questions = test.questions;
+        }
+        return normalized;
+    }
+
     const generateId = () => `admin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // In-memory stores to keep the latest server data for immediate rendering
+    let categoriesState = [];
+    const examsState = {}; // categoryId -> exam array
+    const testsState = {}; // categoryId -> test array
+
+    const setCategoriesState = (categories = []) => {
+        categoriesState = Array.isArray(categories) ? categories : [];
+        saveToLS(ADMIN_CATEGORIES_KEY, categoriesState);
+    };
+
+    const getCategoriesState = () => {
+        // Always prefer in-memory state; this is populated from the server via loadAllData().
+        // localStorage is treated as a persistence cache only and is not used as an
+        // implicit source of truth to avoid stale or divergent data.
+        return categoriesState;
+    };
+
+    const setExamsState = (categoryId, exams = []) => {
+        if (!categoryId) return;
+        examsState[categoryId] = Array.isArray(exams) ? exams : [];
+        saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, examsState[categoryId]);
+    };
+
+    const getExamsState = (categoryId) => {
+        if (!categoryId) return [];
+        // Do not silently hydrate from localStorage; examsState should be filled
+        // from server responses (loadAllData / explicit fetches).
+        return Array.isArray(examsState[categoryId]) ? examsState[categoryId] : [];
+    };
+
+    const setTestsState = (categoryId, tests = []) => {
+        if (!categoryId) return;
+        testsState[categoryId] = Array.isArray(tests) ? tests : [];
+        saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, testsState[categoryId]);
+    };
+
+    const getTestsState = (categoryId) => {
+        if (!categoryId) return [];
+        // Same as exams: rely on in-memory state kept in sync with the server.
+        return Array.isArray(testsState[categoryId]) ? testsState[categoryId] : [];
+    };
+
+    async function refreshTestsCache(categoryId, { force = false } = {}) {
+        if (!categoryId) return [];
+        const cached = getTestsState(categoryId);
+        if (!force && Array.isArray(cached) && cached.length > 0) {
+            return cached;
+        }
+        try {
+            const res = await adminFetch(`/api/admin/tests/${categoryId}`);
+            const data = await res.json();
+            if (data.success && Array.isArray(data.tests)) {
+                const normalized = data.tests
+                    .map(normalizeTestForCache)
+                    .filter(Boolean);
+                setTestsState(categoryId, normalized);
+                return normalized;
+            }
+        } catch (err) {
+            console.warn(`Error loading tests for category ${categoryId}`, err);
+        }
+        // On failure, keep existing in-memory/cache state but do not treat it as fresh.
+        return Array.isArray(cached) ? cached : getTestsState(categoryId);
+    }
 
     const VALIDITY_UNIT_LABELS = {
         day: 'Day',
@@ -983,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Render Functions ---
     function renderCategories() {
-        const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+        const categories = getCategoriesState();
         categoryList.innerHTML = '';
         examCategorySelect.innerHTML = '<option value="">-- Select a Category --</option>';
         testCategorySelect.innerHTML = '<option value="">-- Select Category --</option>';
@@ -1020,13 +1113,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderExams() {
-        const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+        const categories = getCategoriesState();
         examList.innerHTML = '';
         testExamSelect.innerHTML = '<option value="">-- Select Exam --</option>';
         questionExamSelect.innerHTML = '<option value="">-- Select Exam --</option>';
 
         categories.forEach(cat => {
-            const exams = getFromLS(`${EXAM_DATA_PREFIX}${cat.id}`);
+            const exams = getExamsState(cat.id);
             exams.forEach(exam => {
                 const item = document.createElement('div');
                 item.className = 'list-item';
@@ -1052,49 +1145,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderTests() {
-        const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+    async function renderTests() {
+        const categories = getCategoriesState();
         testList.innerHTML = '';
 
-        categories.forEach(cat => {
-            // Get tests from both storage locations
-            const examTests = [];
-            const exams = getFromLS(`${EXAM_DATA_PREFIX}${cat.id}`);
-            
-            // Create a map of examId to examName for quick lookup
-            // Store both string and number versions to handle type mismatches
+        for (const cat of categories) {
+            const exams = getExamsState(cat.id);
             const examNameMap = {};
             exams.forEach(exam => {
-                // Store with both string and number keys to handle type mismatches
                 const examIdStr = String(exam.id);
-                const examIdNum = exam.id;
                 examNameMap[examIdStr] = exam.name;
-                examNameMap[examIdNum] = exam.name;
-                (exam.tests || []).forEach(test => {
-                    examTests.push({...test, examName: exam.name, examId: exam.id});
-                });
+                examNameMap[exam.id] = exam.name;
             });
 
-            // Get tests from separate test storage
-            const separateTests = getFromLS(`${TEST_DATA_PREFIX}${cat.id}`, []);
-            
-            // Add exam name to separate tests by looking up in examNameMap
-            const separateTestsWithExamName = separateTests.map(test => {
-                let examName = 'Unknown';
-                if (test.examId) {
-                    // Try both string and number versions of examId
-                    examName = examNameMap[test.examId] || examNameMap[String(test.examId)] || examNameMap[Number(test.examId)] || 'Unknown';
-                }
-                return {...test, examName: examName};
-            });
-            
-            // Combine and remove duplicates
-            const allTests = [...examTests, ...separateTestsWithExamName];
-            const uniqueTests = allTests.filter((test, index, self) => 
-                index === self.findIndex(t => t.id === test.id)
-            );
+            const tests = await refreshTestsCache(cat.id);
+            const uniqueTests = Array.isArray(tests)
+                ? tests.filter((test, index, self) => index === self.findIndex(t => t.id === test.id))
+                : [];
 
             uniqueTests.forEach(test => {
+                const examName = test.examId
+                    ? (examNameMap[test.examId] || examNameMap[String(test.examId)] || examNameMap[Number(test.examId)] || 'Unknown')
+                    : 'Unknown';
                 const item = document.createElement('div');
                 item.className = 'list-item';
                 const sectionsSummary = (test.hasSections && test.sections && test.sections.length > 0) ? `Sections: ${test.sections.length}` : (test.hasSections ? 'Sections: Yes' : 'Sections: No');
@@ -1102,7 +1174,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.innerHTML = `
                     <div class="list-item-info">
                         <strong>${test.name}</strong>
-                        <span>Exam: ${test.examName || 'Unknown'} | ID: ${test.id} | ${sectionsSummary} | ${freeSummary}</span>
+                        <span>Exam: ${examName} | ID: ${test.id} | ${sectionsSummary} | ${freeSummary}</span>
                     </div>
                     <div class="list-item-actions">
                         <button class="btn-edit" data-id="${test.id}" data-exam-id="${test.examId}" data-cat-id="${cat.id}">Edit</button>
@@ -1111,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 testList.appendChild(item);
             });
-        });
+        }
     }
 
     function populateTestExamSelect() {
@@ -1120,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         testNameInput.innerHTML = '<option value="">-- Select Test Name --</option>';
         if (!categoryId) return;
 
-        const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+        const exams = getExamsState(categoryId);
         exams.forEach(exam => {
             testExamSelect.add(new Option(exam.name, exam.id));
         });
@@ -1132,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         testNameInput.innerHTML = '<option value="">-- Select Test Name --</option>';
         if (!categoryId || !examId) return;
 
-        const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+        const exams = getExamsState(categoryId);
         const exam = exams.find(e => e.id === examId);
         if (exam && exam.tests) {
             exam.tests.forEach(test => {
@@ -1147,7 +1219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         questionTestSelect.innerHTML = '<option value="">-- Select Test --</option>';
         if (!categoryId) return;
 
-        const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+        const exams = getExamsState(categoryId);
         console.log('populateQuestionExamSelect - categoryId:', categoryId, 'exams:', exams);
         exams.forEach(exam => {
             questionExamSelect.add(new Option(exam.name, exam.id));
@@ -1164,17 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         // Always refresh tests from server before populating
-        try {
-            const res = await adminFetch(`/api/admin/tests/${categoryId}`);
-            const all = await res.json();
-            if (all.success && Array.isArray(all.tests)) {
-                saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, all.tests);
-            }
-        } catch (err) {
-            console.warn('Could not refresh tests from server', err);
-        }
-        // Now populate from localStorage
-        const separateTests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+        const separateTests = await refreshTestsCache(categoryId, { force: true });
         // Defensive: trim examId and compare as string
         const examIdStr = (examId || '').toString().trim();
         const examTests = separateTests.filter(test => (test.examId || '').toString().trim() === examIdStr);
@@ -1293,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let test = null;
         
         // First try to get test from exam structure
-        const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+        const exams = getExamsState(categoryId);
         const exam = exams.find(e => e.id === examId);
         if (exam && exam.tests) {
             test = exam.tests.find(t => t.id === testId);
@@ -1301,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // If not found in exam structure, try separate test storage
         if (!test) {
-            const separateTests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+            const separateTests = getTestsState(categoryId);
             test = separateTests.find(t => t.id === testId);
         }
         
@@ -1382,15 +1444,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Ensure the latest tests cache is available before looking up selections
+        await refreshTestsCache(categoryId);
+
         // Find the test (first try exam structure, then separate storage)
         let test = null;
-        const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+        const exams = getExamsState(categoryId);
         const exam = exams.find(e => e.id === examId);
         if (exam && exam.tests) {
             test = exam.tests.find(t => t.id === testId);
         }
         if (!test) {
-            const separateTests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+            const separateTests = getTestsState(categoryId);
             test = separateTests.find(t => t.id === testId);
         }
 
@@ -1415,11 +1480,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Update localStorage with fresh questions for future use
                     test.questions = questions;
                     // Update in separate test storage
-                    const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+                    const tests = getTestsState(categoryId);
                     const idx = tests.findIndex(t => t.id === testId);
                     if (idx !== -1) {
                         tests[idx].questions = questions;
-                        saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
+                        setTestsState(categoryId, tests);
                     }
                     // Also update in exam structure
                     const examIdx = exams.findIndex(e => e.id === examId);
@@ -1427,7 +1492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const tIdx = exams[examIdx].tests.findIndex(t => t.id === testId);
                         if (tIdx !== -1) {
                             exams[examIdx].tests[tIdx].questions = questions;
-                            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
+                            setExamsState(categoryId, exams);
                         }
                     }
                 } else {
@@ -1683,48 +1748,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res2 = await adminFetch('/api/admin/categories');
                 const all = await res2.json();
                 if (all.success && Array.isArray(all.categories)) {
-                    saveToLS(ADMIN_CATEGORIES_KEY, all.categories);
+                    setCategoriesState(all.categories);
                 }
                 alert(id ? 'Category updated successfully!' : 'Category saved to server (MongoDB) and synced to localStorage!');
             }
         } catch (err) {
-            console.warn('Server save failed, falling back to localStorage', err);
+            console.warn('Server save failed for category', err);
         }
         if (!serverSuccess) {
-            let categories = getFromLS(ADMIN_CATEGORIES_KEY);
-            if (id) {
-                categories = categories.map(cat => cat.id === id ? {
-                    ...cat,
-                    name,
-                    description,
-                    courseDetails,
-                    courseCost,
-                    courseValidity,
-                    validityValue,
-                    validityUnit: validityValue ? validityUnit : '',
-                    hasDiscount,
-                    discountPercent: hasDiscount ? discountPercent : 0,
-                    discountCode: hasDiscount ? discountCode : '',
-                    discountMessage: hasDiscount ? discountMessage : ''
-                } : cat);
-            } else {
-                categories.push({
-                    id: generateId(),
-                    name,
-                    description,
-                    courseDetails,
-                    courseCost,
-                    courseValidity,
-                    validityValue,
-                    validityUnit: validityValue ? validityUnit : '',
-                    hasDiscount,
-                    discountPercent: hasDiscount ? discountPercent : 0,
-                    discountCode: hasDiscount ? discountCode : '',
-                    discountMessage: hasDiscount ? discountMessage : ''
-                });
-            }
-            saveToLS(ADMIN_CATEGORIES_KEY, categories);
-            alert('Category saved locally (localStorage). Server unavailable.');
+            // Do not create or update categories only in localStorage; this would
+            // diverge from the live database. Instead, surface an explicit error.
+            alert('Failed to save category to server. No changes were persisted. Please check your connection or try again.');
         }
         // Explicitly clear the ID field to prevent creating duplicates
         categoryForm.reset();
@@ -1819,51 +1853,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res2 = await adminFetch(`/api/admin/exams/${categoryId}`);
                 const all = await res2.json();
                 if (all.success && Array.isArray(all.exams)) {
-                    saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, all.exams);
+                    setExamsState(categoryId, all.exams);
                 }
                 const isUpdate = id && id.length > 0;
                 alert(isUpdate ? 'Exam updated successfully!' : 'Exam saved to server (MongoDB) and synced to localStorage!');
             }
         } catch (err) {
-            console.warn('Server save failed, falling back to localStorage', err);
+            console.warn('Server save failed for exam', err);
         }
         if (!serverSuccess) {
-            let exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
-            if (id) {
-                exams = exams.map(ex => ex.id === id ? {
-                    ...ex,
-                    name,
-                    description,
-                    courseDetails,
-                    courseCost,
-                    courseValidity,
-                    validityValue,
-                    validityUnit: validityValue ? validityUnit : '',
-                    hasDiscount,
-                    discountPercent: hasDiscount ? discountPercent : 0,
-                    discountCode: hasDiscount ? discountCode : '',
-                    discountMessage: hasDiscount ? discountMessage : '',
-                    tests: ex.tests || []
-                } : ex);
-            } else {
-                exams.push({
-                    id: generateId(),
-                    name,
-                    description,
-                    courseDetails,
-                    courseCost,
-                    courseValidity,
-                    validityValue,
-                    validityUnit: validityValue ? validityUnit : '',
-                    hasDiscount,
-                    discountPercent: hasDiscount ? discountPercent : 0,
-                    discountCode: hasDiscount ? discountCode : '',
-                    discountMessage: hasDiscount ? discountMessage : '',
-                    tests: []
-                });
-            }
-            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
-            alert('Exam saved locally (localStorage). Server unavailable.');
+            // Avoid writing exams only to localStorage; that would create exams that
+            // do not exist on the live site. Show a clear failure instead.
+            alert('Failed to save exam to server. No changes were persisted. Please check your connection or try again.');
         }
         examForm.reset();
         examIdInput.value = '';
@@ -1937,33 +1938,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(isUpdate ? 'Test updated successfully!' : 'Test saved to server (MongoDB)!');
             }
         } catch (err) {
-            console.warn('Server save failed, falling back to localStorage', err);
+            console.warn('Server save failed for test', err);
         }
-
+        
         if (!serverSuccess) {
-            // Fallback: generate an ID locally and keep a very small cache entry if desired.
-            const localTest = {
-                ...newTest,
-                id: newTest.id || generateId(),
-                // Ensure we don't accidentally store large question payloads in localStorage
-                questions: [],
-                sections: Array.isArray(newTest.sections) ? newTest.sections : []
-            };
-            const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
-            tests.push({
-                id: localTest.id,
-                categoryId: localTest.categoryId,
-                examId: localTest.examId,
-                name: localTest.name,
-                hasSections: !!localTest.hasSections,
-                numQuestions: localTest.numQuestions,
-                timeLimit: localTest.timeLimit,
-                positiveMark: localTest.positiveMark,
-                negativeMark: localTest.negativeMark,
-                isFree: !!localTest.isFree
-            });
-            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
-            alert('Test saved locally (localStorage). Server unavailable.');
+            // Do not create tests only in localStorage; that would break consistency
+            // with the live backend and question mappings.
+            alert('Failed to save test to server. No changes were persisted. Please check your connection or try again.');
         }
 
         testNameInput.value = '';
@@ -1975,16 +1956,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (testIsFreeYes) testIsFreeYes.checked = false;
         if (testIsFreeNo) testIsFreeNo.checked = true;
 
-        // Re-render tests list using the latest data in localStorage (categories/exams)
-        // and any small cached test summaries.
-        renderTests();
+        // Refresh tests cache from server whenever possible to keep UI authoritative
+        await refreshTestsCache(categoryId, { force: true });
+        await renderTests();
     });
 
     // Edit Buttons
     categoryList.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-edit')) {
             const id = e.target.dataset.id;
-            const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+            const categories = getCategoriesState();
             const category = categories.find(cat => cat.id === id);
             if (category) {
                 categoryIdInput.value = category.id;
@@ -2012,7 +1993,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('btn-edit')) {
             const id = e.target.dataset.id;
             const categoryId = e.target.dataset.catId;
-            const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+            const exams = getExamsState(categoryId);
             const exam = exams.find(ex => ex.id === id);
             if (exam) {
                 examIdInput.value = exam.id;
@@ -2037,7 +2018,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    testList.addEventListener('click', (e) => {
+    testList.addEventListener('click', async (e) => {
         if (e.target.classList.contains('btn-edit')) {
             const id = e.target.dataset.id;
             const examId = e.target.dataset.examId;
@@ -2046,7 +2027,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let test = null;
             
             // First try to find test in exam structure
-            const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+            const exams = getExamsState(categoryId);
             const exam = exams.find(ex => ex.id === examId);
             if (exam && exam.tests) {
                 test = exam.tests.find(t => t.id === id);
@@ -2054,7 +2035,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // If not found in exam structure, try separate test storage
             if (!test) {
-                const separateTests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+                const separateTests = await refreshTestsCache(categoryId);
                 test = separateTests.find(t => t.id === id);
             }
             
@@ -2241,7 +2222,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const res2 = await adminFetch('/api/admin/categories');
                     const all = await res2.json();
                     if (all.success && Array.isArray(all.categories)) {
-                        saveToLS(ADMIN_CATEGORIES_KEY, all.categories);
+                        setCategoriesState(all.categories);
                     }
                     alert('Category deleted from server (MongoDB) and synced to localStorage!');
                 } else {
@@ -2252,9 +2233,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Delete from localStorage (always update localStorage after server attempt)
-            let categories = getFromLS(ADMIN_CATEGORIES_KEY);
+            let categories = getCategoriesState();
             categories = categories.filter(cat => cat.id !== id);
-            saveToLS(ADMIN_CATEGORIES_KEY, categories);
+            setCategoriesState(categories);
             
             if (!serverSuccess) {
                 alert('Category deleted locally (localStorage). Server unavailable.');
@@ -2272,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!id || !currentCategoryId) return;
             
             // Get all categories for selection
-            const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+            const categories = getCategoriesState();
             const currentCategory = categories.find(cat => cat.id === currentCategoryId);
             const otherCategories = categories.filter(cat => cat.id !== currentCategoryId);
             
@@ -2341,16 +2322,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const res2 = await adminFetch(`/api/admin/exams/${categoryId}`);
                     const all = await res2.json();
                     if (all.success && Array.isArray(all.exams)) {
-                        saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, all.exams);
+                        setExamsState(categoryId, all.exams);
                     }
                     // Also refresh tests cache for this category since cascading delete may remove tests
-                    try {
-                        const r3 = await adminFetch(`/api/admin/tests/${categoryId}`);
-                        const allTests = await r3.json();
-                        if (allTests.success && Array.isArray(allTests.tests)) {
-                            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, allTests.tests);
-                        }
-                    } catch (e2) { /* ignore */ }
+                    await refreshTestsCache(categoryId, { force: true });
                     alert('Exam deleted from server and synced.');
                 } else {
                     alert(data.message || 'Failed to delete exam on server');
@@ -2359,13 +2334,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('Server exam delete failed, falling back to localStorage', err);
             }
             // Update local storage regardless
-            let exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+            let exams = getExamsState(categoryId);
             exams = exams.filter(exam => exam.id !== id);
-            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
+            setExamsState(categoryId, exams);
             // Remove tests of this exam from local caches
-            let separateTests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+            let separateTests = getTestsState(categoryId);
             separateTests = separateTests.filter(t => t.examId !== id);
-            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, separateTests);
+            setTestsState(categoryId, separateTests);
             loadAllData();
         }
     });
@@ -2384,13 +2359,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 if (data.success) {
                     // Refresh tests cache from server
-                    try {
-                        const r = await adminFetch(`/api/admin/tests/${categoryId}`);
-                        const all = await r.json();
-                        if (all.success && Array.isArray(all.tests)) {
-                            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, all.tests);
-                        }
-                    } catch (e2) { /* ignore */ }
+                    await refreshTestsCache(categoryId, { force: true });
                 } else {
                     alert(data.message || 'Failed to delete test on server');
                 }
@@ -2398,18 +2367,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('Server test delete failed, updating localStorage anyway', err);
             }
             // Remove from embedded exam structure in local cache
-            let exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
+            let exams = getExamsState(categoryId);
             exams = exams.map(exam => {
                 if (exam.id === examId && exam.tests) {
                     exam.tests = exam.tests.filter(test => test.id !== id);
                 }
                 return exam;
             });
-            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
+            setExamsState(categoryId, exams);
             // Remove from separate tests cache
-            let separateTests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
+            let separateTests = getTestsState(categoryId);
             separateTests = separateTests.filter(test => test.id !== id);
-            saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, separateTests);
+            setTestsState(categoryId, separateTests);
             loadAllData();
         }
     });
@@ -2604,31 +2573,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.message || 'Server returned an error');
             }
         } catch (err) {
-            console.error('Server save failed, falling back to localStorage', err);
+            console.error('Server save failed for questions', err);
         }
         if (!serverSuccess) {
-            // Offline / server-failure fallback: store questions only inside the lighter
-            // exam structure and test summaries, but still avoid huge blobs where possible.
-            const exams = getFromLS(`${EXAM_DATA_PREFIX}${categoryId}`);
-            const examIndex = exams.findIndex(e => e.id === examId);
-            if (examIndex !== -1 && exams[examIndex].tests) {
-                const testIndex = exams[examIndex].tests.findIndex(t => t.id === testId);
-                if (testIndex !== -1) {
-                    exams[examIndex].tests[testIndex].questions = questions;
-                    saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, exams);
-                }
-            }
-            // Also update in separate test storage, but keep this as a fallback only
-            const tests = getFromLS(`${TEST_DATA_PREFIX}${categoryId}`, []);
-            const separateTestIndex = tests.findIndex(t => t.id === testId);
-            if (separateTestIndex !== -1) {
-                tests[separateTestIndex].questions = questions;
-                saveToLS(`${TEST_DATA_PREFIX}${categoryId}`, tests);
-            }
-            const localMessage = wasUpdatingExistingQuestions
-                ? 'Questions updated successfully (saved locally while offline).'
-                : `Successfully saved ${questions.length} questions locally (localStorage). Server unavailable.`;
-            alert(localMessage);
+            // Do not treat local-only question saves as success; they would not be
+            // visible on the live site. Inform the admin clearly.
+            const errorMessage = wasUpdatingExistingQuestions
+                ? 'Failed to update questions on server. Existing questions were not changed.'
+                : 'Failed to save questions to server. No questions were persisted.';
+            alert(errorMessage);
         }
 
         questionsContainer.innerHTML = '';
@@ -2644,12 +2597,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Debug function to check stored data
     window.debugAdminData = function() {
         console.log('=== ADMIN DATA DEBUG ===');
-        const categories = getFromLS(ADMIN_CATEGORIES_KEY);
+        const categories = getCategoriesState();
         console.log('Categories:', categories);
         
         categories.forEach(cat => {
             console.log(`\n--- Category: ${cat.name} (${cat.id}) ---`);
-            const exams = getFromLS(`${EXAM_DATA_PREFIX}${cat.id}`);
+            const exams = getExamsState(cat.id);
             console.log('Exams:', exams);
             
             exams.forEach(exam => {
@@ -2657,13 +2610,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`  Tests in exam:`, exam.tests || 'No tests array');
             });
             
-            const tests = getFromLS(`${TEST_DATA_PREFIX}${cat.id}`, []);
+            const tests = getTestsState(cat.id);
             console.log('Separate tests:', tests);
         });
         console.log('=== END DEBUG ===');
     };
 
-    // Load All Data on Page Load - Fetch from database first, then sync lightweight data to localStorage
+    // Load All Data - Fetch from database first, then sync lightweight data to localStorage
     async function loadAllData() {
         try {
             // Step 1: Fetch categories from database
@@ -2671,12 +2624,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const categoriesData = await categoriesRes.json();
             
             if (categoriesData.success && Array.isArray(categoriesData.categories)) {
-                // Save categories to localStorage
-                saveToLS(ADMIN_CATEGORIES_KEY, categoriesData.categories);
+                // Save categories to state/localStorage mirror
+                setCategoriesState(categoriesData.categories);
                 
-                // Step 2: For each category, fetch exams for that category
-                // NOTE: We no longer bulk-fetch and cache all tests per category here,
-                // to avoid storing huge test/question payloads in localStorage.
+                // Step 2: For each category, fetch exams and tests for that category
                 for (const category of categoriesData.categories) {
                     const categoryId = category.id;
                     
@@ -2685,12 +2636,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         const examsRes = await adminFetch(`/api/admin/exams/${categoryId}`);
                         const examsData = await examsRes.json();
                         if (examsData.success && Array.isArray(examsData.exams)) {
-                            // Save exams to localStorage
-                            saveToLS(`${EXAM_DATA_PREFIX}${categoryId}`, examsData.exams);
+                            // Save exams to state/localStorage mirror
+                            setExamsState(categoryId, examsData.exams);
                         }
                     } catch (err) {
                         console.warn(`Error loading exams for category ${categoryId}:`, err);
                     }
+                    
+                    // Always refresh tests from the server so UI does not depend on cached data
+                    await refreshTestsCache(categoryId, { force: true });
                 }
             } else {
                 console.warn('Failed to load categories from database, using localStorage data');
@@ -2703,10 +2657,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Step 3: Render all data (from localStorage, which now has synced database data)
         renderCategories();
         renderExams();
-        renderTests();
+        await renderTests();
     }
 
-    loadAllData();
 
     // --- Course Management Functions ---
     
