@@ -387,9 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
             sections: Array.isArray(test.sections) ? test.sections : [],
             sectionalTiming: !!test.sectionalTiming
         };
-        if (Array.isArray(test.questions)) {
-            normalized.questions = test.questions;
-        }
+        // Questions are NOT stored in localStorage to avoid quota exceeded errors
+        // Questions are always fetched from server when needed
         return normalized;
     }
 
@@ -1600,7 +1599,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // CRITICAL FIX: Always fetch questions from server API using test ID
         // This ensures questions load correctly even after test name is edited
         // Questions are linked by testId in QuestionDoc collection, not by test name
-        let questions = test.questions || [];
+        // Questions are NOT loaded from localStorage to avoid quota exceeded errors
+        let questions = [];
         try {
             const res = await fetch(`/api/tests/${testId}`);
             if (res.ok) {
@@ -1609,32 +1609,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     questions = testData.test.questions;
                     console.log(`Loaded ${questions.length} questions from server API for test ID: ${testId}`);
                     
-                    // Update localStorage with fresh questions for future use
-                    test.questions = questions;
-                    // Update in separate test storage
-                    const tests = getTestsState(categoryId);
-                    const idx = tests.findIndex(t => t.id === testId);
-                    if (idx !== -1) {
-                        tests[idx].questions = questions;
-                        setTestsState(categoryId, tests);
-                    }
-                    // Also update in exam structure
-                    const examIdx = exams.findIndex(e => e.id === examId);
-                    if (examIdx !== -1 && exams[examIdx].tests) {
-                        const tIdx = exams[examIdx].tests.findIndex(t => t.id === testId);
-                        if (tIdx !== -1) {
-                            exams[examIdx].tests[tIdx].questions = questions;
-                            setExamsState(categoryId, exams);
-                        }
-                    }
+                    // Questions are NOT stored in localStorage to avoid quota exceeded errors
+                    // Questions are always fetched from server when needed
                 } else {
-                    console.log('No questions found in server response, using localStorage data');
+                    console.log('No questions found in server response');
                 }
             } else {
-                console.warn('Failed to fetch questions from server, using localStorage data');
+                console.warn('Failed to fetch questions from server');
             }
         } catch (err) {
-            console.warn('Error fetching questions from server, using localStorage data:', err);
+            console.warn('Error fetching questions from server:', err);
         }
 
         currentTestHasExistingQuestions = Array.isArray(questions) && questions.length > 0;
