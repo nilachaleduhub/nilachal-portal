@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Answers | Nilachal Eduhub</title>
+    <link rel=icon type=image/png href=assets/images/@mylogo.png />
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        :root {
+            --primary-blue: #3366ff;
+            --primary-purple: #6c5ce7;
+            --success-green: #10b981;
+            --error-red: #ef4444;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --bg-light: #f3f6fb;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: radial-gradient(1200px 800px at 20% -10%, #e8f0ff 0%, transparent 60%),
+                        radial-gradient(900px 600px at 120% 10%, #ffe8f0 0%, transparent 50%),
+                        var(--bg-light); 
+            color: var(--text-primary); 
+            margin: 0; 
+            padding-top: 80px;
+        }
+
+        .answers-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 1.5rem auto;
+            padding: 18px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(10,20,40,0.08);
+            display: flex;
+            gap: 24px;
+            min-height: 500px;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-header h1 {
+            color: var(--text-primary);
+            margin: 0;
+            font-weight: 700;
+            letter-spacing: .1px;
+            font-size: 1.25rem;
+        }
+
+        .question-palette {
+            width: 160px;
+            flex-shrink: 0;
+            background: transparent;
+            padding: 0;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+            align-self: flex-start;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .palette-title {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            font-weight: 700;
+            text-align: left;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            justify-items: center;
+            align-items: center;
+        }
+
+        .palette-item {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #64748b;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .palette-item:hover {
+            background: #e2e8f0;
+            color: var(--text-primary);
+        }
+
+        .palette-item.correct {
+            background: var(--success-green);
+            color: white;
+            border-color: var(--success-green);
+        }
+
+        .palette-item.wrong {
+            background: var(--error-red);
+            color: white;
+            border-color: var(--error-red);
+        }
+
+        .palette-item.unattempted {
+            background: #f8fafc;
+            color: #64748b;
+            border-color: #e2e8f0;
+        }
+
+        .palette-item.active {
+            border-width: 3px;
+            box-shadow: 0 0 0 2px rgba(51, 102, 255, 0.3);
+        }
+
+        .palette-item.active.correct {
+            background: var(--success-green);
+            color: white;
+            border-color: var(--success-green);
+        }
+
+        .palette-item.active.wrong {
+            background: var(--error-red);
+            color: white;
+            border-color: var(--error-red);
+        }
+
+        .palette-item.active.unattempted {
+            background: #f8fafc;
+            color: #64748b;
+            border-color: #3366ff;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(15,23,42,0.04);
+        }
+
+        .question-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-top: 0;
+        }
+
+        .question-label {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .question-status-icon {
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            font-weight: 700;
+        }
+
+        .question-status-icon.correct {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .question-status-icon.wrong {
+            background: var(--error-red);
+            color: white;
+        }
+
+        .question-content {
+            flex: 1;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        .question-image {
+            max-width: 100%;
+            height: auto;
+            margin: 12px 0;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .question-table {
+            margin: 12px 0;
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 16px 0;
+        }
+
+        .option-item {
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1.5px solid var(--border-color);
+            background: #f8fafc;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .option-item.correct {
+            background: #d1fae5;
+            border-color: var(--success-green);
+            color: var(--text-primary);
+        }
+
+        .option-item.correct.unattempted-mark {
+            position: relative;
+        }
+
+        .option-item.correct.unattempted-mark::after {
+            content: "Unattempted";
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: rgba(16, 185, 129, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .option-item.wrong {
+            background: #fee2e2;
+            border-color: var(--error-red);
+            color: var(--text-primary);
+        }
+
+        .option-item.user-selected {
+            border-width: 3px;
+        }
+
+        .option-label {
+            font-weight: 600;
+            margin-right: 8px;
+            color: var(--text-secondary);
+        }
+
+        .option-item.correct .option-label {
+            color: var(--success-green);
+        }
+
+        .option-item.wrong .option-label {
+            color: var(--error-red);
+        }
+
+        .option-text {
+            color: var(--text-primary);
+        }
+
+        .answer-summary {
+            margin: 16px 0;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border-left: 3px solid var(--border-color);
+        }
+
+        .answer-summary.correct {
+            border-left-color: var(--success-green);
+            background: #d1fae5;
+        }
+
+        .answer-summary.wrong {
+            border-left-color: var(--error-red);
+            background: #fee2e2;
+        }
+
+        .answer-summary.unattempted {
+            border-left-color: var(--text-secondary);
+        }
+
+        .summary-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .summary-text {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .explanation-section {
+            margin-top: 16px;
+            padding: 14px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .explanation-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .explanation-content {
+            color: var(--text-primary);
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+
+        .explanation-image {
+            margin: 12px 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: block;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .nav-btn {
+            background: linear-gradient(90deg, var(--primary-blue), var(--primary-purple));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(59,130,246,0.2);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .nav-btn.secondary {
+            background: white;
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            box-shadow: none;
+        }
+
+        .back-btn {
+            background: white;
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #f8fafc;
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .error-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--error-red);
+            font-size: 1.1rem;
+        }
+
+        /* Mobile Responsive */
+        @media screen and (max-width: 968px) {
+            .answers-container {
+                flex-direction: column;
+                padding: 16px;
+            }
+
+            .question-palette {
+                width: 100%;
+                position: static;
+                padding: 0;
+                margin-top: 16px;
+                max-height: none;
+                overflow: visible;
+            }
+
+            .palette-grid {
+                grid-template-columns: repeat(4, 1fr);
+                justify-items: center;
+                gap: 8px;
+            }
+            
+            .palette-item {
+                width: 32px;
+                height: 32px;
+                font-size: 0.75rem;
+            }
+            
+            .palette-title {
+                text-align: center;
+            }
+
+            .question-card {
+                padding: 16px;
+            }
+
+            .navigation-buttons {
+                flex-direction: column;
+            }
+
+            .nav-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 12px 6px;
+            }
+
+            .answers-container {
+                padding: 12px;
+            }
+
+            .page-header h1 {
+                font-size: 1.1rem;
+            }
+
+            .palette-item {
+                width: 32px;
+                height: 32px;
+                font-size: 0.75rem;
+            }
+            
+            .palette-title {
+                text-align: center;
+            }
+
+            .question-card {
+                padding: 14px;
+            }
+
+            .question-label {
+                font-size: 0.9rem;
+            }
+
+            .question-content {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <a href="index.html" class="site-name" style="text-decoration: none; color: inherit;">
+      <img src="assets/images/mylogo.png" alt="Nilachal Eduhub logo" class="site-logo">
+      <div class="site-name-text">Nilachal <span>Eduhub</span></div>
+    </a>
+    
+    <nav class="nav-links nav-buttons">
+      <a href="index.html" class="nav-btn">Home</a>
+      <a href="login-register.html" class="nav-btn" id="login-btn">Login / Register</a>
+    </nav>
+
+    <div class="search-login">
+      <input type="text" class="search-box" placeholder="Search">
+    </div>
+  </header>
+
+    <div class="answers-container">
+        <div class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 id="test-title">Answer Analysis</h1>
+                    <p style="color: var(--text-secondary); margin: 4px 0 0 0;" id="test-subtitle">Review your answers question by question</p>
+                </div>
+                <a href="result.html" id="back-to-result" class="back-btn" style="display: none;">
+                    ← Back to Results
+                </a>
+            </div>
+
+            <div id="loading" class="loading">
+                Loading answers...
+            </div>
+
+            <div id="error" class="error-message" style="display: none;">
+                Error loading answers. Please try again.
+            </div>
+
+            <div id="questions-container" style="display: none;"></div>
+
+            <div class="navigation-buttons" id="navigation" style="display: none;">
+                <button id="prev-btn" class="nav-btn secondary">← Previous</button>
+                <button id="next-btn" class="nav-btn">Next →</button>
+            </div>
+        </div>
+
+        <div class="question-palette" id="palette-container" style="display: none;">
+            <div class="palette-title">Questions</div>
+            <div class="palette-grid" id="palette-grid"></div>
+        </div>
+    </div>
+
+    <script src="assets/js/view-answers.js"></script>
+    <script src="assets/js/search.js"></script>
+    <script>
+        // Check if user is already logged in and hide login button
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginBtn = document.getElementById('login-btn');
+            const user = localStorage.getItem('user');
+            
+            if (user && loginBtn) {
+                loginBtn.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
+

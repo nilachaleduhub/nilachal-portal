@@ -18,7 +18,7 @@
         }
         h1 { color: #0f172a; margin-bottom: 6px; font-weight: 800; letter-spacing: .2px; }
         .subtle { color:#64748b; margin: 0 0 18px 0; }
-        .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; margin-top: 18px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 16px; margin-top: 18px; }
         .kpi-card { background: linear-gradient(180deg,#f8fafc,#eef2f7); border:1px solid #e2e8f0; border-radius: 12px; padding: 18px; box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
         .kpi-title { font-size: 0.92rem; color:#334155; margin:0 0 6px 0; font-weight:700; }
         .kpi-value { font-size: 1.6rem; font-weight: 800; color:#0f172a; }
@@ -181,6 +181,10 @@
                     <div class="kpi-value" id="total-correct">--</div>
                 </div>
                 <div class="kpi-card">
+                    <div class="kpi-title">Total Wrong</div>
+                    <div class="kpi-value" id="total-wrong">--</div>
+                </div>
+                <div class="kpi-card">
                     <div class="kpi-title">Total Score</div>
                     <div class="kpi-value" id="total-score">--</div>
                 </div>
@@ -230,11 +234,7 @@
 
         <div class="actions">
             <a href="index.html" class="btn btn-outline">Back to Home</a>
-        </div>
-
-        <div id="answers-section" style="margin-top:40px; text-align:left;">
-            <h2 style="color:#134e8b;">Answer Explanations</h2>
-            <div id="answers-list"></div>
+            <a href="#" id="view-answers-btn" class="btn">View Answers</a>
         </div>
 
 
@@ -269,22 +269,6 @@
         .section-table { border-collapse: collapse !important; }
         .section-table th, .section-table td { border: 1px solid #e2e8f0 !important; }
     }
-    #answers-list > div { margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; }
-    #answers-list .question-title {
-        font-weight: 600;
-        color: #134e8b;
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    #answers-list .question-title .q-number {
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-    #answers-list .question-title .q-text-content {
-        flex: 1;
-    }
-    #answers-list .explanation { margin-top:6px; }
     </style>
 
     <script>
@@ -443,6 +427,7 @@
         document.getElementById('total-marks').textContent = `out of ${displayTotal}`;
         document.getElementById('total-attempted').textContent = (displayCorrect + displayIncorrect);
         document.getElementById('total-correct').textContent = displayCorrect;
+        document.getElementById('total-wrong').textContent = displayIncorrect;
         document.getElementById('total-score').textContent = displayScore;
         document.getElementById('time-taken').textContent = displayTime;
         // animate radial score circle fill percentage
@@ -451,15 +436,24 @@
             document.getElementById('score-circle').style.setProperty('--pct', pct + '%');
         } catch (e) {}
 
-        // POST result to server (if not already posted)
-        try {
-            const postRes = await fetch('/api/results', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(result)
-            });
-            // ignore response, just proceed
-        } catch (e) { /* ignore */ }
+        // POST result to server (if not already posted) and store resultId
+        let savedResultId = resultId || (result && result._id);
+        if (!savedResultId) {
+            try {
+                const postRes = await fetch('/api/results', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(result)
+                });
+                const postData = await postRes.json();
+                if (postData.success && postData.result && postData.result._id) {
+                    savedResultId = postData.result._id;
+                    result._id = savedResultId; // Store for View Answers button
+                }
+            } catch (e) { 
+                console.warn('Error posting result:', e);
+            }
+        }
 
         // Fetch all results for this test to compute rank/percentile
         let rank = '--', percentile = '--', totalParticipants = 0;
@@ -675,133 +669,48 @@
             }
         } catch (e) { /* ignore */ }
 
-        // Render answer explanations
-        try {
-            let testData = test; // Use server-loaded test if available
-            let answerData = answers; // Use server-loaded answers if available
+        // Setup View Answers button
+        const viewAnswersBtn = document.getElementById('view-answers-btn');
+        if (viewAnswersBtn) {
+            // Store savedResultId in a variable accessible to the click handler
+            let finalResultId = savedResultId || resultId || (result && result._id);
+            let finalTestId = testId || (result && result.testId);
             
-            // Fallback to localStorage if server data not available
-            if (!testData) {
-                const localTestData = localStorage.getItem('previewTest');
-                if (localTestData) testData = JSON.parse(localTestData);
-            }
-            if (!answerData) {
-                const localAnswerData = localStorage.getItem('mockTestAnswers');
-                if (localAnswerData) {
-                    answerData = JSON.parse(localAnswerData);
-                    if (answerData.answers) answerData = { answers: answerData.answers };
-                }
-            }
-            
-            if (testData && answerData && testData.questions) {
-                const testQuestions = testData.questions;
-                const userAnswers = answerData.answers || [];
-                const answersList = document.getElementById('answers-list');
-                answersList.innerHTML = '';
-                for (let i = 0; i < testQuestions.length; i++) {
-                    const q = testQuestions[i];
-                    const userAns = userAnswers[i];
-                    // Robust correct answer detection
-                    let correctAns = undefined;
-                    if (q.answer !== undefined && q.answer !== null) correctAns = q.answer;
-                    else if (q.correct !== undefined && q.correct !== null) correctAns = q.correct;
-                    else if (q.correctAnswer !== undefined && q.correctAnswer !== null) correctAns = q.correctAnswer;
-                    const explanation = q.explanation || 'No explanation provided.';
-
-                    // Render rich question HTML if present, otherwise escape text.
-                    // Some backends may store the question HTML-encoded once or multiple times
-                    // (e.g. &amp;lt;div&gt;...), so we progressively decode a few times, then detect tags.
-                    const rawQuestion = typeof q.question === 'string' ? q.question : '';
-                    let decodedQuestion = rawQuestion;
-                    for (let j = 0; j < 3; j++) {
-                        const next = decodedQuestion
-                            .replace(/&lt;/g, '<')
-                            .replace(/&gt;/g, '>')
-                            .replace(/&amp;/g, '&');
-                        if (next === decodedQuestion) break;
-                        decodedQuestion = next;
-                    }
-                    const hasQuestionHtmlTags = /<\/?[a-z][\s\S]*>/i.test(decodedQuestion.trim());
-                    const displayQuestion = hasQuestionHtmlTags
-                        ? decodedQuestion
-                        : String(decodedQuestion || '')
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/\n/g, '<br>');
-                    // Escape HTML for options
-                    const escapedUserOption = userAns !== undefined && userAns !== null && q.options && q.options[userAns] 
-                        ? String(q.options[userAns] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                        : '';
-                    const escapedCorrectOption = correctAns !== undefined && q.options && q.options[correctAns]
-                        ? String(q.options[correctAns] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                        : '';
-
-                    // Render rich explanation HTML if present, otherwise escape text.
-                    // Similar to questions, explanations may be stored HTML-encoded one or more times.
-                    const rawExplanation = typeof explanation === 'string' ? explanation : '';
-                    let decodedExplanation = rawExplanation || 'No explanation provided.';
-                    for (let j = 0; j < 3; j++) {
-                        const next = decodedExplanation
-                            .replace(/&lt;/g, '<')
-                            .replace(/&gt;/g, '>')
-                            .replace(/&amp;/g, '&');
-                        if (next === decodedExplanation) break;
-                        decodedExplanation = next;
-                    }
-                    const hasExplanationHtmlTags = /<\/?[a-z][\s\S]*>/i.test(decodedExplanation.trim());
-                    const explanationHTML = hasExplanationHtmlTags
-                        ? decodedExplanation
-                        : String(decodedExplanation || '')
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/\n/g, '<br>');
-                    // Build image HTML if available
-                    let imageHTML = '';
-                    if (q.imageData && q.imageData.trim() !== '') {
-                        imageHTML = `<img src="${q.imageData}" alt="Question image" style="max-width: 100%; height: auto; margin: 12px 0; border-radius: 8px; border: 1px solid #e2e8f0;" />`;
-                    }
-                    
-                    // Build explanation image HTML if available
-                    let explanationImageHTML = '';
-                    if (q.explanationImage && q.explanationImage.trim() !== '') {
-                        // Apply custom dimensions if provided (convert cm to pixels: 1cm ≈ 37.8px at 96 DPI)
-                        const cmToPx = 37.7952755906;
-                        let explanationImageStyle = 'margin: 8px 0; border-radius: 8px; border: 1px solid #e2e8f0; display: block;';
-                        
-                        if (q.explanationImageWidth && typeof q.explanationImageWidth === 'number' && q.explanationImageWidth > 0) {
-                            const widthPx = q.explanationImageWidth * cmToPx;
-                            explanationImageStyle += `width: ${widthPx}px; max-width: ${widthPx}px; min-width: 0;`;
-                        } else {
-                            explanationImageStyle += 'max-width: 100%; width: auto;';
+            viewAnswersBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Get resultId or create navigation URL
+                let navUrl = 'view-answers.html?';
+                if (finalResultId) {
+                    navUrl += `resultId=${finalResultId}`;
+                } else if (finalTestId) {
+                    navUrl += `testId=${finalTestId}`;
+                } else {
+                    // Fallback: try to get from localStorage
+                    const localResult = localStorage.getItem('testResult');
+                    if (localResult) {
+                        try {
+                            const parsedResult = JSON.parse(localResult);
+                            if (parsedResult._id) {
+                                navUrl += `resultId=${parsedResult._id}`;
+                            } else if (parsedResult.testId) {
+                                navUrl += `testId=${parsedResult.testId}`;
+                            } else {
+                                alert('Unable to load answers. Please try again.');
+                                return;
+                            }
+                        } catch (err) {
+                            console.error('Error parsing result from localStorage:', err);
+                            alert('Unable to load answers. Please try again.');
+                            return;
                         }
-                        
-                        if (q.explanationImageHeight && typeof q.explanationImageHeight === 'number' && q.explanationImageHeight > 0) {
-                            const heightPx = q.explanationImageHeight * cmToPx;
-                            explanationImageStyle += `height: ${heightPx}px; max-height: ${heightPx}px; min-height: 0; object-fit: contain;`;
-                        } else {
-                            explanationImageStyle += 'height: auto; max-height: none;';
-                        }
-                        
-                        explanationImageHTML = `<img src="${q.explanationImage}" alt="Explanation image" style="${explanationImageStyle}" />`;
+                    } else {
+                        alert('Unable to load answers. Please try again.');
+                        return;
                     }
-                    
-                    const qDiv = document.createElement('div');
-                    qDiv.innerHTML = `
-                        <div class="question-title">
-                            <span class="q-number">Q${i+1}.</span>
-                            <span class="q-text-content">${displayQuestion}</span>
-                        </div>
-                        ${imageHTML}
-                        <div style="margin:6px 0 2px 0;"><b>Your Answer:</b> ${userAns !== undefined && userAns !== null ? String.fromCharCode(65 + userAns) + '. ' + escapedUserOption : "<span style=\"color:#64748b\">Not Attempted</span>"}</div>
-                        <div><b>Correct Answer:</b> ${correctAns !== undefined && q.options && q.options[correctAns] !== undefined ? String.fromCharCode(65 + correctAns) + '. ' + escapedCorrectOption : '?'}</div>
-                        <div class="explanation"><b>Explanation:</b> <span style="color:#0b1320;">${explanationHTML}</span>${explanationImageHTML}</div>
-                    `;
-                    answersList.appendChild(qDiv);
                 }
-            }
-        } catch (e) { console.error('Error rendering answers:', e); }
+                window.location.href = navUrl;
+            });
+        }
 
     });
     </script>
