@@ -48,7 +48,55 @@
     .status-dot.answered { background: #22c55e; }
     .status-dot.marked { background: #9333ea; }
     
-    @media (max-width: 768px) {
+    /* Tablet Responsive (768px - 1024px) */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .container {
+        margin: 28px auto;
+        padding: 20px;
+      }
+      .card {
+        padding: 28px;
+      }
+      .card h1 {
+        font-size: 1.6rem;
+      }
+      .meta {
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .meta .item {
+        font-size: 0.9rem;
+        padding: 8px 14px;
+      }
+      .start-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+      }
+      .btn {
+        width: auto;
+        padding: 12px 24px;
+        flex: 1;
+      }
+      .secondary {
+        text-align: center;
+        width: auto;
+      }
+      .question-status-guide {
+        padding: 16px;
+      }
+      .status-item {
+        margin: 10px 0;
+        font-size: 0.95rem;
+      }
+      .status-dot {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 767px) {
       .container {
         margin: 24px auto;
         padding: 16px;

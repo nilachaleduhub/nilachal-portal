@@ -514,8 +514,253 @@
       box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     }
 
-    /* Responsive Design */
-    @media (max-width: 768px) {
+    /* Attempt Selection Modal */
+    .attempt-modal-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .attempt-modal-bg.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .attempt-modal-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      padding: 40px;
+      min-width: 500px;
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.9);
+      transition: all 0.3s ease;
+    }
+
+    .attempt-modal-bg.show .attempt-modal-card {
+      transform: scale(1);
+    }
+
+    .attempt-modal-card h3 {
+      color: #2d3748;
+      margin-bottom: 25px;
+      font-weight: 700;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    #attempt-modal-test-name {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #2d3748;
+    }
+
+    .attempt-list {
+      margin-bottom: 16px;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .attempt-item {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .attempt-item:hover {
+      background: #f1f5f9;
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+
+    .attempt-item.selected {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-color: #667eea;
+      color: white;
+    }
+
+    .attempt-info {
+      flex: 1;
+    }
+
+    .attempt-number {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+
+    .attempt-details {
+      display: flex;
+      gap: 20px;
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-top: 8px;
+    }
+
+    .attempt-item.selected .attempt-details {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .attempt-score {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #38a169;
+      text-align: right;
+    }
+
+    .attempt-item.selected .attempt-score {
+      color: white;
+    }
+
+    .attempt-badge {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .attempt-item.selected .attempt-badge {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .attempt-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      position: sticky;
+      bottom: 0;
+      padding-top: 10px;
+      background: white;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .btn-view-attempt {
+      background: linear-gradient(135deg, #38a169, #2f855a);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex: 1;
+      box-shadow: 0 4px 15px rgba(56, 161, 105, 0.3);
+    }
+
+    .btn-view-attempt:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(56, 161, 105, 0.4);
+    }
+
+    .btn-view-attempt:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .no-attempts {
+      text-align: center;
+      padding: 40px 20px;
+      color: #718096;
+    }
+
+    .no-attempts i {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      color: #cbd5e0;
+    }
+
+    /* Tablet Responsive Design (768px - 1024px) */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .header-content {
+        flex-direction: row;
+        gap: 24px;
+        align-items: center;
+      }
+
+      .welcome-section h1 {
+        font-size: 2.2rem;
+      }
+
+      .welcome-section p {
+        font-size: 1.05rem;
+      }
+
+      .user-info-card {
+        min-width: 220px;
+      }
+
+      .header-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+      }
+
+      .btn-primary, .btn-danger {
+        justify-content: center;
+        font-size: 0.9rem;
+        padding: 10px 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+      }
+
+      .test-series-card {
+        padding: 35px 25px;
+      }
+
+      .test-series-content h3 {
+        font-size: 1.6rem;
+      }
+
+      .results-section {
+        padding: 30px;
+      }
+
+      .section-title {
+        font-size: 1.75rem;
+      }
+
+      .results-table { 
+        font-size: 0.95rem;
+      }
+
+      .results-table th,
+      .results-table td {
+        padding: 16px 12px;
+      }
+    }
+
+    /* Mobile Responsive Design */
+    @media (max-width: 767px) {
       .header-content {
         flex-direction: column;
         gap: 20px;
@@ -579,6 +824,30 @@
       .profile-modal-card {
         min-width: 300px;
         padding: 30px 20px;
+      }
+
+      .attempt-modal-card {
+        min-width: 300px;
+        padding: 30px 20px;
+      }
+
+      .attempt-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .attempt-score {
+        text-align: left;
+        width: 100%;
+      }
+
+      .attempt-actions {
+        flex-direction: column;
+      }
+
+      .attempt-actions button {
+        width: 100%;
       }
     }
   </style>
@@ -732,6 +1001,30 @@
         <i class="fas fa-times"></i>
         Close
       </button>
+    </div>
+  </div>
+
+  <!-- Attempt Selection Modal -->
+  <div id="attempt-modal" class="attempt-modal-bg">
+    <div class="attempt-modal-card">
+      <h3><i class="fas fa-list-ol"></i> Select Attempt to View</h3>
+      <div id="attempt-modal-test-name" style="text-align: center; color: #64748b; margin-bottom: 25px; font-size: 1.1rem;"></div>
+      <div id="attempt-list" class="attempt-list"></div>
+      <div id="no-attempts" class="no-attempts" style="display: none;">
+        <i class="fas fa-inbox"></i>
+        <h3>No Attempts Found</h3>
+        <p>No attempts found for this test.</p>
+      </div>
+      <div class="attempt-actions">
+        <button class="btn-view-attempt" id="view-selected-attempt" disabled>
+          <i class="fas fa-chart-line"></i>
+          View Selected Attempt
+        </button>
+        <button class="close-modal-btn" id="close-attempt-modal" style="flex: 0; width: auto; padding: 12px 24px;">
+          <i class="fas fa-times"></i>
+          Cancel
+        </button>
+      </div>
     </div>
   </div>
 

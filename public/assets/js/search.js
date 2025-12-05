@@ -13,9 +13,9 @@ let allSearchData = {
 document.addEventListener('DOMContentLoaded', async () => {
   const searchBoxes = document.querySelectorAll('.search-box');
   
-  // Mobile search icon click handler - toggle search box visibility
+  // Mobile and tablet search icon click handler - toggle search box visibility
   function setupMobileSearch() {
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 1024) {
       const searchLoginContainers = document.querySelectorAll('.search-login');
       searchLoginContainers.forEach(container => {
         const searchBox = container.querySelector('.search-box');
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // Close search box when clicking outside
           const closeHandler = function(e) {
-            if (window.innerWidth <= 768) {
+            if (window.innerWidth <= 1024) {
               const isClickInside = container.contains(e.target) || 
                                    searchBox.contains(e.target) ||
                                    (document.querySelector('.search-results-container') && 
@@ -128,8 +128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('click', (e) => {
       if (!searchBox.contains(e.target) && !searchContainer.contains(e.target)) {
         hideSearchResults(searchContainer);
-        // On mobile, also hide the search box if it's visible
-        if (window.innerWidth <= 768 && searchBox.classList.contains('mobile-visible')) {
+        // On mobile/tablet, also hide the search box if it's visible
+        if (window.innerWidth <= 1024 && searchBox.classList.contains('mobile-visible')) {
           searchBox.classList.remove('mobile-visible');
         }
       }
@@ -227,8 +227,8 @@ function createSearchResultsContainer(searchBox) {
   const container = document.createElement('div');
   container.className = 'search-results-container';
   
-  // Check if mobile
-  const isMobile = window.innerWidth <= 768;
+  // Check if mobile or tablet
+  const isMobile = window.innerWidth <= 1024;
   
   // Get navbar element to calculate proper positioning
   const navbar = document.querySelector('.navbar');
@@ -286,7 +286,7 @@ function createSearchResultsContainer(searchBox) {
   window.addEventListener('resize', function() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(function() {
-      const isMobileNow = window.innerWidth <= 768;
+      const isMobileNow = window.innerWidth <= 1024;
       const navbarNow = document.querySelector('.navbar');
       const navbarHeightNow = navbarNow ? navbarNow.offsetHeight : 70;
       
@@ -587,6 +587,20 @@ function addSearchResultStyles() {
       color: #00bfff;
       transform: translateX(4px);
     }
+    @media (max-width: 1024px) {
+      .search-results-container {
+        max-height: 400px;
+      }
+      .search-result-item {
+        padding: 12px 14px;
+      }
+      .search-result-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.05rem;
+      }
+    }
+    
     @media (max-width: 768px) {
       .search-results-container {
         max-height: 300px;

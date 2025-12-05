@@ -398,7 +398,118 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
+/* Tablet Responsive (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .containernew {
+    margin: 2rem auto;
+    padding: 0 1.5rem 2rem;
+  }
+
+  .buy-hero {
+    padding: 2.5rem 2rem;
+    text-align: center;
+  }
+
+  .buy-hero h1 {
+    font-size: 2.2rem;
+  }
+
+  .buy-tagline {
+    font-size: 1.1rem;
+    max-width: 90%;
+  }
+
+  .buy-actions {
+    gap: 0.75rem;
+    justify-content: center;
+  }
+
+  .buy-action-btn {
+    width: auto;
+    max-width: 350px;
+    padding: 0.85rem 1.75rem;
+  }
+
+  .buy-section {
+    padding: 2rem 1.5rem;
+    margin: 2rem 0;
+  }
+
+  .section-header h2 {
+    font-size: 1.8rem;
+  }
+
+  .buy-subsection {
+    padding: 1.5rem 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .buy-subsection h3 {
+    font-size: 1.25rem;
+  }
+
+  .exam-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .card {
+    padding: 1.4rem 1.2rem;
+  }
+
+  .card h3 {
+    font-size: 1.3rem;
+  }
+
+  .card p {
+    font-size: 0.95rem;
+  }
+
+  .detail-card {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .detail-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .detail-meta {
+    gap: 0.75rem;
+  }
+
+  .detail-description {
+    font-size: 1rem;
+  }
+
+  .detail-section h2 {
+    font-size: 1.5rem;
+  }
+
+  .detail-courses-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .detail-buy-btn {
+    width: auto;
+    padding: 0.85rem 1.75rem;
+  }
+
+  .login-notice {
+    padding: 1.25rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .login-notice .login-link {
+    width: auto;
+    text-align: center;
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 767px) {
   .containernew {
     margin: 1.5rem auto;
     padding: 0 1rem 2rem;

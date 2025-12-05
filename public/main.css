@@ -719,8 +719,116 @@ a.site-name .site-name-text span {
   font-size: 0.9rem;
 }
 
-/* Responsive */
-@media screen and (max-width: 768px) {
+/* Tablet Responsive (768px - 1024px) */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  .navbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.5rem;
+  }
+
+  .site-name {
+    font-size: 1.5rem;
+    width: auto;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .site-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0, 191, 255, 0.25);
+  }
+
+  .nav-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .nav-buttons a {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .search-login {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+  }
+
+  .search-box {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: calc(100vw - 3rem);
+    max-width: 350px;
+    margin-top: 0.5rem;
+    z-index: 1001;
+    left: auto;
+    padding: 0.6rem;
+    font-size: 0.95rem;
+  }
+
+  .search-box.mobile-visible {
+    display: block;
+  }
+
+  /* Show magnifying glass icon for tablets */
+  .search-login {
+    position: relative;
+    overflow: visible;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* Ensure search results stay within viewport on tablet */
+  .search-results-container {
+    position: fixed !important;
+    top: 70px !important; /* Below navbar */
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    max-height: calc(100vh - 70px) !important;
+    z-index: 1001 !important;
+  }
+
+  .search-login::before {
+    content: '\f002';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 1.3rem;
+    color: #ffffff;
+    cursor: pointer;
+    display: block;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 5;
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    text-align: center;
+  }
+
+  .hero h1 {
+    font-size: 2.5rem;
+  }
+}
+
+/* Mobile Responsive */
+@media screen and (max-width: 767px) {
   .navbar {
     flex-direction: row;
     align-items: center;
@@ -800,16 +908,17 @@ a.site-name .site-name-text span {
     font-size: 1.2rem;
     color: #ffffff;
     cursor: pointer;
-    padding: 0.4rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     position: absolute;
     top: 50%;
     right: 0;
     transform: translateY(-50%);
     pointer-events: none; /* Let clicks pass through to overlay */
     z-index: 5;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
   }
 
   .hero h1 {

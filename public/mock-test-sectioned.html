@@ -60,6 +60,15 @@
       box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
     }
     .question-block { margin-bottom: 32px; }
+    .question-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 20px auto;
+      max-width: 100%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
     .question-text {
       font-size: 1.1rem;
       margin-bottom: 18px;
@@ -107,7 +116,50 @@
       display: inline-block;
     }
     
-    @media (max-width: 900px) { 
+    /* Tablet Responsive (768px - 1024px) */
+    @media (min-width: 768px) and (max-width: 1024px) { 
+      .test-container { 
+        flex-direction: row; 
+        margin: 24px auto;
+        min-height: 600px;
+      } 
+      .sidebar { 
+        width: 180px; 
+        border-left: 1px solid #e2e8f0; 
+        border-top: none; 
+        flex-direction: column; 
+        overflow-y: auto; 
+        overflow-x: visible;
+        order: 2;
+        padding: 20px 12px;
+        max-height: none;
+      } 
+      .main { 
+        padding: 28px 32px; 
+        order: 1; 
+      }
+      .color-legend {
+        display: block;
+        padding: 12px;
+      }
+      .color-legend h3 {
+        width: auto;
+        margin: 0 0 10px 0 !important;
+        font-size: 0.9rem;
+      }
+      .legend-item {
+        margin: 8px 0;
+        white-space: normal;
+        font-size: 0.85rem;
+      }
+      .question-card {
+        padding: 20px;
+        margin: 16px auto;
+      }
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 767px) { 
       .test-container { flex-direction: column; } 
       .sidebar { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; flex-direction: row; overflow-x: auto; order: 2; } 
       .main { padding: 24px 8px; order: 1; }
@@ -124,6 +176,11 @@
       .legend-item {
         margin: 0;
         white-space: nowrap;
+      }
+      .question-card {
+        padding: 16px;
+        margin: 12px auto;
+        border-radius: 10px;
       }
     }
   </style>

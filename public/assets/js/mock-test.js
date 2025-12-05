@@ -24,6 +24,22 @@ async function loadTest() {
       throw new Error('No test ID provided');
     }
 
+    // Clear any previous progress for this test to ensure fresh start
+    // This ensures that every new attempt starts with blank answers
+    try {
+      const storedProgress = localStorage.getItem('testProgress');
+      if (storedProgress) {
+        const progress = JSON.parse(storedProgress);
+        // Clear if it matches this test ID (user is starting a new attempt)
+        if (progress && progress.testId === testId) {
+          localStorage.removeItem('testProgress');
+        }
+      }
+    } catch (err) {
+      // If testProgress doesn't exist or is invalid, that's fine - just continue
+      // We'll ensure fresh state by initializing arrays below
+    }
+
     const response = await fetch(`/api/tests/${testId}`);
     if (!response.ok) {
       throw new Error('Failed to load test');
@@ -245,6 +261,10 @@ function renderQuestion() {
   // Clear and rebuild question display
   block.innerHTML = '';
   
+  // Create question card wrapper
+  const questionCard = document.createElement('div');
+  questionCard.className = 'question-card';
+  
   // Question text (render rich text from admin)
   const qText = document.createElement('div');
   qText.className = 'question-text';
@@ -261,7 +281,7 @@ function renderQuestion() {
     <span class="q-number"><b>Q${(currentQuestion + 1)}.</b></span>
     <span class="q-text-content">${displayQuestion}</span>
   `;
-  block.appendChild(qText);
+  questionCard.appendChild(qText);
   
   // Question image (if available)
   // Check for imageData in multiple possible formats
@@ -303,7 +323,7 @@ function renderQuestion() {
       console.error('Failed to load question image:', imageData);
       this.style.display = 'none';
     };
-    block.appendChild(qImage);
+    questionCard.appendChild(qImage);
   }
   
   // Question table (if available)
@@ -353,7 +373,7 @@ function renderQuestion() {
         });
       }, 50);
     }
-    block.appendChild(qTable);
+    questionCard.appendChild(qTable);
   }
   
   // Options list
@@ -385,7 +405,10 @@ function renderQuestion() {
     });
   }
   
-  block.appendChild(options);
+  questionCard.appendChild(options);
+  
+  // Append question card to block
+  block.appendChild(questionCard);
   
   // Update navigation buttons for section-wise tests
   if (sections.length > 0) {
@@ -706,19 +729,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load and start the test
     await loadTest();
 
-    // Try to restore previous progress
-    try {
-        const progress = JSON.parse(localStorage.getItem('testProgress'));
-        if (progress && progress.testId === (test._id || test.id)) {
-            answers = progress.answers;
-            savedAnswers = progress.savedAnswers;
-            marked = progress.marked;
-            currentQuestion = progress.currentQuestion;
-            timeLeft = progress.timeLeft;
-            renderSidebar();
-            renderQuestion();
-        }
-    } catch (err) {
-        console.warn('Could not restore progress', err);
-    }
+    // Note: Previous progress restoration has been removed to ensure fresh start on each attempt
+    // The test now always starts with blank answers, even if the user previously attempted it
 });

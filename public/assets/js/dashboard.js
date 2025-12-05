@@ -34,6 +34,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Test series section
   const testSeriesSection = document.getElementById('test-series-section');
+  
+  // Attempt selection modal
+  const attemptModal = document.getElementById('attempt-modal');
+  const attemptList = document.getElementById('attempt-list');
+  const noAttemptsDiv = document.getElementById('no-attempts');
+  const attemptModalTestName = document.getElementById('attempt-modal-test-name');
+  const viewSelectedAttemptBtn = document.getElementById('view-selected-attempt');
+  const closeAttemptModalBtn = document.getElementById('close-attempt-modal');
+  
+  // Store all results for attempt selection
+  let allUserResults = [];
 
   // Validate session on page load (graceful - doesn't block if validation fails)
   async function validateSession() {
@@ -948,10 +959,128 @@ document.addEventListener('DOMContentLoaded', async () => {
       }).catch(err => { console.warn('Sync to server failed', err); });
     }
   } catch (e) { console.warn('No local test result to sync', e); }
+  // Function to show attempt selection modal
+  function showAttemptModal(testId, testName) {
+    // Filter all results for this test
+    const testAttempts = allUserResults
+      .filter(r => r.testId === testId)
+      .sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0)); // Sort by date (oldest first)
+    
+    attemptModalTestName.textContent = testName || 'Test';
+    attemptList.innerHTML = '';
+    noAttemptsDiv.style.display = 'none';
+    
+    if (testAttempts.length === 0) {
+      noAttemptsDiv.style.display = 'block';
+      viewSelectedAttemptBtn.disabled = true;
+    } else {
+      // Store selected attempt ID
+      let selectedResultId = null;
+      
+      testAttempts.forEach((attempt, index) => {
+        const attemptItem = document.createElement('div');
+        attemptItem.className = 'attempt-item';
+        attemptItem.dataset.resultId = attempt._id || '';
+        attemptItem.dataset.testId = testId || '';
+        
+        const attemptDate = attempt.submittedAt ? new Date(attempt.submittedAt) : null;
+        const dateStr = attemptDate ? attemptDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'Unknown date';
+        
+        const score = attempt.score !== undefined ? attempt.score : 0;
+        const totalMarks = attempt.totalMarks !== undefined ? attempt.totalMarks : 0;
+        
+        attemptItem.innerHTML = `
+          <div class="attempt-info">
+            <div class="attempt-number">
+              Attempt ${index + 1}
+              ${index === 0 ? '<span class="attempt-badge">First</span>' : ''}
+            </div>
+            <div class="attempt-details">
+              <span><i class="fas fa-calendar"></i> ${dateStr}</span>
+            </div>
+          </div>
+          <div class="attempt-score">
+            ${score}/${totalMarks}
+          </div>
+        `;
+        
+        attemptItem.addEventListener('click', () => {
+          // Remove selected class from all items
+          document.querySelectorAll('.attempt-item').forEach(item => {
+            item.classList.remove('selected');
+          });
+          // Add selected class to clicked item
+          attemptItem.classList.add('selected');
+          selectedResultId = attempt._id || '';
+          viewSelectedAttemptBtn.disabled = false;
+        });
+        
+        attemptList.appendChild(attemptItem);
+      });
+      
+      // Auto-select first attempt
+      if (testAttempts.length > 0) {
+        const firstItem = attemptList.querySelector('.attempt-item');
+        if (firstItem) {
+          firstItem.click();
+        }
+      }
+    }
+    
+    attemptModal.classList.add('show');
+  }
+  
+  // Helper function to format time
+  function formatTime(seconds) {
+    if (!seconds) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  }
+  
+  // Close attempt modal
+  if (closeAttemptModalBtn) {
+    closeAttemptModalBtn.addEventListener('click', () => {
+      attemptModal.classList.remove('show');
+    });
+  }
+  
+  // Close modal when clicking outside
+  if (attemptModal) {
+    attemptModal.addEventListener('click', (e) => {
+      if (e.target === attemptModal) {
+        attemptModal.classList.remove('show');
+      }
+    });
+  }
+  
+  // View selected attempt
+  if (viewSelectedAttemptBtn) {
+    viewSelectedAttemptBtn.addEventListener('click', () => {
+      const selectedItem = attemptList.querySelector('.attempt-item.selected');
+      if (selectedItem) {
+        const resultId = selectedItem.dataset.resultId;
+        const testId = selectedItem.dataset.testId;
+        if (resultId) {
+          window.location.href = `result.html?testId=${encodeURIComponent(testId || '')}&resultId=${encodeURIComponent(resultId)}`;
+        }
+      }
+    });
+  }
+
   try {
     const res = await fetch(`/api/results?userId=${encodeURIComponent(user.id)}`);
     const data = await res.json();
     if (data.success && Array.isArray(data.results) && data.results.length > 0) {
+      // Store all results for attempt selection
+      allUserResults = data.results;
+      
       // Show test series section
       testSeriesSection.style.display = 'block';
       
@@ -960,20 +1089,53 @@ document.addEventListener('DOMContentLoaded', async () => {
       noResultsDiv.style.display = 'none';
       resultsTbody.innerHTML = '';
       
-      // Sort results by date (newest first)
-      const sortedResults = data.results.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+      // Group results by testId and keep only the first attempt (oldest by submittedAt)
+      const resultsByTest = new Map();
+      
+      data.results.forEach(r => {
+        const testId = r.testId || '';
+        if (!testId) return; // Skip results without testId
+        
+        // If we haven't seen this test yet, or this attempt is older (first attempt)
+        if (!resultsByTest.has(testId)) {
+          resultsByTest.set(testId, r);
+        } else {
+          const existingResult = resultsByTest.get(testId);
+          const existingDate = new Date(existingResult.submittedAt || 0);
+          const currentDate = new Date(r.submittedAt || 0);
+          
+          // Keep the older attempt (first attempt)
+          if (currentDate < existingDate) {
+            resultsByTest.set(testId, r);
+          }
+        }
+      });
+      
+      // Convert map to array and sort by date (newest first for display)
+      const firstAttemptsOnly = Array.from(resultsByTest.values());
+      const sortedResults = firstAttemptsOnly.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
       
       sortedResults.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${r.testName || r.testId || ''}</td>
           <td>
-            <a href="result.html?testId=${r.testId || ''}&resultId=${r._id || ''}" class="analysis-btn">
+            <button class="analysis-btn" data-test-id="${r.testId || ''}" data-test-name="${r.testName || r.testId || ''}" style="border: none; cursor: pointer;">
               <i class="fas fa-chart-line"></i>
               Test Analysis
-            </a>
+            </button>
           </td>
         `;
+        
+        // Add click handler to open attempt selection modal
+        const analysisBtn = tr.querySelector('.analysis-btn');
+        analysisBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const testId = analysisBtn.dataset.testId;
+          const testName = analysisBtn.dataset.testName;
+          showAttemptModal(testId, testName);
+        });
+        
         resultsTbody.appendChild(tr);
       });
     } else {
