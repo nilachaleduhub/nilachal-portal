@@ -42,9 +42,56 @@ async function loadResultData() {
             
             return { test, userAnswers, result };
         } 
-        // If only testId is provided, try to get result from localStorage
+        // If only testId is provided, try multiple sources
         else if (testId) {
-            // Try to load test from server
+            // First, try to find resultId from server (if user is logged in)
+            let foundResultId = null;
+            try {
+                const userRaw = localStorage.getItem('user');
+                if (userRaw) {
+                    const user = JSON.parse(userRaw);
+                    const userId = user.id || user._id;
+                    if (userId) {
+                        // Try to fetch the most recent result for this test and user
+                        const resultsRes = await fetch(`/api/results?userId=${userId}`);
+                        const resultsData = await resultsRes.json();
+                        if (resultsData.success && Array.isArray(resultsData.results)) {
+                            // Find the most recent result for this test
+                            const matchingResult = resultsData.results.find(r => 
+                                (r.testId === testId || r.testId === test?._id || r.testId === test?.id)
+                            );
+                            if (matchingResult && matchingResult._id) {
+                                foundResultId = matchingResult._id;
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not fetch result from server, using localStorage:', err);
+            }
+            
+            // If we found a resultId, load from server (same as resultId path above)
+            if (foundResultId) {
+                const resultRes = await fetch(`/api/result/${foundResultId}`);
+                const resultData = await resultRes.json();
+                
+                if (resultData.success && resultData.result) {
+                    result = resultData.result;
+                    
+                    // Load test data from server
+                    const testRes = await fetch(`/api/tests/${result.testId}`);
+                    const testData = await testRes.json();
+                    
+                    if (testData.success && testData.test) {
+                        test = testData.test;
+                        userAnswers = result.userAnswers || [];
+                        
+                        return { test, userAnswers, result };
+                    }
+                }
+            }
+            
+            // Fallback: Load test from server and answers from localStorage
             const testRes = await fetch(`/api/tests/${testId}`);
             const testData = await testRes.json();
             
@@ -56,11 +103,33 @@ async function loadResultData() {
             
             // Try to get answers from localStorage
             const answerData = localStorage.getItem('mockTestAnswers');
+            const resultData = localStorage.getItem('testResult');
+            
             if (answerData) {
                 const parsed = JSON.parse(answerData);
+                // Use answers array, but respect savedAnswers if available
+                userAnswers = parsed.answers || [];
+                
+                // If savedAnswers exists, only consider those as attempted
+                // This matches the logic used in submitTest()
+                if (parsed.savedAnswers && Array.isArray(parsed.savedAnswers)) {
+                    // Filter userAnswers to only include saved answers
+                    const filteredAnswers = [];
+                    for (let i = 0; i < userAnswers.length; i++) {
+                        if (parsed.savedAnswers[i]) {
+                            filteredAnswers[i] = userAnswers[i];
+                        } else {
+                            filteredAnswers[i] = undefined; // Mark as unattempted
+                        }
+                    }
+                    userAnswers = filteredAnswers;
+                }
+            } else if (resultData) {
+                // Fallback: try to get from testResult
+                const parsed = JSON.parse(resultData);
                 userAnswers = parsed.answers || [];
             } else {
-                throw new Error('Answer data not found');
+                throw new Error('Answer data not found in localStorage. Please try accessing from dashboard.');
             }
             
             return { test, userAnswers, result: null };

@@ -568,33 +568,53 @@ function submitTest() {
   }
   
   // Try to send result to server if user is logged in
-  try {
-    const userRaw = localStorage.getItem('user');
-    if (userRaw) {
-      const user = JSON.parse(userRaw);
-      // POST result to server (don't block navigation)
-      fetch('/api/results', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          testId: test._id || test.id || '',
-          testName: test.name || test.testName || '',
-          userId: user.id || user._id || '',
-          userName: user.name || '',
-          name: user.email || '',
-          score,
-          totalMarks: test.questions.length * positiveMark,
-          correct,
-          incorrect,
-          unattempted: test.questions.length - attempted,
-          timeTaken: formatTime((parseInt(test.timeLimit || 30) * 60) - timeLeft),
-          userAnswers: answers // Include user's answers for analysis
-        })
-      }).catch(err => console.warn('Could not sync result to server', err));
+  // Wait for POST to complete and store resultId before redirecting
+  const submitToServer = async () => {
+    try {
+      const userRaw = localStorage.getItem('user');
+      if (userRaw) {
+        const user = JSON.parse(userRaw);
+        const response = await fetch('/api/results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            testId: test._id || test.id || '',
+            testName: test.name || test.testName || '',
+            userId: user.id || user._id || '',
+            userName: user.name || '',
+            name: user.email || '',
+            score,
+            totalMarks: test.questions.length * positiveMark,
+            correct,
+            incorrect,
+            unattempted: test.questions.length - attempted,
+            timeTaken: formatTime((parseInt(test.timeLimit || 30) * 60) - timeLeft),
+            userAnswers: answers // Include user's answers for analysis
+          })
+        });
+        
+        const data = await response.json();
+        if (data.success && data.result && data.result._id) {
+          // Store resultId in localStorage and testResult for immediate use
+          const storedResult = JSON.parse(localStorage.getItem('testResult') || '{}');
+          storedResult._id = data.result._id;
+          localStorage.setItem('testResult', JSON.stringify(storedResult));
+          
+          // Redirect with resultId in URL
+          window.location.href = `result.html?testId=${test._id || test.id || ''}&resultId=${data.result._id}`;
+          return;
+        }
+      }
+    } catch (e) { 
+      console.warn('Could not sync result to server', e);
     }
-  } catch (e) { console.warn('No user to sync result with'); }
-
-  window.location.href = `result.html?testId=${test._id || test.id || ''}`;
+    
+    // If POST failed or user not logged in, redirect without resultId
+    window.location.href = `result.html?testId=${test._id || test.id || ''}`;
+  };
+  
+  // Call async function (don't await to avoid blocking UI, but it will complete before result.html loads)
+  submitToServer();
 }
 
 // Format time in MM:SS format

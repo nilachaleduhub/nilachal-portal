@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1086,19 +1086,47 @@
         let savedResultId = resultId || (result && result._id);
         if (!savedResultId) {
             try {
-                const postRes = await fetch('/api/results', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(result)
-                });
-                const postData = await postRes.json();
-                if (postData.success && postData.result && postData.result._id) {
-                    savedResultId = postData.result._id;
-                    result._id = savedResultId; // Store for View Answers button
+                // Check if user is logged in before posting
+                const userRaw = localStorage.getItem('user');
+                if (userRaw) {
+                    const user = JSON.parse(userRaw);
+                    const postRes = await fetch('/api/results', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            testId: result.testId || testId || '',
+                            testName: test?.name || test?.testName || '',
+                            userId: user.id || user._id || '',
+                            userName: user.name || '',
+                            name: user.email || '',
+                            score: result.score || 0,
+                            totalMarks: result.totalMarks || 0,
+                            correct: result.correct || 0,
+                            incorrect: result.incorrect || 0,
+                            unattempted: result.unattempted || 0,
+                            timeTaken: result.timeTaken || '0:00',
+                            userAnswers: result.answers || answers?.answers || []
+                        })
+                    });
+                    const postData = await postRes.json();
+                    if (postData.success && postData.result && postData.result._id) {
+                        savedResultId = postData.result._id;
+                        result._id = savedResultId; // Store for View Answers button
+                        // Update localStorage with resultId
+                        const storedResult = JSON.parse(localStorage.getItem('testResult') || '{}');
+                        storedResult._id = savedResultId;
+                        localStorage.setItem('testResult', JSON.stringify(storedResult));
+                    }
                 }
             } catch (e) { 
                 console.warn('Error posting result:', e);
             }
+        } else {
+            // If resultId exists, update localStorage
+            result._id = savedResultId;
+            const storedResult = JSON.parse(localStorage.getItem('testResult') || '{}');
+            storedResult._id = savedResultId;
+            localStorage.setItem('testResult', JSON.stringify(storedResult));
         }
 
         // Fetch all results for this test to compute rank/percentile
@@ -1318,42 +1346,70 @@
         // Setup View Answers button
         const viewAnswersBtn = document.getElementById('view-answers-btn');
         if (viewAnswersBtn) {
-            // Store savedResultId in a variable accessible to the click handler
-            let finalResultId = savedResultId || resultId || (result && result._id);
-            let finalTestId = testId || (result && result.testId);
-            
-            viewAnswersBtn.addEventListener('click', (e) => {
+            viewAnswersBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                // Get resultId or create navigation URL
+                
+                // Try to get resultId from multiple sources (prioritize server data)
+                let finalResultId = savedResultId || resultId || (result && result._id);
+                let finalTestId = testId || (result && result.testId);
+                
+                // If no resultId yet, check localStorage
+                if (!finalResultId) {
+                    try {
+                        const localResult = localStorage.getItem('testResult');
+                        if (localResult) {
+                            const parsedResult = JSON.parse(localResult);
+                            finalResultId = parsedResult._id;
+                            if (!finalTestId) {
+                                finalTestId = parsedResult.testId;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Error reading result from localStorage:', err);
+                    }
+                }
+                
+                // If still no resultId but we have testId and user is logged in, try to find result
+                if (!finalResultId && finalTestId) {
+                    try {
+                        const userRaw = localStorage.getItem('user');
+                        if (userRaw) {
+                            const user = JSON.parse(userRaw);
+                            const userId = user.id || user._id;
+                            if (userId) {
+                                // Try to fetch the most recent result for this test and user
+                                const resultsRes = await fetch(`/api/results?userId=${userId}`);
+                                const resultsData = await resultsRes.json();
+                                if (resultsData.success && Array.isArray(resultsData.results)) {
+                                    // Find the most recent result for this test
+                                    const matchingResult = resultsData.results.find(r => 
+                                        (r.testId === finalTestId || r.testId === test?._id || r.testId === test?.id)
+                                    );
+                                    if (matchingResult && matchingResult._id) {
+                                        finalResultId = matchingResult._id;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Error fetching result from server:', err);
+                    }
+                }
+                
+                // Build navigation URL - prioritize resultId
                 let navUrl = 'view-answers.html?';
                 if (finalResultId) {
                     navUrl += `resultId=${finalResultId}`;
+                    if (finalTestId) {
+                        navUrl += `&testId=${finalTestId}`;
+                    }
                 } else if (finalTestId) {
                     navUrl += `testId=${finalTestId}`;
                 } else {
-                    // Fallback: try to get from localStorage
-                    const localResult = localStorage.getItem('testResult');
-                    if (localResult) {
-                        try {
-                            const parsedResult = JSON.parse(localResult);
-                            if (parsedResult._id) {
-                                navUrl += `resultId=${parsedResult._id}`;
-                            } else if (parsedResult.testId) {
-                                navUrl += `testId=${parsedResult.testId}`;
-                            } else {
-                                alert('Unable to load answers. Please try again.');
-                                return;
-                            }
-                        } catch (err) {
-                            console.error('Error parsing result from localStorage:', err);
-                            alert('Unable to load answers. Please try again.');
-                            return;
-                        }
-                    } else {
-                        alert('Unable to load answers. Please try again.');
-                        return;
-                    }
+                    alert('Unable to load answers. Please try again later.');
+                    return;
                 }
+                
                 window.location.href = navUrl;
             });
         }
